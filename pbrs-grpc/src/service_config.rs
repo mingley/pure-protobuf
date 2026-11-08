@@ -1712,12 +1712,11 @@ mod tests {
         use crate::status::parse_pushback_value;
         assert_eq!(
             parse_pushback_value("250"),
-            Some(Pushback::Delay(Duration::from_millis(250)))
+            Pushback::Delay(Duration::from_millis(250))
         );
-        assert_eq!(parse_pushback_value("-1"), Some(Pushback::DoNotRetry));
-        assert_eq!(parse_pushback_value("bogus"), None);
-        assert_eq!(parse_pushback_value("-2"), None);
-        assert_eq!(parse_pushback_value(""), None);
+        for raw in ["-1", "bogus", "-2", "", "2147483648"] {
+            assert_eq!(parse_pushback_value(raw), Pushback::DoNotRetry, "{raw:?}");
+        }
     }
 
     #[test]

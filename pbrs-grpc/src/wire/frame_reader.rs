@@ -9,7 +9,7 @@ use crate::codec::{self, CodecMessage, Frame};
 use crate::compression::{CompressionAlgorithm, DECODE_LOOKAHEAD_BYTES};
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
-use crate::status::{Code, Status, parse_pushback_value};
+use crate::status::{Code, Pushback, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
 use crate::transport::{Error as TransportError, RecvStream, h2 as backend};
 use crate::workspace::RetainedDecodeLease;
@@ -36,8 +36,8 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
     }
     // Single pass over the status block. OK responses carry exactly one
     // trailer, so this replaces four hashed lookups with one short scan.
-    // First values win, matching `HeaderMap::get`; an unreadable or
-    // unparseable first `grpc-status` fails the pick, as before.
+    // The first status and message win, matching `HeaderMap::get`.
+    // Ambiguous pushback values conservatively disable further attempts.
     let pick = |map: &HeaderMap| {
         let mut code = None;
         let mut message = None;
@@ -53,9 +53,13 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
                     message = value.to_str().ok().map(percent_decode);
                 }
             } else if name == GRPC_RETRY_PUSHBACK_MS {
-                if pushback.is_none() {
-                    pushback = value.to_str().ok().and_then(parse_pushback_value);
-                }
+                pushback = Some(if pushback.is_some() {
+                    Pushback::DoNotRetry
+                } else {
+                    value
+                        .to_str()
+                        .map_or(Pushback::DoNotRetry, parse_pushback_value)
+                });
             } else if name == GRPC_STATUS_DETAILS_BIN && details.is_none() {
                 details = value.to_str().ok().and_then(metadata::decode_base64);
             }
@@ -1115,6 +1119,72 @@ mod tests {
         );
         buf.extend_from_slice(payload);
         buf
+    }
+
+    #[test]
+    fn pushback_values_are_parsed_from_headers_and_trailers() {
+        use http::HeaderValue;
+        use std::time::Duration;
+
+        let cases: &[(&[u8], Pushback)] = &[
+            (b"-1", Pushback::DoNotRetry),
+            (b"-2", Pushback::DoNotRetry),
+            (b"-2147483648", Pushback::DoNotRetry),
+            (b"-2147483649", Pushback::DoNotRetry),
+            (b"garbage", Pushback::DoNotRetry),
+            (b"", Pushback::DoNotRetry),
+            (b"\xff", Pushback::DoNotRetry),
+            (b"2147483648", Pushback::DoNotRetry),
+            (b"0", Pushback::Delay(Duration::ZERO)),
+            (b"-0", Pushback::Delay(Duration::ZERO)),
+            (b"0001", Pushback::Delay(Duration::from_millis(1))),
+            (b"+1", Pushback::Delay(Duration::from_millis(1))),
+            (
+                b"2147483647",
+                Pushback::Delay(Duration::from_millis(2_147_483_647)),
+            ),
+        ];
+        for &(raw, expected) in cases {
+            let mut block = HeaderMap::new();
+            block.insert(GRPC_STATUS, HeaderValue::from_static("14"));
+            block.insert(
+                GRPC_RETRY_PUSHBACK_MS,
+                HeaderValue::from_bytes(raw).expect("valid HTTP header bytes"),
+            );
+            for trailers in [false, true] {
+                let empty = HeaderMap::new();
+                let status = if trailers {
+                    status_from(&empty, Some(&block))
+                } else {
+                    status_from(&block, None)
+                };
+                assert_eq!(status.code(), Code::Unavailable);
+                assert_eq!(
+                    status.retry_pushback(),
+                    Some(expected),
+                    "raw={raw:?}, trailers={trailers}"
+                );
+            }
+        }
+
+        let mut block = HeaderMap::new();
+        block.insert(GRPC_STATUS, HeaderValue::from_static("14"));
+        for (first, second) in [("0", "1"), ("-2", "0"), ("0", "-2")] {
+            drop(block.remove(GRPC_RETRY_PUSHBACK_MS));
+            block.append(GRPC_RETRY_PUSHBACK_MS, HeaderValue::from_str(first).expect("value"));
+            block.append(GRPC_RETRY_PUSHBACK_MS, HeaderValue::from_str(second).expect("value"));
+            assert_eq!(
+                status_from(&block, None).retry_pushback(),
+                Some(Pushback::DoNotRetry),
+                "duplicate values {first:?} and {second:?}"
+            );
+            assert_eq!(
+                status_from(&HeaderMap::new(), Some(&block)).retry_pushback(),
+                Some(Pushback::DoNotRetry),
+            );
+        }
+        drop(block.remove(GRPC_RETRY_PUSHBACK_MS));
+        assert_eq!(status_from(&block, None).retry_pushback(), None);
     }
 
     #[test]

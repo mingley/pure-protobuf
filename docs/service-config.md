@@ -259,17 +259,19 @@ positive, finite) is a token bucket shared by every method on the channel
 
 ## 9. Server pushback
 
-The server may steer retries with the `grpc-retry-pushback-ms` trailer:
+The server may steer retries with `grpc-retry-pushback-ms` in a valid
+parsed gRPC status block:
 
-| Trailer value | Meaning |
+| Field value | Meaning |
 |---|---|
-| `-1` | `DoNotRetry`: no further attempt is sent; the call fails with its last outcome and records `pushback_refusals`. Checked before the retryable-code set and before throttling. |
-| non-negative integer `ms` | `Delay(ms)`: the next retry waits this long *instead of* the computed jittered backoff, and records `pushback_delays`. Still consumes an attempt and still requires a retryable outcome (or per-attempt timeout) with attempts remaining. |
-| malformed | Ignored (not an error, no pushback applied). |
+| Negative integer, unparseable or non-ASCII value, value outside the signed 32-bit range, or repeated field values in that block | `DoNotRetry`: no further attempt is sent. The sequential retry path can record `pushback_refusals`; already-sent hedges may continue. |
+| Non-negative signed 32-bit integer `ms` | With `retryPolicy`, the next retry waits this long instead of the computed jittered backoff and a dispatched retry records `pushback_delays`. The hedging executor currently ignores this delay. |
 
-Pushback travels on the `Status` itself, never in user metadata (`grpc-*`
-keys are kernel-owned). Cancellation and overall-deadline expiry interrupt
-a pushback sleep exactly like a backoff sleep.
+The integer parser accepts a leading plus sign and redundant leading zeros;
+the latter differs from the pinned A6 wire syntax. Pushback travels on the
+`Status` itself, never in user metadata (`grpc-*` keys are kernel-owned).
+For `retryPolicy`, cancellation and overall-deadline expiry interrupt a
+pushback sleep like a backoff sleep.
 
 ## 10. Observability
 
@@ -494,8 +496,9 @@ Same harness; outage scripts fail (near-)unanimously.
     `OK`; counter == 2; elapsed ≥ 200 ms (and ≫ the 10 ms-class computed
     backoff); `pushback_delays == 1`. Cancel during the pushback sleep →
     `CANCELLED`, counter == 1.
-39. Malformed pushback (`"soon"`, `"-2"`, `""`) → ignored: retry proceeds
-    on the computed backoff as if no trailer were present.
+39. In a status block with a parseable `grpc-status`, negative, unparseable,
+    non-ASCII, out-of-range, or repeated pushback values stop further policy
+    retries.
 40. Throttle drain: `retryThrottling: {maxTokens: 4, tokenRatio: 0.5}`,
     drive failures until balance ≤ half → next retryable failure does not
     retry (`throttled == 1`, counter increment of 1 for that call);

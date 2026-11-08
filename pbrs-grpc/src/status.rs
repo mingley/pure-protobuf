@@ -213,18 +213,13 @@ pub enum Pushback {
     DoNotRetry,
 }
 
-/// Parse one `grpc-retry-pushback-ms` trailer value.
+/// Parse one `grpc-retry-pushback-ms` value as an A6 signed 32-bit delay.
 ///
-/// `-1` is [`Pushback::DoNotRetry`]; any other non-negative integer is
-/// [`Pushback::Delay`]. Malformed values are ignored, not errors.
-pub(crate) fn parse_pushback_value(raw: &str) -> Option<Pushback> {
-    match raw.parse::<i64>() {
-        Ok(-1) => Some(Pushback::DoNotRetry),
-        Ok(ms) if ms >= 0 => {
-            let ms = u64::try_from(ms).unwrap_or(u64::MAX);
-            Some(Pushback::Delay(Duration::from_millis(ms)))
-        }
-        _ => None,
+/// Negative, malformed, and out-of-range values ask the client not to retry.
+pub(crate) fn parse_pushback_value(raw: &str) -> Pushback {
+    match raw.parse::<i32>().ok().and_then(|ms| u64::try_from(ms).ok()) {
+        Some(ms) => Pushback::Delay(Duration::from_millis(ms)),
+        None => Pushback::DoNotRetry,
     }
 }
 

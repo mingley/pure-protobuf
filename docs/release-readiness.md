@@ -80,17 +80,20 @@ gates in the checklist remain in effect.
 ## Retry and binary-log claims
 
 Opt-in native unary hedging does not yet enforce A6 commitment when ordinary
-response headers arrive: another attempt can continue or win. Client binary
-logs can include uncommitted retry or hedge attempts, omit an early rejection
-trailer, or report a peer `CANCELLED` status as a client cancellation. See
-[service-config observability and commitment](service-config.md) and the
+response headers arrive: another attempt can continue or win. It also ignores
+non-negative pushback delays and may leave a scheduled hedge waiting after a
+non-fatal response while another attempt is in flight. The pushback parser
+accepts redundant leading zeros, unlike the pinned A6 wire syntax. Client binary
+logs can include uncommitted retry or hedge attempts, omit an early rejection trailer, or
+report a peer `CANCELLED` status as a client cancellation. See [service-config](service-config.md) and the
 [A6/A16 coverage notes](grfc.md).
 
-Do not claim full A6 hedge-commitment or A16 binary-log conformance until the
-implementation is fixed and final-source tests cover competing hedges,
-committed versus discarded attempts, early rejections, and cancellation. These
-are qualification requirements for those claims; the profile-specific release
-gates above still apply.
+Do not claim full A6 hedging or pushback conformance, or A16 binary-log
+conformance, until the implementation is fixed and final-source tests cover
+header commitment, hedge scheduling and pushback, committed versus discarded
+attempts, early rejections, and cancellation. These are qualification
+requirements for those claims; the profile-specific release gates above still
+apply.
 
 ## Performance claims
 

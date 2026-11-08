@@ -2201,12 +2201,7 @@ impl super::Channel {
                                 }
                                 Ok(ClosedUpload::TransportFailed { status, permit }) => {
                                     Err(closed_upload_transport_failure(
-                                        resp_fut,
-                                        &mut send,
-                                        &cancel_rx,
-                                        deadline,
-                                        status,
-                                        permit,
+                                        resp_fut, &mut send, &cancel_rx, deadline, status, permit,
                                     ))
                                 }
                                 Err(status) => Err(status),
@@ -2552,12 +2547,7 @@ impl super::Channel {
                             }
                             Ok(ClosedUpload::TransportFailed { status, permit }) => {
                                 Err(closed_upload_transport_failure(
-                                    resp_fut,
-                                    &mut send,
-                                    &cancel_rx,
-                                    deadline,
-                                    status,
-                                    permit,
+                                    resp_fut, &mut send, &cancel_rx, deadline, status, permit,
                                 ))
                             }
                             Err(status) => Err(status),

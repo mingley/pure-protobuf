@@ -343,7 +343,7 @@ jobs:
           cargo test --locked -p pbrs --no-default-features --test alloc_cell
       - run: cargo test --locked -p pbrs-grpc --lib
       - run: cargo test --locked -p pbrs-grpc --test early_upload_response
-      - run: cargo test --locked -p pbrs-grpc --test closed_upload_precedence
+      - run: cargo test --locked -p pbrs-grpc --test closed_upload_precedence --test pushback_wire
       - run: cargo test --locked -p pbrs-grpc --test retry_safety --test retry_deadline_boundary
       - run: cargo test --locked -p pbrs-grpc --lib queued_resets_do_not_spawn_dispatch_or_exhaust_rpc_slots
 

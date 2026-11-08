@@ -48,24 +48,35 @@ method entry, then apply the configured policy:
 - `retryPolicy` retries a failed attempt while attempts remain, the status code
   is in `retryableStatusCodes`, throttling allows it, and no `DoNotRetry`
   pushback arrived. Backoff is jittered exponential. A `Delay` pushback
-  overrides the backoff.
+  overrides the backoff. In a valid parsed gRPC status block, negative,
+  unparseable, non-ASCII, out-of-range, or repeated pushback values stop
+  further retries. The parser also accepts redundant leading zeros, which
+  differ from the pinned A6 wire syntax.
 - `perAttemptRecvTimeout` bounds each attempt. When it expires, the attempt
   retries on its own, without consulting the retryable status set.
-- `hedgingPolicy` sends delayed duplicate attempts. The first `OK` commits.
-  The first fatal status commits. Non-fatal statuses keep waiting, and an
-  exhausted race fails with the last non-fatal error.
+- `hedgingPolicy` sends duplicate unary attempts. The first completed `OK`
+  or fatal status wins, and an exhausted race fails with the last non-fatal
+  error. Ordinary response headers do not yet commit the hedge race: another
+  attempt can continue or win afterward. When attempts remain and throttling
+  permits, a non-fatal response advances the next send immediately only when
+  no other attempt is outstanding; otherwise the existing hedge timer stays in
+  place. Non-negative pushback delays are ignored by this path; a parsed
+  `DoNotRetry` pushback stops further hedge sends.
 - `retryThrottling` debits every failed unary call and credits every success.
   Retries and hedged sends past the first need more than half the bucket.
-- Transparent retry still runs first. It is at most once, pre-commit only, and
-  never consumes a policy attempt.
+- In the sequential path, transparent retry runs first, is at most once,
+  requires proof of non-execution before response commitment, and does not
+  consume a policy attempt. Hedged attempts do not reliably preserve response
+  commitment when deciding a transparent redial; that path may redial after
+  response headers.
 
 Policy retry replays the already encoded request frame. It does not
 re-serialize the request, and it does not exceed the method's caps.
 
 Server-streaming policy retry replays from already buffered request bytes with
-the same unary decision helper. A stream commits when the first response
-message arrives, or when success completes, so mid-stream failures never retry.
-Streaming tests cover both accept shapes:
+the same unary decision helper. Ordinary initial response headers commit the
+attempt before any response message; valid non-OK gRPC trailers-only failures
+can remain eligible for policy retry. Streaming tests cover both accept shapes:
 
 - trailers-only failures take the retry path;
 - stream-created-then-cancelled matches the explicit

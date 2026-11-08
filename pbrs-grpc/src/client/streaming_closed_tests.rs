@@ -30,7 +30,7 @@ async fn closed_upload_preserves_reset_reason_and_budget() {
                     let mut connection = h2::server::handshake(peer_io)
                         .await
                         .expect("server handshake");
-                    let (_, mut respond) = connection
+                    let (_request, mut respond) = connection
                         .accept()
                         .await
                         .expect("request")
@@ -72,12 +72,7 @@ async fn closed_upload_preserves_reset_reason_and_budget() {
                     Vec::new()
                 };
                 let outcome = write_closed_upload::<HelloRequest>(
-                    &mut send,
-                    items,
-                    wire,
-                    &budget,
-                    &None,
-                    None,
+                    &mut send, items, wire, &budget, &None, None,
                 );
                 if reason == h2::Reason::NO_ERROR {
                     assert!(matches!(outcome, Ok(ClosedUpload::PeerFinished)));

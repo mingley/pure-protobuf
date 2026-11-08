@@ -18,7 +18,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 | Client retries | partial | Transparent retry, unary policy retry/hedging, pushback, and pre-commit server-streaming policy retry ship. Client-streaming/bidi require call-site retries; streaming throttling accounting is approximate. See the [retry contract](retry-contract.md) and `tests/policy_retry.rs`. |
+| A6 | Client retries | partial | Transparent retry, unary policy retry/hedging, pushback, and pre-commit server-streaming policy retry are available. The pushback parser accepts redundant leading zeros. Client-streaming/bidi require call-site retries; streaming throttling accounting is approximate. See the [retry contract](retry-contract.md) and `tests/policy_retry.rs`. |
 | A8 | Client-side keepalive | shipped | `keep_alive_interval` / `keep_alive_timeout`, idle PINGs. |
 | A9 | Server-side connection management | shipped | `max_connection_age`/`idle`, GOAWAY drain, `serve_with_shutdown`. |
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
@@ -61,7 +61,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Ordinary response headers do not yet stop competing attempts, so a different hedge can win after header commitment. Streaming hedging is not supported. |
+| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Ordinary response headers do not stop competing attempts, non-negative pushback delays are ignored, and non-fatal responses do not advance a scheduled hedge while another attempt is in flight. Streaming hedging is not supported. |
 | A44 | xDS retry | planned | With the xDS client (route-level retry policy). |
 | A45 | Retry stats | planned | Per-call retry attempt counters. |
 | A96 | Retry OTel stats | planned | With OTel metrics. |

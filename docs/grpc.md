@@ -391,12 +391,12 @@ See the [code generation guide](guides/codegen.md) and [migration guide](guides/
 
 `pbrs-grpc` keeps retry behavior explicit and bounded.
 
-- **Transparent retry**: Transparent retry is at most once. It happens only when a connection drops before request headers or body transmission commits.
-- **Service-config retries**: attach an A6 document with `Channel::service_config` for `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. Unary and server-streaming calls use the policy before response commitment. Unary calls also accept bounded `hedgingPolicy`, but an opt-in hedge can continue or win after another attempt receives ordinary response headers. The hedging path does not yet enforce A6 header commitment.
+- **Transparent retry**: The sequential path retries at most once and requires proof that the server did not process the request. Hedged attempts do not reliably retain response commitment when deciding a transparent redial.
+- **Service-config retries**: attach an A6 document with `Channel::service_config` for `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. Unary and server-streaming calls use the policy before response commitment. Unary calls also accept bounded `hedgingPolicy`, but an opt-in hedge can continue or win after another attempt receives ordinary response headers. Hedging also ignores non-negative pushback delays and may leave a scheduled hedge waiting after a non-fatal response while another attempt is in flight.
 - **No policy fallback**: without a policy, application retries stay at the call site and should be evaluated with `Code::is_retryable`.
 - **In-process bypass**: in-process connections (`from_io`) have no transparent retry.
 
-For full state transitions and commitment boundaries, read the
+For state transitions and commitment boundaries, read the
 [retry contract](retry-contract.md).
 
 <a id="what-is-not-here"></a>

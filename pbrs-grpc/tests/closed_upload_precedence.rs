@@ -1,7 +1,6 @@
 //! A closed request producer must not hide an already-received peer rejection.
 
 #![allow(
-    clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::expect_used,
     clippy::indexing_slicing,
@@ -49,13 +48,16 @@ impl EncodeGate {
     fn block_once(&self) {
         let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
         if let Some(entered) = state.entered.take() {
-            let _ = entered.send(());
+            let _entered_result = entered.send(());
             let (next, timeout) = self
                 .changed
                 .wait_timeout_while(state, Duration::from_secs(30), |state| !state.released)
                 .unwrap_or_else(|error| error.into_inner());
             state = next;
-            assert!(!timeout.timed_out() || state.released, "encode gate timed out");
+            assert!(
+                !timeout.timed_out() || state.released,
+                "encode gate timed out"
+            );
         }
     }
 
@@ -99,9 +101,14 @@ impl CodecMessage for GateMessage {
     }
 
     fn empty() -> Self {
-        let (entered, _) = oneshot::channel();
         Self {
-            gate: Arc::new(EncodeGate::new(entered)),
+            gate: Arc::new(EncodeGate {
+                state: Mutex::new(GateState {
+                    entered: None,
+                    released: true,
+                }),
+                changed: Condvar::new(),
+            }),
             fail_encode: false,
         }
     }
@@ -131,12 +138,12 @@ impl PeerWriteWitness {
             let stream = u32::from_be_bytes(self.pending[5..9].try_into().unwrap()) & 0x7fff_ffff;
             if stream == 1 && self.pending[3] == 1 && self.pending[4] & 4 != 0 {
                 if let Some(headers) = self.headers.take() {
-                    let _ = headers.send(());
+                    let _headers_result = headers.send(());
                 }
             }
             if stream == 1 && self.pending[3] == 3 {
                 if let Some(reset) = self.reset.take() {
-                    let _ = reset.send(());
+                    let _reset_result = reset.send(());
                 }
             }
             if self.headers.is_none() && self.reset.is_none() {
@@ -231,7 +238,11 @@ async fn exercise_closed_upload(bidi: bool, case: Case) {
     let peer_io = PeerWriteWitness {
         io: peer_io,
         pending: Vec::new(),
-        headers: if case.no_headers() { None } else { Some(headers_tx) },
+        headers: if case.no_headers() {
+            None
+        } else {
+            Some(headers_tx)
+        },
         reset: Some(reset_tx),
     };
 
@@ -255,10 +266,8 @@ async fn exercise_closed_upload(bidi: bool, case: Case) {
                     .header("content-type", "application/grpc")
                     .header("x-terminal", "peer");
                 if case.grpc_response() || case.initial_ok() {
-                    response = response.header(
-                        "grpc-status",
-                        if case.initial_ok() { "0" } else { "8" },
-                    );
+                    response =
+                        response.header("grpc-status", if case.initial_ok() { "0" } else { "8" });
                 }
                 let mut send = respond
                     .send_response(response.body(()).unwrap(), case.grpc_response())
@@ -304,7 +313,9 @@ async fn exercise_closed_upload(bidi: bool, case: Case) {
         client_io,
         "localhost",
         // The framed request is five bytes, so 1024 forces try_send_data.
-        ChannelConfig::new().stream_buffer(4).max_send_buffer_size(1024),
+        ChannelConfig::new()
+            .stream_buffer(4)
+            .max_send_buffer_size(1024),
     )
     .await
     .expect("channel");
@@ -318,15 +329,22 @@ async fn exercise_closed_upload(bidi: bool, case: Case) {
         request.set_timeout(Duration::from_secs(2));
     }
     let (sender, handle, call): (StreamSender<GateMessage>, _, TestCall) = if bidi {
-        let (sender, call) =
-            channel.bidi::<GateMessage, HelloReply>("/test.Service/Bidi", request);
+        let (sender, call) = channel.bidi::<GateMessage, HelloReply>("/test.Service/Bidi", request);
         let handle = call.handle();
-        (sender, handle, Box::pin(async move { call.await.map(|_| ()) }))
+        (
+            sender,
+            handle,
+            Box::pin(async move { call.await.map(|_| ()) }),
+        )
     } else {
         let (sender, call) =
             channel.client_streaming::<GateMessage, HelloReply>("/test.Service/Upload", request);
         let handle = call.handle();
-        (sender, handle, Box::pin(async move { call.await.map(|_| ()) }))
+        (
+            sender,
+            handle,
+            Box::pin(async move { call.await.map(|_| ()) }),
+        )
     };
     tokio::time::timeout(
         WAIT,
@@ -339,9 +357,12 @@ async fn exercise_closed_upload(bidi: bool, case: Case) {
     .expect("producer send timed out")
     .expect("producer send");
     if matches!(case, Case::LocalProducer) {
-        tokio::time::timeout(WAIT, sender.fail(Status::invalid_argument("local producer")))
-            .await
-            .expect("producer failure timed out");
+        tokio::time::timeout(
+            WAIT,
+            sender.fail(Status::invalid_argument("local producer")),
+        )
+        .await
+        .expect("producer failure timed out");
     } else {
         drop(sender);
     }
