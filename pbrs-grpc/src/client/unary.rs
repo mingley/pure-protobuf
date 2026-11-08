@@ -1,9 +1,10 @@
 //! Unary call shape.
 
 use super::call::{
-    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, open,
-    peer_rejection_from_head, poll_now, prefer_deadline, prefer_peer_rejection_with_commitment,
-    reject_attempt, reset_send_on_cancel, response_commits, send_request_frame,
+    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, is_direct_cancellation,
+    open, peer_rejection_from_head, poll_now, prefer_deadline,
+    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
+    send_request_frame,
 };
 use super::retry::{
     HedgeUnary, PolicyDecision, PolicyRetryDispatch, RequestReplay, policy_retry_delay,
@@ -38,7 +39,7 @@ fn peer_rejection_allowed<T>(result: &Result<T, Status>, inspect_peer: bool) -> 
     inspect_peer
         && matches!(
             result,
-            Err(status) if !matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+            Err(status) if !is_direct_cancellation(status)
         )
 }
 
@@ -237,7 +238,7 @@ where
         if let Some(Ok(head)) = &ready {
             response_committed = cached_commitment.unwrap_or_else(|| response_commits(head));
         }
-        if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
+        if is_direct_cancellation(&status) {
             return Err(UnaryFailure {
                 status,
                 response_committed,
@@ -278,7 +279,9 @@ where
                     Ok(head) => {
                         response_committed =
                             cached_commitment.unwrap_or_else(|| response_commits(&head));
-                        if !upload_reset && inspect_peer {
+                        if inspect_peer
+                            && (!upload_reset || head.status() != http::StatusCode::OK)
+                        {
                             peer_status = peer_rejection_from_head(&head, cached_commitment);
                         }
                     }
@@ -300,11 +303,17 @@ where
             }
         }
         let mut post_reset_error = None;
+        let mut post_reset_status = None;
         let reset = if !observed && result.is_err() {
             // Even a non-timeout local error needs a cutoff before retry.
             send_stream.send_reset(Reason::CANCEL);
             match poll_now(response.as_mut()) {
-                Some(Ok(_)) => response_committed = true,
+                Some(Ok(head)) => {
+                    response_committed = true;
+                    if inspect_peer && head.status() != http::StatusCode::OK {
+                        post_reset_status = peer_rejection_from_head(&head, Some(true));
+                    }
+                }
                 Some(Err(error)) => post_reset_error = Some(error),
                 None => {}
             }
@@ -320,6 +329,12 @@ where
         };
         // Reset can block on the transport lock until after the deadline.
         let mut result = prefer_deadline(result, deadline);
+        if peer_rejection_allowed(&result, inspect_peer) {
+            if let Some(status) = post_reset_status {
+                result = Err(status);
+                result = prefer_deadline(result, deadline);
+            }
+        }
         if let Some(error) = post_reset_error {
             prefer_ready_refusal(&mut result, error, inspect_peer);
             result = prefer_deadline(result, deadline);

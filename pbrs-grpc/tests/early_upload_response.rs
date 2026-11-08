@@ -9,28 +9,57 @@
 
 use bytes::Bytes;
 use pbrs_grpc::{Channel, Code, HelloReply, HelloRequest, Request, Response, Status, Streaming};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 async fn rejected(http_status: u16, grpc_status: Option<&'static str>, streaming: bool) -> Status {
+    rejected_with_body(http_status, grpc_status, streaming, false).await
+}
+
+async fn rejected_with_body(
+    http_status: u16,
+    grpc_status: Option<&'static str>,
+    streaming: bool,
+    open_body: bool,
+) -> Status {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
+    let (settings_tx, settings_rx) = tokio::sync::oneshot::channel();
     let peer = tokio::spawn(async move {
         let mut builder = h2::server::Builder::new();
         builder.initial_window_size(0);
         let (socket, _) = listener.accept().await.unwrap();
         let mut connection = builder.handshake::<_, Bytes>(socket).await.unwrap();
+        let mut ping = connection.ping_pong().expect("PING handle");
+        tokio::select! {
+            result = ping.ping(h2::Ping::opaque()) => {
+                result.expect("SETTINGS acknowledgement");
+            }
+            incoming = connection.accept() => {
+                panic!("request before zero-credit SETTINGS: {incoming:?}");
+            }
+        }
+        settings_tx.send(()).expect("SETTINGS barrier");
         let (request, mut respond) = connection.accept().await.unwrap().unwrap();
+        let content_type = if grpc_status.is_some() {
+            "application/grpc"
+        } else {
+            "text/plain"
+        };
         let mut response = http::Response::builder()
             .status(http_status)
-            .header("content-type", "application/grpc");
+            .header("content-type", content_type)
+            .header("x-terminal", "rejected")
+            .header("x-trace-bin", "AAH/");
         if let Some(status) = grpc_status {
             response = response
                 .header("grpc-status", status)
                 .header("grpc-message", "busy")
-                .header("x-terminal", "rejected");
+                .header("grpc-status-details-bin", "AQID");
         }
         let send = respond
-            .send_response(response.body(()).unwrap(), true)
+            .send_response(response.body(()).unwrap(), !open_body)
             .unwrap();
         // Keep both halves alive without granting credit or resetting. An
         // HTTP/2 rejection does not require the peer to read the request.
@@ -44,10 +73,16 @@ async fn rejected(http_status: u16, grpc_status: Option<&'static str>, streaming
         .await
         .unwrap()
         .max_send_buffer_size(16 * 1024);
+    tokio::time::timeout(Duration::from_secs(3), settings_rx)
+        .await
+        .expect("SETTINGS barrier timed out")
+        .expect("SETTINGS barrier failed");
     let mut message = HelloRequest::new();
     message.set_name("x".repeat(1024 * 1024));
     let mut request = Request::new(message);
-    request.set_timeout(if http_status == 200 && grpc_status == Some("8") {
+    let is_rejection = (http_status == 200 && grpc_status == Some("8"))
+        || (http_status != 200 && grpc_status != Some("0"));
+    request.set_timeout(if is_rejection {
         Duration::from_secs(3)
     } else {
         Duration::from_millis(80)
@@ -91,7 +126,7 @@ async fn invalid_or_success_headers_do_not_complete_an_incomplete_upload() {
             (200, None),
             (200, Some("bad")),
             (200, Some("17")),
-            (503, Some("8")),
+            (503, Some("0")),
         ] {
             assert_eq!(
                 rejected(http_status, grpc_status, streaming).await.code(),
@@ -99,6 +134,168 @@ async fn invalid_or_success_headers_do_not_complete_an_incomplete_upload() {
                 "http={http_status}, grpc={grpc_status:?}, streaming={streaming}"
             );
         }
+    }
+}
+
+#[tokio::test]
+async fn non_200_rejection_does_not_wait_for_upload_credit() {
+    for streaming in [false, true] {
+        for open_body in [false, true] {
+            for (grpc_status, expected) in [
+                (None, Code::Unavailable),
+                (Some("8"), Code::ResourceExhausted),
+                (Some("bad"), Code::Unknown),
+                (Some("17"), Code::Unknown),
+            ] {
+                let status = rejected_with_body(503, grpc_status, streaming, open_body).await;
+                assert_eq!(status.code(), expected);
+                assert_eq!(status.metadata().get("x-terminal"), Some("rejected"));
+                assert_eq!(
+                    status.metadata().get_bin("x-trace-bin"),
+                    Some(vec![0, 1, 255])
+                );
+                if grpc_status == Some("8") {
+                    assert_eq!(status.message(), "busy");
+                    assert_eq!(status.details(), &[1, 2, 3]);
+                }
+            }
+            let status = rejected_with_body(503, Some("0"), streaming, open_body).await;
+            assert_eq!(
+                status.code(),
+                Code::DeadlineExceeded,
+                "initial OK must not complete an unfinished upload"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn early_http_error_does_not_retry_and_connection_recovers() {
+    for streaming in [false, true] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let executions = Arc::new(AtomicUsize::new(0));
+        let seen = executions.clone();
+        let (settings_tx, settings_rx) = tokio::sync::oneshot::channel();
+        let peer = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("connection");
+            let mut builder = h2::server::Builder::new();
+            builder.initial_window_size(0);
+            let mut connection = builder.handshake::<_, Bytes>(socket).await.unwrap();
+            let mut ping = connection.ping_pong().expect("PING handle");
+            tokio::select! {
+                result = ping.ping(h2::Ping::opaque()) => {
+                    result.expect("SETTINGS acknowledgement");
+                }
+                incoming = connection.accept() => {
+                    panic!("request before zero-credit SETTINGS: {incoming:?}");
+                }
+            }
+            settings_tx.send(()).expect("SETTINGS barrier");
+            let (first, mut respond) = connection
+                .accept()
+                .await
+                .expect("first request")
+                .expect("first headers");
+            seen.fetch_add(1, Ordering::SeqCst);
+            let send = respond
+                .send_response(
+                    http::Response::builder()
+                        .status(503)
+                        .header("content-type", "text/plain")
+                        .header("x-terminal", "proxy")
+                        .body(())
+                        .expect("error response"),
+                    false,
+                )
+                .expect("error headers");
+            let first_held = (first, respond, send);
+            let (second, mut respond) = connection
+                .accept()
+                .await
+                .expect("second request")
+                .expect("second headers");
+            seen.fetch_add(1, Ordering::SeqCst);
+            connection
+                .set_initial_window_size(128 * 1024)
+                .expect("grant follow-up credit");
+            let mut send = respond
+                .send_response(
+                    http::Response::builder()
+                        .header("content-type", "application/grpc")
+                        .body(())
+                        .expect("success response"),
+                    false,
+                )
+                .expect("success headers");
+            send.send_data(Bytes::from_static(b"\0\0\0\0\x07\n\x05reply"), false)
+                .expect("response DATA");
+            let mut trailers = http::HeaderMap::new();
+            trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+            send.send_trailers(trailers).expect("response trailers");
+            let second_held = (second, respond);
+            if let Some(Ok(_)) = connection.accept().await {
+                panic!("unexpected third request");
+            }
+            drop((first_held, second_held));
+        });
+        let channel = Channel::connect(address)
+            .await
+            .expect("connect")
+            .max_send_buffer_size(1024)
+            .service_config(
+                r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                    "maxAttempts":2,"initialBackoff":"0s","maxBackoff":"0s",
+                    "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+            )
+            .expect("policy");
+        tokio::time::timeout(Duration::from_secs(3), settings_rx)
+            .await
+            .expect("SETTINGS barrier timed out")
+            .expect("SETTINGS barrier failed");
+        let mut message = HelloRequest::new();
+        message.set_name("x".repeat(32 * 1024));
+        let mut request = Request::new(message);
+        request.set_timeout(Duration::from_secs(5));
+        let status = if streaming {
+            tokio::time::timeout(
+                Duration::from_secs(8),
+                channel.server_streaming::<_, HelloReply>(
+                    "/helloworld.Greeter/ServerHello",
+                    request,
+                ),
+            )
+            .await
+            .expect("early response timed out")
+            .expect_err("committed response cannot be retried")
+        } else {
+            tokio::time::timeout(
+                Duration::from_secs(8),
+                channel.unary::<_, HelloReply>("/helloworld.Greeter/SayHello", request),
+            )
+            .await
+            .expect("early response timed out")
+            .expect_err("committed response cannot be retried")
+        };
+        assert_eq!(status.code(), Code::Unavailable);
+        assert_eq!(status.metadata().get("x-terminal"), Some("proxy"));
+        assert_eq!(executions.load(Ordering::SeqCst), 1);
+        assert_eq!(channel.retry_stats().policy_retries, 0);
+        assert_eq!(channel.retry_stats().transparent_retries, 0);
+
+        let follow_up = tokio::time::timeout(
+            Duration::from_secs(5),
+            channel.unary::<_, HelloReply>(
+                "/helloworld.Greeter/SayHello",
+                Request::new(HelloRequest::new()),
+            ),
+        )
+        .await
+        .expect("follow-up timed out")
+        .expect("connection remains usable");
+        assert_eq!(follow_up.into_inner().message(), "reply");
+        assert_eq!(executions.load(Ordering::SeqCst), 2);
+        peer.abort();
     }
 }
 

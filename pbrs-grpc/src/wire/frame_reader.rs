@@ -796,7 +796,7 @@ pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> R
 /// cannot observe a status delivered only in later HTTP trailers.
 #[cold]
 #[inline(never)]
-fn status_from_http_error(http_status: StatusCode, headers: &HeaderMap) -> Status {
+pub(crate) fn status_from_http_error(http_status: StatusCode, headers: &HeaderMap) -> Status {
     if let Some(value) = headers.get(GRPC_STATUS) {
         let mut status = status_from(headers, None);
         if value

@@ -10,6 +10,7 @@ use crate::timeout::remaining_timeout;
 use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
 };
+use crate::wire::frame_reader::status_from_http_error;
 use crate::wire::{
     ImmediateSend, SegFrame, begin_stock_request, grpc_request, grpc_request_with_scheme,
     send_frame, send_frame_if_ready, status_from,
@@ -79,11 +80,26 @@ pub(crate) fn response_commits(response: &http::Response<backend::RecvStream>) -
             .is_some_and(|code| matches!(code, 1..=16)))
 }
 
-/// Parse a trailers-only rejection, retaining a pre-reset EOS classification.
+/// A local cancellation/deadline cannot be replaced by peer evidence.
+/// Transport-sourced CANCEL may instead have raced a queued response head.
+pub(crate) fn is_direct_cancellation(status: &Status) -> bool {
+    matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+        && !status.is_transport()
+        && !std::error::Error::source(status).is_some_and(|cause| cause.is::<TransportError>())
+}
+
+/// Parse a peer rejection without waiting for an unfinished request upload.
+/// A non-200 response is still committed, even when its status is retryable.
 pub(crate) fn peer_rejection_from_head(
     response: &http::Response<backend::RecvStream>,
     cached_commitment: Option<bool>,
 ) -> Option<Status> {
+    if response.status() != http::StatusCode::OK {
+        let status = status_from_http_error(response.status(), response.headers());
+        // An incomplete upload can never become successful from response
+        // headers alone. Keep waiting or preserve the send error for OK.
+        return (status.code() != Code::Ok).then_some(status);
+    }
     let grpc_code = response
         .headers()
         .get("grpc-status")
@@ -265,6 +281,9 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
                         let rejection = match (&received.head, received.committed) {
                             (Some(Ok(head)), Some(false)) => {
                                 Some(status_from(head.headers(), None))
+                            }
+                            (Some(Ok(head)), _) if head.status() != http::StatusCode::OK => {
+                                peer_rejection_from_head(head, received.committed)
                             }
                             _ => None,
                         };
@@ -1086,7 +1105,10 @@ mod tests {
                 .await
                 .expect("request")
                 .expect("headers");
-            let mut response = http::Response::builder().status(http_status);
+            let mut response = http::Response::builder()
+                .status(http_status)
+                .header("x-terminal", "kept")
+                .header("x-trace-bin", "AAH/");
             if let Some(code) = grpc_status {
                 response = response
                     .header("grpc-status", code)
@@ -1283,13 +1305,113 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn queued_http_rejection_overrides_transport_sourced_upload_error() {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            for (grpc_status, expected) in [
+                (None, Code::Unavailable),
+                (Some("8"), Code::ResourceExhausted),
+                (Some("bad"), Code::Unknown),
+                (Some("17"), Code::Unknown),
+            ] {
+                let (response, send_error) =
+                    response_after_closed_upload(http::StatusCode::SERVICE_UNAVAILABLE, grpc_status)
+                        .await;
+                let mut committed = false;
+                let status = super::prefer_peer_rejection_with_commitment::<()>(
+                    std::future::ready(Ok(response)),
+                    send_error,
+                    &mut committed,
+                    None,
+                )
+                .await
+                .expect_err("peer rejection");
+                assert_eq!(status.code(), expected);
+                assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
+                assert_eq!(status.metadata().get_bin("x-trace-bin"), Some(vec![0, 1, 255]));
+                assert!(committed, "HTTP error headers must remain committed");
+                assert!(!status.is_transport());
+            }
+        })
+        .await
+        .expect("closed upload stalled");
+    }
+
+    #[tokio::test]
+    async fn transport_cancel_can_yield_to_a_queued_http_rejection() {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let peer = tokio::spawn(async move {
+                let (socket, _) = listener.accept().await.expect("accept");
+                let mut connection = backend::ServerBuilder::new()
+                    .handshake(socket)
+                    .await
+                    .expect("handshake");
+                let (_, mut respond) = connection
+                    .accept()
+                    .await
+                    .expect("request")
+                    .expect("headers");
+                respond.send_reset(Reason::CANCEL);
+                while let Some(result) = connection.accept().await {
+                    result.expect("drive reset");
+                }
+            });
+            let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+            let (sender, connection) = backend::ClientBuilder::new()
+                .handshake(socket)
+                .await
+                .expect("handshake");
+            let driver = tokio::spawn(async move { drop(connection.await) });
+            let mut sender = sender.ready().await.expect("ready");
+            let (response, _send) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://localhost/cancelled")
+                        .body(())
+                        .expect("request"),
+                    false,
+                )
+                .expect("request headers");
+            let error = response.await.expect_err("peer reset");
+            let transport_cancel = Status::from_h2_post_dispatch(error);
+            assert_eq!(transport_cancel.code(), Code::Cancelled);
+            assert!(!super::is_direct_cancellation(&transport_cancel));
+            assert!(super::is_direct_cancellation(&Status::cancelled()));
+            assert!(super::is_direct_cancellation(&Status::deadline_exceeded()));
+            driver.abort();
+            peer.abort();
+
+            let (response, _) =
+                response_after_closed_upload(http::StatusCode::SERVICE_UNAVAILABLE, Some("8"))
+                    .await;
+            let mut committed = false;
+            let status = super::prefer_peer_rejection_with_commitment::<()>(
+                std::future::ready(Ok(response)),
+                transport_cancel,
+                &mut committed,
+                None,
+            )
+            .await
+            .expect_err("peer rejection");
+            assert_eq!(status.code(), Code::ResourceExhausted);
+            assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
+            assert!(committed);
+        })
+        .await
+        .expect("transport CANCEL test stalled");
+    }
+
+    #[tokio::test]
     async fn closed_upload_never_becomes_success_or_waits_for_local_send_error() {
         tokio::time::timeout(Duration::from_secs(3), async {
             for (http_status, grpc_status) in [
                 (http::StatusCode::OK, Some("0")),
                 (http::StatusCode::OK, None),
                 (http::StatusCode::OK, Some("bad")),
-                (http::StatusCode::SERVICE_UNAVAILABLE, Some("8")),
+                (http::StatusCode::SERVICE_UNAVAILABLE, Some("0")),
             ] {
                 let (response, send_error) =
                     response_after_closed_upload(http_status, grpc_status).await;
@@ -1306,6 +1428,7 @@ mod tests {
                 assert_eq!(status.code(), Code::Internal);
                 assert_eq!(status.message(), message);
                 assert!(std::error::Error::source(&status).is_some());
+                assert!(committed, "non-terminal headers commit the response");
             }
             let (_, send_error) =
                 response_after_closed_upload(http::StatusCode::OK, Some("8")).await;

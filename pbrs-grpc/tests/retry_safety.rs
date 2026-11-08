@@ -51,6 +51,7 @@ struct HeaderWriteWitness {
     socket: TcpStream,
     pending: Vec<u8>,
     written: Option<tokio::sync::oneshot::Sender<()>>,
+    reset_written: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl HeaderWriteWitness {
@@ -61,13 +62,27 @@ impl HeaderWriteWitness {
                 socket,
                 pending: Vec::new(),
                 written: Some(written),
+                reset_written: None,
             },
             received,
         )
     }
 
+    fn with_reset(
+        socket: TcpStream,
+    ) -> (
+        Self,
+        tokio::sync::oneshot::Receiver<()>,
+        tokio::sync::oneshot::Receiver<()>,
+    ) {
+        let (mut witness, headers) = Self::new(socket);
+        let (reset, reset_received) = tokio::sync::oneshot::channel();
+        witness.reset_written = Some(reset);
+        (witness, headers, reset_received)
+    }
+
     fn record(&mut self, bytes: &[u8]) {
-        if self.written.is_none() {
+        if self.written.is_none() && self.reset_written.is_none() {
             return;
         }
         self.pending.extend_from_slice(bytes);
@@ -80,7 +95,16 @@ impl HeaderWriteWitness {
             }
             let stream = u32::from_be_bytes(self.pending[5..9].try_into().unwrap()) & 0x7fff_ffff;
             if self.pending[3] == 1 && self.pending[4] & 4 != 0 && stream == 1 {
-                self.written.take().unwrap().send(()).unwrap();
+                if let Some(written) = self.written.take() {
+                    written.send(()).unwrap();
+                }
+            }
+            if self.pending[3] == 3 && stream == 1 {
+                if let Some(written) = self.reset_written.take() {
+                    written.send(()).unwrap();
+                }
+            }
+            if self.written.is_none() && self.reset_written.is_none() {
                 self.pending.clear();
                 return;
             }
@@ -157,6 +181,182 @@ impl Greeter for CountingGreeter {
             let _ = tx.send(reply(name)).await;
         }));
         Ok(Response::new(stream))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum EarlyResetControl {
+    Peer,
+    CallerCancel,
+    Deadline,
+}
+
+async fn queued_http_error_then_cancel_reset(
+    server_stream: bool,
+    grpc_status: Option<&'static str>,
+    control: EarlyResetControl,
+) -> Status {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let (settings_tx, settings_rx) = tokio::sync::oneshot::channel();
+    let (accepted_tx, accepted_rx) = tokio::sync::oneshot::channel();
+    let (proceed_tx, proceed_rx) = tokio::sync::oneshot::channel();
+    let (reset_tx, reset_rx) = tokio::sync::oneshot::channel();
+    let peer = tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let (socket, headers_written, reset_written) = HeaderWriteWitness::with_reset(socket);
+        let mut conn = h2::server::Builder::new()
+            .initial_window_size(0)
+            .handshake::<_, Bytes>(socket)
+            .await
+            .expect("handshake");
+        let mut ping = conn.ping_pong().expect("PING handle");
+        tokio::select! {
+            result = ping.ping(h2::Ping::opaque()) => {
+                result.expect("SETTINGS acknowledgement");
+            }
+            incoming = conn.accept() => panic!("request before SETTINGS: {incoming:?}"),
+        }
+        settings_tx.send(()).expect("SETTINGS barrier");
+        let (request, mut respond) = conn
+            .accept()
+            .await
+            .expect("request")
+            .expect("request headers");
+        accepted_tx.send(()).expect("request barrier");
+        proceed_rx.await.expect("release peer");
+        let mut response = http::Response::builder()
+            .status(StatusCode::SERVICE_UNAVAILABLE)
+            .header(CONTENT_TYPE, "application/grpc")
+            .header("x-terminal", "kept");
+        if let Some(status) = grpc_status {
+            response = response.header("grpc-status", status);
+        }
+        let mut send = respond
+            .send_response(response.body(()).expect("response"), false)
+            .expect("response headers");
+        tokio::time::timeout(Duration::from_secs(3), async {
+            tokio::select! {
+                result = headers_written => result.expect("HEADERS write witness"),
+                incoming = conn.accept() => panic!("unexpected request: {incoming:?}"),
+            }
+            tokio::select! {
+                result = ping.ping(h2::Ping::opaque()) => {
+                    result.expect("HEADERS acknowledgement");
+                }
+                incoming = conn.accept() => panic!("unexpected request: {incoming:?}"),
+            }
+            send.send_reset(h2::Reason::CANCEL);
+            tokio::select! {
+                result = reset_written => result.expect("reset write witness"),
+                incoming = conn.accept() => panic!("unexpected request: {incoming:?}"),
+            }
+            tokio::select! {
+                result = ping.ping(h2::Ping::opaque()) => {
+                    result.expect("reset acknowledgement");
+                }
+                incoming = conn.accept() => panic!("unexpected request: {incoming:?}"),
+            }
+        })
+        .await
+        .expect("peer response and reset must be processed");
+        reset_tx.send(()).expect("reset barrier");
+        let held = (request, respond, send);
+        if let Some(Ok(_)) = conn.accept().await {
+            panic!("unexpected second request");
+        }
+        drop(held);
+    });
+    let _guard = common::ServerGuard(peer);
+    let channel = Channel::connect_with(
+        addr,
+        ChannelConfig::new()
+            .connections(1)
+            .max_send_buffer_size(1024),
+    )
+    .await
+    .expect("connect")
+    .byte_budget(128 * 1024);
+    tokio::time::timeout(Duration::from_secs(3), settings_rx)
+        .await
+        .expect("SETTINGS barrier timed out")
+        .expect("SETTINGS barrier failed");
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req(&"x".repeat(32 * 1024)));
+    request.set_timeout(Duration::from_secs(5));
+    type SingleCall =
+        std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Status>> + Send>>;
+    let (handle, mut call): (_, SingleCall) = if server_stream {
+        let call = client.server_hello(request);
+        let handle = call.handle();
+        (handle, Box::pin(async move { call.await.map(|_| ()) }))
+    } else {
+        let call = client.say_hello(request);
+        let handle = call.handle();
+        (handle, Box::pin(async move { call.await.map(|_| ()) }))
+    };
+    tokio::time::timeout(Duration::from_secs(3), async {
+        tokio::select! {
+            accepted = accepted_rx => accepted.expect("request accepted"),
+            result = &mut call => panic!("call finished before response: {result:?}"),
+        }
+    })
+    .await
+    .expect("request stalled before headers");
+    let accepted_at = tokio::time::Instant::now();
+    proceed_tx.send(()).expect("release peer");
+    // Do not poll the call while the peer delivers both frames. On the next
+    // call poll, send and response are ready together and send is polled first.
+    tokio::time::timeout(Duration::from_secs(3), reset_rx)
+        .await
+        .expect("reset barrier timed out")
+        .expect("reset barrier failed");
+    match control {
+        EarlyResetControl::Peer => {}
+        EarlyResetControl::CallerCancel => handle.cancel(),
+        EarlyResetControl::Deadline => {
+            tokio::time::sleep_until(accepted_at + Duration::from_millis(5100)).await;
+        }
+    }
+    tokio::time::timeout(Duration::from_secs(5), &mut call)
+        .await
+        .expect("response timed out")
+        .expect_err("an incomplete upload cannot succeed")
+}
+
+#[tokio::test]
+async fn queued_http_error_survives_cancel_reset_during_upload() {
+    for server_stream in [false, true] {
+        for (grpc_status, expected) in [
+            (None, Code::Unavailable),
+            (Some("8"), Code::ResourceExhausted),
+            (Some("0"), Code::Unavailable),
+        ] {
+            let status = queued_http_error_then_cancel_reset(
+                server_stream,
+                grpc_status,
+                EarlyResetControl::Peer,
+            )
+            .await;
+            assert_eq!(status.code(), expected);
+            if grpc_status != Some("0") {
+                assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
+            }
+        }
+        let cancelled = queued_http_error_then_cancel_reset(
+            server_stream,
+            Some("8"),
+            EarlyResetControl::CallerCancel,
+        )
+        .await;
+        assert_eq!(cancelled.code(), Code::Cancelled);
+        let expired = queued_http_error_then_cancel_reset(
+            server_stream,
+            Some("8"),
+            EarlyResetControl::Deadline,
+        )
+        .await;
+        assert_eq!(expired.code(), Code::DeadlineExceeded);
     }
 }
 

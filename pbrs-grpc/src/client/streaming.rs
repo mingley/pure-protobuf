@@ -1,9 +1,10 @@
 //! Streaming call shapes.
 
 use super::call::{
-    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, open,
-    peer_rejection_from_head, poll_now, prefer_deadline, prefer_peer_rejection_with_commitment,
-    reject_attempt, reset_send_on_cancel, response_commits, send_request_frame,
+    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, is_direct_cancellation,
+    open, peer_rejection_from_head, poll_now, prefer_deadline,
+    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
+    send_request_frame,
 };
 use super::pool;
 use super::retry::{
@@ -201,7 +202,7 @@ where
             cached_commitment = Some(committed);
             *response_committed = committed;
         }
-        if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
+        if is_direct_cancellation(&status) {
             return Err(status);
         }
         let may_prefer_refusal = status.is_transport()
@@ -234,7 +235,9 @@ where
                     Ok(head) => {
                         let committed = received.reset || response_commits(&head);
                         *response_committed = committed;
-                        if may_prefer_refusal && !received.reset {
+                        if may_prefer_refusal
+                            && (!received.reset || head.status() != http::StatusCode::OK)
+                        {
                             peer_status = peer_rejection_from_head(&head, Some(committed));
                         }
                     }
@@ -249,10 +252,7 @@ where
         }
         // A deadline may fire while the queued head is being examined.
         let mut result = prefer_deadline(result, deadline);
-        if !matches!(
-            &result,
-            Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
-        ) {
+        if matches!(&result, Err(status) if !is_direct_cancellation(status)) {
             if let Some(status) = peer_status {
                 result = Err(status);
             }
@@ -263,18 +263,23 @@ where
         ) || (result.is_err() && !response_observed)
         {
             send_stream.send_reset(Reason::CANCEL);
-            let mut refusal = None;
+            let mut post_reset_status = None;
             if !response_observed {
                 if let Some(head) = poll_now(response.as_mut()) {
                     match head {
                         // Reset can erase END_STREAM, so do not replay a
                         // response first observed after the reset lock.
-                        Ok(_) => *response_committed = true,
+                        Ok(head) => {
+                            *response_committed = true;
+                            if may_prefer_refusal && head.status() != http::StatusCode::OK {
+                                post_reset_status = peer_rejection_from_head(&head, Some(true));
+                            }
+                        }
                         Err(error)
                             if may_prefer_refusal
                                 && error.reason() == Some(Reason::REFUSED_STREAM) =>
                         {
-                            refusal = Some(Status::from_h2_post_dispatch(error));
+                            post_reset_status = Some(Status::from_h2_post_dispatch(error));
                         }
                         Err(_) => {}
                     }
@@ -282,11 +287,8 @@ where
             }
             // Keep deadline precedence if it fired while resetting.
             result = prefer_deadline(result, deadline);
-            if !matches!(
-                &result,
-                Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
-            ) {
-                if let Some(status) = refusal {
+            if matches!(&result, Err(status) if !is_direct_cancellation(status)) {
+                if let Some(status) = post_reset_status {
                     result = Err(status);
                 }
             }
