@@ -189,7 +189,8 @@ pub fn pop_limited(buf: &mut BytesMut, limits: MessageLimits) -> Result<Option<F
     if buf.len() < total {
         return Ok(None);
     }
-    drop(buf.split_to(HEADER_LEN));
+    // Discard the header without creating a temporary shared owner.
+    buf.advance(HEADER_LEN);
     Ok(Some(Frame {
         compressed: flag == 1,
         payload: buf.split_to(len).freeze(),
@@ -292,6 +293,48 @@ mod tests {
         let mut buf = BytesMut::from(&[2u8, 0, 0, 0, 0][..]);
         let err = pop(&mut buf).expect_err("bad flag");
         assert_eq!(err.code(), Code::Internal);
+    }
+
+    #[test]
+    fn limited_pop_preserves_held_payloads_when_the_buffer_is_reused() {
+        let first = encode(b"first", false).expect("first frame");
+        let second = encode(b"second", true).expect("second frame");
+        let empty = encode(&[], false).expect("empty frame");
+
+        for initially_shared in [false, true] {
+            let mut buf = BytesMut::with_capacity(128);
+            buf.extend_from_slice(&first);
+            buf.extend_from_slice(&second);
+            // Exercise a buffer that already has another owner as well as a
+            // fresh buffer. The empty split does not consume input.
+            let _owner = if initially_shared {
+                Some(buf.split_to(0))
+            } else {
+                None
+            };
+            let held = pop_limited(&mut buf, MessageLimits::unlimited())
+                .expect("first valid frame")
+                .expect("first complete frame");
+            assert!(!held.compressed);
+            assert_eq!(held.payload.as_ref(), b"first");
+
+            // A reservation and append while the first payload is live may
+            // move the mutable buffer but must not change that payload.
+            buf.reserve(4096);
+            buf.extend_from_slice(&empty);
+            let next = pop_limited(&mut buf, MessageLimits::unlimited())
+                .expect("second valid frame")
+                .expect("second complete frame");
+            assert!(next.compressed);
+            assert_eq!(next.payload.as_ref(), b"second");
+            let last = pop_limited(&mut buf, MessageLimits::unlimited())
+                .expect("empty valid frame")
+                .expect("empty complete frame");
+            assert!(!last.compressed);
+            assert!(last.payload.is_empty());
+            assert_eq!(held.payload.as_ref(), b"first");
+            assert!(buf.is_empty());
+        }
     }
 
     #[test]
