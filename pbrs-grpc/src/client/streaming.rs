@@ -1,9 +1,9 @@
 //! Streaming call shapes.
 
 use super::call::{
-    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open, poll_now, prefer_deadline,
-    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
-    send_request_frame,
+    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, open,
+    peer_rejection_from_head, poll_now, prefer_deadline, prefer_peer_rejection_with_commitment,
+    reject_attempt, reset_send_on_cancel, response_commits, send_request_frame,
 };
 use super::pool;
 use super::retry::{
@@ -21,7 +21,7 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
-use crate::transport::{Reason, SendStream, h2 as backend};
+use crate::transport::{Error as TransportError, Reason, SendStream, h2 as backend};
 use crate::wire::encode::checked_budget_frame_len;
 use crate::wire::{
     OutBatch, PumpEnd, SegFrame, encode_msg, finish_stream, finish_unary, reset_on_cancel,
@@ -167,7 +167,7 @@ where
     }
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
-    let mut received = None;
+    let mut received = UploadHead::default();
     let sent = send_request_frame(
         &mut send_stream,
         frame,
@@ -190,17 +190,23 @@ where
     }
     drop(log_frame);
     if let Err(status) = sent {
-        // Capture headers that arrived while upload was blocked even when
-        // cancellation or a send error wins the next race.
+        // Use the classification saved before reset for a queued head.
         let mut response = std::pin::pin!(resp_fut);
-        let mut ready = received.or_else(|| poll_now(response.as_mut()));
+        let mut ready = received.head.or_else(|| poll_now(response.as_mut()));
         let mut response_observed = ready.is_some();
+        let mut cached_commitment = received.committed;
         if let Some(Ok(head)) = &ready {
-            *response_committed = response_commits(head);
+            let committed = cached_commitment
+                .unwrap_or_else(|| received.reset || response_commits(head));
+            cached_commitment = Some(committed);
+            *response_committed = committed;
         }
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
             return Err(status);
         }
+        let may_prefer_refusal = status.is_transport()
+            || std::error::Error::source(&status)
+                .is_some_and(|cause| cause.is::<TransportError>());
         let result = first_of(
             prefer_peer_rejection_with_commitment(
                 async {
@@ -215,18 +221,86 @@ where
                 },
                 commitment.classify(status),
                 response_committed,
+                cached_commitment.or(received.reset.then_some(true)),
             ),
             cancel_rx,
             deadline,
         )
         .await;
+        let mut peer_status = None;
         if !response_observed {
-            if let Some(Ok(head)) = poll_now(response.as_mut()) {
-                *response_committed = response_commits(&head);
+            if let Some(head) = poll_now(response.as_mut()) {
+                response_observed = true;
+                match head {
+                    Ok(head) => {
+                        let committed = received.reset || response_commits(&head);
+                        *response_committed = committed;
+                        if may_prefer_refusal && !received.reset {
+                            peer_status = peer_rejection_from_head(&head, Some(committed));
+                        }
+                    }
+                    Err(error)
+                        if may_prefer_refusal
+                            && error.reason() == Some(Reason::REFUSED_STREAM) =>
+                    {
+                        peer_status = Some(Status::from_h2_post_dispatch(error));
+                    }
+                    Err(_) => {}
+                }
             }
         }
-        reset_send_on_cancel(Some(&mut send_stream), &result);
-        return prefer_deadline(result, deadline);
+        // A deadline may fire while the queued head is being examined.
+        let mut result = prefer_deadline(result, deadline);
+        if !matches!(
+            &result,
+            Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+        ) {
+            if let Some(status) = peer_status {
+                result = Err(status);
+            }
+        }
+        let reset = if matches!(
+            &result,
+            Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+        ) || (result.is_err() && !response_observed)
+        {
+            send_stream.send_reset(Reason::CANCEL);
+            let mut refusal = None;
+            if !response_observed {
+                if let Some(head) = poll_now(response.as_mut()) {
+                    match head {
+                        // Reset can erase END_STREAM, so do not replay a
+                        // response first observed after the reset lock.
+                        Ok(_) => *response_committed = true,
+                        Err(error)
+                            if may_prefer_refusal
+                                && error.reason() == Some(Reason::REFUSED_STREAM) =>
+                        {
+                            refusal = Some(Status::from_h2_post_dispatch(error));
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+            // Keep deadline precedence if it fired while resetting.
+            result = prefer_deadline(result, deadline);
+            if !matches!(
+                &result,
+                Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+            ) {
+                if let Some(status) = refusal {
+                    result = Err(status);
+                }
+            }
+            true
+        } else {
+            false
+        };
+        result = prefer_deadline(result, deadline);
+        if !reset {
+            reset_send_on_cancel(Some(&mut send_stream), &result);
+        }
+        return result;
     }
     // Channelz: the single request message went out (failed sends claim
     // none, like unary).
@@ -236,10 +310,12 @@ where
     // Retain the response future across a timeout or cancellation so queued
     // headers can commit the attempt before the send half is reset.
     let mut response_future = std::pin::pin!(resp_fut);
-    let mut ready = received;
+    let mut ready = received.head;
     let mut response_observed = ready.is_some();
+    let cached_commitment = received.committed;
     if let Some(Ok(head)) = &ready {
-        *response_committed = response_commits(head);
+        *response_committed = cached_commitment
+            .unwrap_or_else(|| received.reset || response_commits(head));
     }
     let response = first_of(
         async {
@@ -252,7 +328,8 @@ where
                 }
             }
             .map_err(|e| commitment.classify_h2(e))?;
-            *response_committed = response_commits(&response);
+            *response_committed = cached_commitment
+                .unwrap_or_else(|| received.reset || response_commits(&response));
             commitment = AttemptCommitment::ResponseCommitted;
             finish_stream::<Resp>(
                 response,
@@ -268,14 +345,34 @@ where
     )
     .await;
     if !response_observed {
-        if let Some(Ok(head)) = poll_now(response_future.as_mut()) {
-            *response_committed = response_commits(&head);
+        if let Some(head) = poll_now(response_future.as_mut()) {
+            response_observed = true;
+            if let Ok(head) = head {
+                *response_committed = received.reset || response_commits(&head);
+            }
         }
     }
-    // Match race's reset and deadline precedence, after capturing any queued
-    // response. Never poll the response future again after it returned Ready.
-    reset_send_on_cancel(Some(&mut send_stream), &response);
     let response = prefer_deadline(response, deadline);
+    let reset = if !response_observed && response.is_err() {
+        send_stream.send_reset(Reason::CANCEL);
+        if let Some(Ok(_)) = poll_now(response_future.as_mut()) {
+            // A head first observed after reset may have lost END_STREAM.
+            *response_committed = true;
+        }
+        true
+    } else if matches!(
+        &response,
+        Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+    ) {
+        reset_send_on_cancel(Some(&mut send_stream), &response);
+        true
+    } else {
+        false
+    };
+    let response = prefer_deadline(response, deadline);
+    if !reset {
+        reset_send_on_cancel(Some(&mut send_stream), &response);
+    }
     // Channelz: count the attempt's stream like unary (started on every
     // post-setup attempt, end on failure now and on success via the bound
     // Streaming's polls/drop). Early `?` exits above never started.

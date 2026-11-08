@@ -835,6 +835,128 @@ async fn server_streaming_policy_does_not_replay_committed_http_errors() {
     }
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn trailers_only_cancelled_during_upload_remains_retryable() {
+    for server_stream in [false, true] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("address");
+        let executions = Arc::new(AtomicUsize::new(0));
+        let seen = executions.clone();
+        let (settings_tx, settings_rx) = tokio::sync::oneshot::channel();
+        let peer = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("connection");
+            let mut conn = h2::server::Builder::new()
+                .initial_window_size(0)
+                .handshake::<_, Bytes>(socket)
+                .await
+                .expect("handshake");
+            let mut ping = conn.ping_pong().expect("PING handle");
+            tokio::select! {
+                result = ping.ping(h2::Ping::opaque()) => {
+                    result.expect("SETTINGS acknowledgement");
+                }
+                incoming = conn.accept() => {
+                    panic!("request before zero-credit SETTINGS: {incoming:?}");
+                }
+            }
+            settings_tx.send(()).expect("SETTINGS barrier");
+            let mut held = None;
+            for attempt in 0..2 {
+                let (request, mut respond) = conn
+                    .accept()
+                    .await
+                    .expect("request")
+                    .expect("request headers");
+                seen.fetch_add(1, Ordering::SeqCst);
+                if attempt == 0 {
+                    // The request cannot finish with zero stream credit.
+                    let send = respond
+                        .send_response(
+                            http::Response::builder()
+                                .header(CONTENT_TYPE, "application/grpc")
+                                .header("grpc-status", "1")
+                                .header("grpc-message", "retry")
+                                .body(())
+                                .expect("rejection"),
+                            true,
+                        )
+                        .expect("trailers-only rejection");
+                    held = Some((request, respond, send));
+                } else {
+                    conn.set_initial_window_size(128 * 1024)
+                        .expect("grant credit to retry");
+                    let mut body = request.into_body();
+                    let bytes = read_request_body(&mut conn, &mut body).await;
+                    assert!(bytes.len() > 32 * 1024, "retry must upload the frame");
+                    let mut send = respond
+                        .send_response(
+                            http::Response::builder()
+                                .header(CONTENT_TYPE, "application/grpc")
+                                .body(())
+                                .expect("response"),
+                            false,
+                        )
+                        .expect("response headers");
+                    let payload = reply("recovered").serialize().expect("serialize");
+                    send.send_data(codec::encode(&payload, false).expect("frame"), false)
+                        .expect("DATA");
+                    let mut trailers = http::HeaderMap::new();
+                    trailers.insert("grpc-status", HeaderValue::from_static("0"));
+                    send.send_trailers(trailers).expect("trailers");
+                }
+            }
+            if let Some(Ok(_)) = conn.accept().await {
+                panic!("unexpected additional request");
+            }
+            drop(held);
+        });
+        let _guard = common::ServerGuard(peer);
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::new()
+                .connections(1)
+                .max_send_buffer_size(1024),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(128 * 1024)
+        .service_config(
+            r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":2,"initialBackoff":"0s","maxBackoff":"0s",
+                "backoffMultiplier":1,"retryableStatusCodes":["CANCELLED"]}}]}"#,
+        )
+        .expect("policy");
+        tokio::time::timeout(Duration::from_secs(3), settings_rx)
+            .await
+            .expect("SETTINGS barrier timed out")
+            .expect("SETTINGS barrier failed");
+        let client = GreeterClient::new(channel.clone());
+        let mut request = Request::new(req(&"x".repeat(32 * 1024)));
+        request.set_timeout(Duration::from_secs(5));
+        tokio::time::timeout(Duration::from_secs(8), async {
+            if server_stream {
+                let mut stream = client
+                    .server_hello(request)
+                    .await
+                    .expect("server-stream retry")
+                    .into_inner();
+                let message = stream.message().await.expect("message").expect("reply");
+                assert_eq!(name_of(&message), "recovered");
+                assert!(stream.message().await.expect("trailers").is_none());
+            } else {
+                let response = client.say_hello(request).await.expect("unary retry");
+                assert_eq!(name_of(response.get_ref()), "recovered");
+            }
+        })
+        .await
+        .expect("retry stalled");
+        assert_eq!(executions.load(Ordering::SeqCst), 2);
+        assert_eq!(channel.retry_stats().policy_retries, 1);
+        assert_eq!(channel.retry_stats().transparent_retries, 0);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
+}
+
 async fn committed_response_during_stalled_upload(attempt_timeout: bool, server_stream: bool) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("addr");

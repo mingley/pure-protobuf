@@ -64,7 +64,7 @@ pub(crate) async fn prefer_peer_rejection_after_send<T>(
     response: impl std::future::Future<Output = ResponseHead>,
     send_error: Status,
 ) -> Result<T, Status> {
-    prefer_peer_rejection_with_commitment(response, send_error, &mut false).await
+    prefer_peer_rejection_with_commitment(response, send_error, &mut false, None).await
 }
 
 pub(crate) fn response_commits(response: &http::Response<backend::RecvStream>) -> bool {
@@ -79,12 +79,33 @@ pub(crate) fn response_commits(response: &http::Response<backend::RecvStream>) -
             .is_some_and(|code| matches!(code, 1..=16)))
 }
 
+/// Parse a trailers-only rejection, retaining a pre-reset EOS classification.
+pub(crate) fn peer_rejection_from_head(
+    response: &http::Response<backend::RecvStream>,
+    cached_commitment: Option<bool>,
+) -> Option<Status> {
+    let grpc_code = response
+        .headers()
+        .get("grpc-status")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<i32>().ok());
+    if response.status() == http::StatusCode::OK
+        && (cached_commitment == Some(false) || response.body().is_end_stream())
+        && grpc_code.is_some_and(|code| code != 0)
+    {
+        Some(status_from(response.headers(), None))
+    } else {
+        None
+    }
+}
+
 pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     response: impl std::future::Future<
         Output = Result<http::Response<backend::RecvStream>, TransportError>,
     >,
     send_error: Status,
     response_committed: &mut bool,
+    cached_commitment: Option<bool>,
 ) -> Result<T, Status> {
     let response = if send_error.is_transport() {
         Some(response.await)
@@ -103,19 +124,11 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     if let Some(response) = response {
         match response {
             Ok(response) => {
-                *response_committed = response_commits(&response);
-                let grpc_code = response
-                    .headers()
-                    .get("grpc-status")
-                    .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<i32>().ok());
-                // An early trailers-only error can close the request body with
-                // RST_STREAM(NO_ERROR). Never turn an incomplete upload into OK.
-                if response.status() == http::StatusCode::OK
-                    && response.body().is_end_stream()
-                    && grpc_code.is_some_and(|code| code != 0)
-                {
-                    return Err(status_from(response.headers(), None));
+                *response_committed =
+                    cached_commitment.unwrap_or_else(|| response_commits(&response));
+                // Never turn an incomplete upload into OK.
+                if let Some(status) = peer_rejection_from_head(&response, cached_commitment) {
+                    return Err(status);
                 }
             }
             // A stream reset can close the send half before its explicit refusal
@@ -131,6 +144,26 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
 
 pub(crate) type ResponseHead = Result<http::Response<backend::RecvStream>, TransportError>;
 
+/// Response evidence observed while sending one request frame.
+#[derive(Default)]
+pub(crate) struct UploadHead {
+    pub(crate) head: Option<ResponseHead>,
+    /// Classification saved before any reset can change the body's EOS state.
+    pub(crate) committed: Option<bool>,
+    /// A reset was sent; a later-discovered head must count as committed.
+    pub(crate) reset: bool,
+}
+
+impl UploadHead {
+    fn capture(&mut self, head: ResponseHead) {
+        self.committed = head
+            .as_ref()
+            .ok()
+            .map(|response| self.reset || response_commits(response));
+        self.head = Some(head);
+    }
+}
+
 pub(crate) fn send_request_frame(
     send: &mut backend::SendStream,
     frame: SegFrame,
@@ -138,7 +171,7 @@ pub(crate) fn send_request_frame(
     cancel_rx: &crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
-    received: &mut Option<ResponseHead>,
+    received: &mut UploadHead,
 ) -> impl std::future::Future<Output = Result<(), Status>> {
     send_request_frame_in::<TokioRuntime>(
         send,
@@ -166,12 +199,11 @@ pub(crate) fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Ou
 
 // Observe a queued head before resetting a failed upload. Do not poll a
 // response future twice once it has returned Ready.
-fn capture_ready_response(
-    response: &mut backend::ResponseFuture,
-    received: &mut Option<ResponseHead>,
-) {
-    if received.is_none() {
-        *received = poll_now(Pin::new(response));
+fn capture_ready_response(response: &mut backend::ResponseFuture, received: &mut UploadHead) {
+    if received.head.is_none() {
+        if let Some(head) = poll_now(Pin::new(response)) {
+            received.capture(head);
+        }
     }
 }
 
@@ -191,27 +223,22 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     cancel_rx: &crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
-    received: &mut Option<ResponseHead>,
+    received: &mut UploadHead,
 ) -> Result<(), Status> {
     // Optimistic: a send with capacity completes without arming the race.
     // The pre-checks mirror `first_of_in`'s biased order (cancel, then
     // deadline) so an already-fired signal still wins, with the same reset.
     if cancel_requested(cancel_rx) {
-        capture_ready_response(response, received);
-        send.send_reset(Reason::CANCEL);
+        reset_request_send(send, response, received);
         return Err(Status::cancelled());
     }
     if remaining_timeout(deadline).is_err() {
-        capture_ready_response(response, received);
-        send.send_reset(Reason::CANCEL);
+        reset_request_send(send, response, received);
         return Err(Status::deadline_exceeded());
     }
     let frame = match send_frame_if_ready(send, frame, true, send_buffer) {
         ImmediateSend::Done(result) => {
-            if result.is_err() {
-                capture_ready_response(response, received);
-            }
-            return finish_request_send::<R>(send, result, deadline);
+            return finish_request_send::<R>(send, result, deadline, response, received);
         }
         ImmediateSend::Blocked(frame) => frame,
     };
@@ -226,6 +253,7 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
                         return Poll::Ready(sent);
                     }
                     let head = received
+                        .head
                         .is_none()
                         .then(|| Pin::new(&mut *response).poll(cx));
                     if let Some(Poll::Ready(head)) = head {
@@ -233,13 +261,13 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
                         // or resetting the request half. Only a valid error
                         // ends an incomplete upload; ordinary response
                         // headers are saved while the send keeps waiting.
-                        let rejection = match &head {
-                            Ok(head) if !response_commits(head) => {
+                        received.capture(head);
+                        let rejection = match (&received.head, received.committed) {
+                            (Some(Ok(head)), Some(false)) => {
                                 Some(status_from(head.headers(), None))
                             }
                             _ => None,
                         };
-                        *received = Some(head);
                         if let Some(status) = rejection {
                             return Poll::Ready(Err(status));
                         }
@@ -250,10 +278,21 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
             }
         }
     };
-    if raced.is_err() {
-        capture_ready_response(response, received);
-    }
-    finish_request_send::<R>(send, raced, deadline)
+    finish_request_send::<R>(send, raced, deadline, response, received)
+}
+
+// Probe on either side of the reset lock: HEADERS queued between the two
+// probes must also prevent replay. A head found only after reset is treated
+// as committed because reset may have erased its END_STREAM state.
+fn reset_request_send(
+    send: &mut backend::SendStream,
+    response: &mut backend::ResponseFuture,
+    received: &mut UploadHead,
+) {
+    capture_ready_response(response, received);
+    send.send_reset(Reason::CANCEL);
+    received.reset = true;
+    capture_ready_response(response, received);
 }
 
 /// Apply the deadline preference and reset the send half on cancel.
@@ -261,17 +300,22 @@ fn finish_request_send<R: Runtime>(
     send: &mut backend::SendStream,
     raced: Result<(), Status>,
     deadline: Option<tokio::time::Instant>,
+    response: &mut backend::ResponseFuture,
+    received: &mut UploadHead,
 ) -> Result<(), Status> {
     let result = if deadline.is_none() {
         raced
     } else {
         prefer_deadline_in::<R, _>(raced, deadline)
     };
+    if result.is_err() {
+        capture_ready_response(response, received);
+    }
     if matches!(
         &result,
         Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
     ) {
-        send.send_reset(Reason::CANCEL);
+        reset_request_send(send, response, received);
     }
     result
 }
@@ -976,7 +1020,7 @@ mod tests {
     use crate::status::{Code, Status, TransportEvidence};
     use crate::transport::h2 as backend;
     use crate::transport::{
-        ClientBuilder, Reason, SendRequest, SendResponse, SendStream, ServerBuilder,
+        ClientBuilder, Reason, RecvStream, SendRequest, SendResponse, SendStream, ServerBuilder,
         ServerConnection,
     };
     use std::time::Duration;
@@ -1146,6 +1190,116 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cached_trailers_only_classification_survives_local_reset() {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            let (client, server) = tokio::io::duplex(64 * 1024);
+            let peer = tokio::spawn(async move {
+                let mut connection = backend::ServerBuilder::new()
+                    .handshake(server)
+                    .await
+                    .expect("server handshake");
+                let (request, mut respond) = connection
+                    .accept()
+                    .await
+                    .expect("request")
+                    .expect("headers");
+                let send = respond
+                    .send_response(
+                        http::Response::builder()
+                            .header("grpc-status", "1")
+                            .header("grpc-message", "peer%20cancelled")
+                            .header("x-terminal", "kept")
+                            .body(())
+                            .expect("response"),
+                        true,
+                    )
+                    .expect("response headers");
+                let held = (request, respond, send);
+                while let Some(result) = connection.accept().await {
+                    result.expect("drive peer connection");
+                }
+                drop(held);
+            });
+            let (sender, connection) = backend::ClientBuilder::new()
+                .handshake(client)
+                .await
+                .expect("client handshake");
+            let driver = tokio::spawn(async move { drop(connection.await) });
+            let mut sender = sender.ready().await.expect("ready");
+            let (mut response, mut send) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://localhost/rejected")
+                        .body(())
+                        .expect("request"),
+                    false,
+                )
+                .expect("request headers");
+            let head = (&mut response).await.expect("response headers");
+            let mut saved = super::UploadHead::default();
+            saved.capture(Ok(head));
+            assert_eq!(saved.committed, Some(false));
+
+            send.send_reset(Reason::CANCEL);
+            saved.reset = true;
+            assert!(
+                !saved.head.as_ref().unwrap().as_ref().unwrap().body().is_end_stream(),
+                "local reset must erase the live EOS state for this regression"
+            );
+            // The response future has already returned Ready. These probes
+            // must not poll it again, including after a reset.
+            super::capture_ready_response(&mut response, &mut saved);
+            super::capture_ready_response(&mut response, &mut saved);
+
+            let cached = saved.committed;
+            let mut post_reset = super::UploadHead {
+                reset: true,
+                ..Default::default()
+            };
+            post_reset.capture(saved.head.take().expect("saved response"));
+            assert_eq!(post_reset.committed, Some(true));
+            let mut committed = true;
+            let status = super::prefer_peer_rejection_with_commitment::<()>(
+                std::future::ready(post_reset.head.take().expect("response")),
+                Status::stream_closed(),
+                &mut committed,
+                cached,
+            )
+            .await
+            .expect_err("peer rejection");
+            assert_eq!(status.code(), Code::Cancelled);
+            assert_eq!(status.message(), "peer cancelled");
+            assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
+            assert!(!committed, "pre-reset trailers-only decision must survive");
+
+            // A completed error is also a consumed response future.
+            let mut sender = sender.ready().await.expect("ready for another stream");
+            let (mut response, mut send) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://localhost/cancelled")
+                        .body(())
+                        .expect("request"),
+                    false,
+                )
+                .expect("request headers");
+            send.send_reset(Reason::CANCEL);
+            let error = (&mut response).await.expect_err("local reset");
+            let mut terminal = super::UploadHead::default();
+            terminal.capture(Err(error));
+            assert_eq!(terminal.committed, None);
+            super::capture_ready_response(&mut response, &mut terminal);
+            super::capture_ready_response(&mut response, &mut terminal);
+            assert!(matches!(terminal.head, Some(Err(_))));
+
+            driver.abort();
+            peer.abort();
+        })
+        .await
+        .expect("trailers-only reset test stalled");
+    }
+
+    #[tokio::test]
     async fn queued_peer_rejection_overrides_inactive_upload_error() {
         tokio::time::timeout(Duration::from_secs(3), async {
             let (response, send_error) =
@@ -1155,6 +1309,7 @@ mod tests {
                 std::future::ready(Ok(response)),
                 send_error,
                 &mut committed,
+                None,
             )
             .await
             .expect_err("peer rejection");
@@ -1187,6 +1342,7 @@ mod tests {
                     std::future::ready(Ok(response)),
                     send_error,
                     &mut committed,
+                    None,
                 )
                 .await
                 .expect_err("incomplete upload must fail");
@@ -1200,6 +1356,7 @@ mod tests {
                 std::future::pending(),
                 send_error,
                 &mut false,
+                None,
             )
             .await
             .expect_err("no queued response");
@@ -1208,6 +1365,7 @@ mod tests {
                 std::future::pending(),
                 Status::internal("local validation"),
                 &mut false,
+                None,
             )
             .await
             .expect_err("local error must not await response");

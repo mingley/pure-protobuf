@@ -148,7 +148,10 @@ contradictory status blocks differs from tonic. A status sent only in later
 trailers on a non-200 response without an initial status is not currently
 considered. If a unary or server-streaming request is still uploading,
 early-response and cancellation rules apply; a non-200 response is treated as
-committed for retry.
+committed for retry. If headers become visible only after a local reset, the
+client also treats them as committed because the reset can hide whether they
+ended the stream. A trailers-only rejection in that narrow race may therefore
+not be retried.
 
 ## Message codecs and Tower integration
 
