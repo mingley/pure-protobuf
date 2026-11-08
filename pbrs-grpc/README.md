@@ -92,7 +92,9 @@ pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] } # Published p
 The feature supports binary and text gRPC-Web content types for unary and
 server-streaming methods. CORS preflight is deny-all by default; configure an
 allowed origin with `ServerConfig::grpc_web_allow_origin` or allow all origins
-with `grpc_web_allow_any_origin`.
+with `grpc_web_allow_any_origin`. These settings handle preflight only.
+Configure a proxy to add appropriate CORS response headers to every cross-origin
+POST response, including errors returned before handler dispatch.
 For browser HTTP/1.1, use the [Tower/Hyper recipe](../docs/decisions/http1-grpc-web.md).
 
 ## Installation

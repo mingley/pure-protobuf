@@ -234,7 +234,9 @@ let config = pbrs_grpc::ServerConfig::new()
 ```
 
 Use `grpc_web_allow_any_origin()` only for public APIs that intentionally allow
-all browser origins.
+all browser origins. These settings handle preflight only. Configure a proxy to
+add appropriate CORS response headers to every cross-origin POST response,
+including errors returned before handler dispatch.
 
 ## Production Capabilities & How-to Guides
 

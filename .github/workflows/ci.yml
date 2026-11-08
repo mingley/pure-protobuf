@@ -143,6 +143,7 @@ jobs:
       - name: Bounded compressed buffer lifecycle controls
         run: |
           cargo test --locked -p pbrs-grpc --all-features --test encode_workspace --test decode_workspace --test output_workspace
+          cargo test --locked -p pbrs-grpc --features grpc-web --test grpc_web
           cargo clippy --locked -p pbrs-grpc --all-features --test output_workspace -- -D warnings
       - name: Standalone benchmark correctness contracts (no performance gate)
         run: |

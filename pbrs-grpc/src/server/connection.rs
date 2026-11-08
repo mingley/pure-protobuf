@@ -659,11 +659,11 @@ where
                         if let (Some(web), crate::wire::RequestReject::Grpc(status)) =
                             (crate::web::Mode::from_headers(request.headers()), &err)
                         {
-                            crate::web::send_trailers_only(
+                            crate::web::send_encoding_rejection(
                                 &mut respond,
                                 web,
                                 status.clone(),
-                                &Metadata::new(),
+                                config.accepts_compressed(),
                             );
                             continue;
                         }

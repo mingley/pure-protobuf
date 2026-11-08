@@ -236,6 +236,32 @@ pub(crate) fn send_trailers_only(
     status: Status,
     extra_headers: &Metadata,
 ) {
+    send_trailers_only_inner(respond, mode, status, extra_headers, None);
+}
+
+/// Reject an unsupported request coding and advertise the supported codings.
+pub(crate) fn send_encoding_rejection(
+    respond: &mut backend::SendResponse,
+    mode: Mode,
+    status: Status,
+    accept_compressed: bool,
+) {
+    send_trailers_only_inner(
+        respond,
+        mode,
+        status,
+        &Metadata::new(),
+        Some(accept_compressed),
+    );
+}
+
+fn send_trailers_only_inner(
+    respond: &mut backend::SendResponse,
+    mode: Mode,
+    status: Status,
+    extra_headers: &Metadata,
+    accept_compressed: Option<bool>,
+) {
     let mut res = match Response::builder()
         .status(StatusCode::OK)
         .header(http::header::CONTENT_TYPE, mode.content_type())
@@ -245,6 +271,12 @@ pub(crate) fn send_trailers_only(
         Err(_) => return,
     };
     extra_headers.write_to(res.headers_mut()).ok();
+    if let Some(accept_compressed) = accept_compressed {
+        res.headers_mut().insert(
+            GRPC_ACCEPT_ENCODING,
+            accept_encoding_value(accept_compressed),
+        );
+    }
     let Ok(mut send) = respond.send_response(res, false) else {
         return;
     };

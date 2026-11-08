@@ -853,9 +853,10 @@ pub(crate) fn check_request(
         };
         if !grpc_content_type(ct) {
             #[cfg(feature = "grpc-web")]
-            if crate::web::is_supported_content_type(ct) {
-                return Ok(());
+            if !crate::web::is_supported_content_type(ct) {
+                return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
             }
+            #[cfg(not(feature = "grpc-web"))]
             return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
         }
     }

@@ -18,12 +18,17 @@ mod common;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use bytes::{BufMut, Bytes, BytesMut};
-use common::spawn_greeter_server;
-use http::{HeaderMap, Method, Request as HttpRequest, StatusCode};
+use common::{ServerGuard, spawn_greeter_server};
+use http::{HeaderMap, HeaderValue, Method, Request as HttpRequest, StatusCode};
 use pbrs::Parse;
-use pbrs_grpc::{Code, HelloReply, ServerConfig};
+use pbrs_grpc::{
+    Code, CompressionAlgorithm, HelloReply, HelloRequest, Request, Response, Rpc, Server,
+    ServerConfig, Service, Status,
+};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
@@ -65,6 +70,13 @@ impl RawWebPeer {
         I: IntoIterator<Item = Bytes>,
     {
         let request = self.request(path, content_type);
+        self.call_request(request, chunks).await
+    }
+
+    async fn call_request<I>(&mut self, request: HttpRequest<()>, chunks: I) -> WebAnswer
+    where
+        I: IntoIterator<Item = Bytes>,
+    {
         let mut send = self.send.clone().ready().await.expect("ready");
         let (response, mut stream) = send.send_request(request, false).expect("send_request");
         let mut chunks = chunks.into_iter().peekable();
@@ -272,6 +284,226 @@ fn hello_request(name: &str) -> Vec<u8> {
 
 fn reply_message(payload: &Bytes) -> HelloReply {
     HelloReply::parse(payload).expect("HelloReply")
+}
+
+const WEB_CONTENT_TYPES: [&str; 4] = [
+    "application/grpc-web",
+    "application/grpc-web+proto",
+    "application/grpc-web-text",
+    "application/grpc-web-text+proto",
+];
+
+struct CountingService(Arc<AtomicUsize>);
+
+impl Service for CountingService {
+    const NAME: &'static str = "helloworld.Greeter";
+
+    async fn call(&self, rpc: Rpc) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        rpc.unary(|request: Request<HelloRequest>| async move {
+            let mut reply = HelloReply::new();
+            reply.set_message(request.get_ref().name());
+            Ok::<_, Status>(Response::new(reply))
+        })
+        .await;
+    }
+}
+
+async fn spawn_counting_server(
+    config: ServerConfig,
+) -> (SocketAddr, ServerGuard, Arc<AtomicUsize>) {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local address");
+    let dispatches = Arc::new(AtomicUsize::new(0));
+    let server_dispatches = Arc::clone(&dispatches);
+    let task = tokio::spawn(async move {
+        Server::new(CountingService(server_dispatches))
+            .config(config)
+            .serve_listener(listener)
+            .await
+            .expect("server");
+    });
+    (addr, ServerGuard(task), dispatches)
+}
+
+fn request_with_encoding(
+    peer: &RawWebPeer,
+    content_type: &str,
+    encoding: Option<&'static str>,
+) -> HttpRequest<()> {
+    let mut request = peer.request(SAY_HELLO, content_type);
+    request.headers_mut().insert(
+        http::header::ORIGIN,
+        HeaderValue::from_static("https://app.example"),
+    );
+    if let Some(encoding) = encoding {
+        request
+            .headers_mut()
+            .insert("grpc-encoding", HeaderValue::from_static(encoding));
+    }
+    request
+}
+
+fn request_body(content_type: &str, payload: &[u8], compressed: bool) -> Bytes {
+    let framed = pbrs_grpc::codec::encode(payload, compressed).expect("request frame");
+    if content_type.starts_with("application/grpc-web-text") {
+        STANDARD.encode(framed).into()
+    } else {
+        framed
+    }
+}
+
+fn assert_accepted_codings(answer: &WebAnswer, compressed: bool) {
+    let expected = if compressed {
+        if cfg!(feature = "zstd") {
+            "identity,gzip,deflate,zstd"
+        } else {
+            "identity,gzip,deflate"
+        }
+    } else {
+        "identity"
+    };
+    assert_eq!(
+        answer
+            .headers
+            .get("grpc-accept-encoding")
+            .and_then(|value| value.to_str().ok()),
+        Some(expected)
+    );
+}
+
+#[tokio::test]
+async fn grpc_web_rejects_unsupported_coding_before_dispatch() {
+    let config = ServerConfig::new().grpc_web_allow_origin("https://app.example");
+    let (addr, _guard, dispatches) = spawn_counting_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+    peer.preflight(SAY_HELLO, "https://app.example")
+        .await
+        .expect_preflight_allowed("https://app.example");
+
+    let message = hello_request("ada");
+    let gzip = CompressionAlgorithm::Gzip
+        .encode(&message)
+        .expect("gzip request");
+    for content_type in WEB_CONTENT_TYPES {
+        let request = request_with_encoding(&peer, content_type, Some("identity"));
+        let success = peer
+            .call_request(request, [request_body(content_type, &message, false)])
+            .await;
+        let response_origin = success
+            .headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .cloned();
+        let success = success.expect_ok_web(content_type);
+        success.expect_status(Code::Ok);
+        assert_eq!(success.messages.len(), 1);
+        assert_eq!(reply_message(&success.messages[0]).message(), "ada");
+
+        let before_rejections = dispatches.load(Ordering::SeqCst);
+        for compressed in [false, true] {
+            let request = request_with_encoding(&peer, content_type, Some("snappy"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, &message, compressed)])
+                .await;
+            assert_accepted_codings(&answer, true);
+            assert_eq!(
+                answer
+                    .headers
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .cloned(),
+                response_origin
+            );
+            let body = answer.expect_ok_web(content_type);
+            body.expect_status(Code::Unimplemented);
+            assert!(body.messages.is_empty());
+            assert_eq!(dispatches.load(Ordering::SeqCst), before_rejections);
+        }
+
+        for compressed in [false, true] {
+            let before_success = dispatches.load(Ordering::SeqCst);
+            let payload = if compressed { &gzip } else { &message };
+            let request = request_with_encoding(&peer, content_type, Some("gzip"));
+            let success = peer
+                .call_request(request, [request_body(content_type, payload, compressed)])
+                .await
+                .expect_ok_web(content_type);
+            success.expect_status(Code::Ok);
+            assert_eq!(success.messages.len(), 1);
+            assert_eq!(reply_message(&success.messages[0]).message(), "ada");
+            assert_eq!(dispatches.load(Ordering::SeqCst), before_success + 1);
+        }
+    }
+
+    let before_native = dispatches.load(Ordering::SeqCst);
+    let request = request_with_encoding(&peer, "application/grpc", Some("snappy"));
+    let rejection = peer
+        .call_request(request, [request_body("application/grpc", &message, false)])
+        .await;
+    assert_eq!(rejection.status, StatusCode::OK);
+    assert_eq!(rejection.header_grpc_status.as_deref(), Some("12"));
+    assert_accepted_codings(&rejection, true);
+    assert_eq!(dispatches.load(Ordering::SeqCst), before_native);
+
+    let request = request_with_encoding(&peer, "application/grpc", None);
+    let success = peer
+        .call_request(request, [request_body("application/grpc", &message, false)])
+        .await;
+    assert_eq!(success.status, StatusCode::OK);
+    assert_eq!(
+        success
+            .h2_trailers
+            .as_ref()
+            .and_then(|trailers| trailers.get("grpc-status"))
+            .and_then(|value| value.to_str().ok()),
+        Some("0")
+    );
+    let mut wire = BytesMut::from(success.body.as_ref());
+    let reply = pbrs_grpc::codec::pop(&mut wire)
+        .expect("native frame")
+        .expect("native reply");
+    assert_eq!(reply_message(&reply.payload).message(), "ada");
+    assert!(wire.is_empty());
+    assert_eq!(dispatches.load(Ordering::SeqCst), before_native + 1);
+}
+
+#[tokio::test]
+async fn grpc_web_rejects_gzip_when_compression_is_disabled() {
+    let config = ServerConfig::new().accept_compressed(false);
+    let (addr, _guard, dispatches) = spawn_counting_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+    let message = hello_request("ada");
+    let gzip = CompressionAlgorithm::Gzip
+        .encode(&message)
+        .expect("gzip request");
+    for content_type in WEB_CONTENT_TYPES {
+        for compressed in [false, true] {
+            let payload = if compressed { &gzip } else { &message };
+            let request = request_with_encoding(&peer, content_type, Some("gzip"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, payload, compressed)])
+                .await;
+            assert_accepted_codings(&answer, false);
+            let body = answer.expect_ok_web(content_type);
+            body.expect_status(Code::Unimplemented);
+            assert!(body.messages.is_empty());
+            assert_eq!(dispatches.load(Ordering::SeqCst), 0);
+        }
+    }
+
+    let request = request_with_encoding(&peer, "application/grpc-web", Some("identity"));
+    let success = peer
+        .call_request(
+            request,
+            [request_body("application/grpc-web", &message, false)],
+        )
+        .await
+        .expect_ok_web("application/grpc-web");
+    success.expect_status(Code::Ok);
+    assert_eq!(success.messages.len(), 1);
+    assert_eq!(reply_message(&success.messages[0]).message(), "ada");
+    assert_eq!(dispatches.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]
