@@ -1,0 +1,31 @@
+diff --git a/pbrs-grpc/src/server/drain.rs b/pbrs-grpc/src/server/drain.rs
+index 1dca292..331be36 100644
+--- a/pbrs-grpc/src/server/drain.rs
++++ b/pbrs-grpc/src/server/drain.rs
+@@ -931,6 +931,17 @@
+     permits.clear();
+     Err(DrainError::Producer(status))
+ }
+ 
++// Bound the initial allocation for messages with large inline layouts. The
++// receive limit stays at BURST and the Vec grows normally when a producer
++// supplies a larger burst. A single item can exceed the byte target.
++fn initial_batch_item_capacity<T>() -> usize {
++    const INITIAL_ITEM_BYTES: usize = 16 * 1024;
++    let item_size = std::mem::size_of::<Result<crate::stream::Framed<T>, Status>>().max(1);
++    let items = (INITIAL_ITEM_BYTES / item_size).clamp(1, OutBatch::BURST);
++    // Align ordinary geometric growth with the power-of-two burst limit.
++    1usize << items.ilog2()
++}
++
+ /// Copy every message from `stream` onto `send`, batching each burst.
+ #[allow(
+@@ -972,7 +983,7 @@
+     // One map lookup for the whole response. Each encoded message then
+     // touches the entry's atomics.
+     let channelz_entry = channelz_socket.and_then(crate::channelz::socket_entry);
+-    let mut items = Vec::with_capacity(OutBatch::BURST);
++    let mut items = Vec::with_capacity(initial_batch_item_capacity::<Resp>());
+     let mut permits = Vec::with_capacity(OutBatch::BURST);
+     loop {
+         super::deadline::before_commit(call).await;

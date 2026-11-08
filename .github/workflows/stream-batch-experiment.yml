@@ -1,0 +1,467 @@
+name: One-off stream-batch capacity diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stream-batch-experiment.yml"
+      - ".github/experiments/stream-batch-16k.patch"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stream-batch-experiment-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASE_SHA: 0cf60a9fecffec2b761515f740d0f25b7d0cc13c
+  BASE_TREE_SHA: caa365991b9fd27002d3bf47982e46b41a62dc58
+  BASE_DRAIN_BLOB: 1dca292525ed01028682bec341d7fdd124308c63
+  CAND_DRAIN_BLOB: 331be368a605cb431c25a42a438fdc9856caf9a0
+  PATCH_BLOB: 49e44cf3294dc4c63ab488484f1ac6c6b89bbe7f
+  CARGO_BUILD_JOBS: "2"
+  PBRS_PROTOC_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  RUSTFLAGS: ""
+
+jobs:
+  diagnostic:
+    name: Shared-runner stream-batch diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      # Actions job setup happens before this first runnable step; artifact
+      # retention after job-level timeout or cancellation is best effort.
+      - name: Start elapsed-time budget
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stream-batch-artifacts"
+          date +%s > "$RUNNER_TEMP/stream-batch-artifacts/started_epoch"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        timeout-minutes: 6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        timeout-minutes: 6
+        with:
+          toolchain: 1.99.1
+      - name: Prepare exact worktrees and audit candidate patch
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          ARTIFACTS="$RUNNER_TEMP/stream-batch-artifacts"
+          BASE_TREE="$RUNNER_TEMP/stream-batch-base"
+          CAND_TREE="$RUNNER_TEMP/stream-batch-candidate"
+          BASE_TARGET="$RUNNER_TEMP/stream-batch-base-target"
+          CAND_TARGET="$RUNNER_TEMP/stream-batch-candidate-target"
+          PATCH_PATH="$GITHUB_WORKSPACE/.github/experiments/stream-batch-16k.patch"
+          mkdir -p "$ARTIFACTS"
+          {
+            printf 'ARTIFACTS=%s\n' "$ARTIFACTS"
+            printf 'BASE_TREE=%s\n' "$BASE_TREE"
+            printf 'CAND_TREE=%s\n' "$CAND_TREE"
+            printf 'BASE_TARGET=%s\n' "$BASE_TARGET"
+            printf 'CAND_TARGET=%s\n' "$CAND_TARGET"
+            printf 'CARGO_HOME=%s\n' "$RUNNER_TEMP/stream-batch-cargo"
+          } >> "$GITHUB_ENV"
+          echo 'Historical baseline 0cf60a9; this diagnostic is not current-main qualification.'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(git rev-parse "$BASE_SHA^{tree}")" = "$BASE_TREE_SHA"
+          test "$(git hash-object "$PATCH_PATH")" = "$PATCH_BLOB"
+          cp "$PATCH_PATH" "$ARTIFACTS/input.patch"
+          cp "$GITHUB_WORKSPACE/.github/workflows/stream-batch-experiment.yml" "$ARTIFACTS/workflow.yml"
+          sha256sum "$ARTIFACTS/input.patch" "$ARTIFACTS/workflow.yml" > "$ARTIFACTS/experiment-inputs.sha256"
+          {
+            printf 'workflow_revision=%s\n' "$GITHUB_SHA"
+            printf 'run_id=%s\nattempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            printf 'baseline_commit=%s\nbaseline_tree=%s\n' "$BASE_SHA" "$BASE_TREE_SHA"
+            printf 'patch_blob=%s\n' "$PATCH_BLOB"
+          } > "$ARTIFACTS/revisions.txt"
+          git worktree add --detach "$BASE_TREE" "$BASE_SHA"
+          git worktree add --detach "$CAND_TREE" "$BASE_SHA"
+          test "$(git -C "$BASE_TREE" rev-parse HEAD)" = "$BASE_SHA"
+          test "$(git -C "$CAND_TREE" rev-parse HEAD)" = "$BASE_SHA"
+          test "$(git -C "$BASE_TREE" hash-object pbrs-grpc/src/server/drain.rs)" = "$BASE_DRAIN_BLOB"
+          git -C "$CAND_TREE" apply --check "$PATCH_PATH"
+          git -C "$CAND_TREE" apply "$PATCH_PATH"
+          test "$(git -C "$CAND_TREE" hash-object pbrs-grpc/src/server/drain.rs)" = "$CAND_DRAIN_BLOB"
+          test -z "$(git -C "$BASE_TREE" status --porcelain=v1 --untracked-files=all)"
+          test "$(git -C "$CAND_TREE" status --porcelain=v1 --untracked-files=all)" = ' M pbrs-grpc/src/server/drain.rs'
+          cmp "$BASE_TREE/bench/devloop/Cargo.toml" "$CAND_TREE/bench/devloop/Cargo.toml"
+          cmp "$BASE_TREE/bench/devloop/Cargo.lock" "$CAND_TREE/bench/devloop/Cargo.lock"
+          cmp "$BASE_TREE/bench/devloop/src/stream_burst.rs" "$CAND_TREE/bench/devloop/src/stream_burst.rs"
+      - name: Build and verify the pinned compiler
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ARCH" = X64
+          rustc --version | grep -Fqx 'rustc 1.99.1 (58cf8f9c3 2026-10-13)'
+          test "$(cat "$BASE_TREE/vendor/google/PIN")" = v35.1
+          test "$(cat "$BASE_TREE/vendor/google/SHA")" = 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03
+          cmp "$BASE_TREE/vendor/google/PIN" "$CAND_TREE/vendor/google/PIN"
+          cmp "$BASE_TREE/vendor/google/SHA" "$CAND_TREE/vendor/google/SHA"
+          {
+            date -u --iso-8601=seconds
+            uname -a
+            lscpu
+            rustc -Vv
+            cargo -V
+            cmake --version
+            c++ --version
+            printf 'CARGO_BUILD_JOBS=%s PBRS_PROTOC_JOBS=%s CARGO_INCREMENTAL=%s RUSTFLAGS=%q\n' \
+              "$CARGO_BUILD_JOBS" "$PBRS_PROTOC_JOBS" "$CARGO_INCREMENTAL" "$RUSTFLAGS"
+            sha256sum "$(rustup which rustc)"
+          } > "$ARTIFACTS/host-and-toolchain.txt"
+          cd "$BASE_TREE"
+          scripts/build-pinned-protoc.sh 2>&1 | tee "$ARTIFACTS/protoc-build.log"
+          test "$(git -C "$BASE_TREE/third_party/protobuf" rev-parse HEAD)" = "$(cat "$BASE_TREE/vendor/google/SHA")"
+          mkdir -p "$CAND_TREE/third_party"
+          ln -s "$BASE_TREE/third_party/protobuf" "$CAND_TREE/third_party/protobuf"
+          PROTOC="$BASE_TREE/target/pinned-protoc-build/protoc"
+          test -x "$PROTOC"
+          "$PROTOC" --version >> "$ARTIFACTS/host-and-toolchain.txt"
+          sha256sum "$PROTOC" >> "$ARTIFACTS/host-and-toolchain.txt"
+          printf '%s\n' "$BASE_TREE/target/pinned-protoc-build" >> "$GITHUB_PATH"
+          printf 'PROTOC=%s\n' "$PROTOC" >> "$GITHUB_ENV"
+      - name: Build both unmodified harnesses in separate target directories
+        timeout-minutes: 14
+        run: |
+          set -euo pipefail
+          for side in base candidate; do
+            if [[ "$side" == base ]]; then
+              tree="$BASE_TREE"
+              target="$BASE_TARGET"
+            else
+              tree="$CAND_TREE"
+              target="$CAND_TARGET"
+            fi
+            {
+              printf 'CARGO_TARGET_DIR=%s\n' "$target"
+              printf 'cargo build --locked --release --manifest-path %s --features stream-burst-diagnostic --bin stream-burst\n' "$tree/bench/devloop/Cargo.toml"
+            } > "$ARTIFACTS/$side-build-command.txt"
+            CARGO_TARGET_DIR="$target" cargo build --locked --release \
+              --manifest-path "$tree/bench/devloop/Cargo.toml" \
+              --features stream-burst-diagnostic --bin stream-burst \
+              2>&1 | tee "$ARTIFACTS/$side-build.log"
+            test -x "$target/release/stream-burst"
+            sha256sum "$target/release/stream-burst" > "$ARTIFACTS/$side-binary.sha256"
+            git -C "$tree/bench/devloop" status --porcelain=v1 --untracked-files=all > "$ARTIFACTS/$side-status.txt"
+            git -C "$tree/bench/devloop" diff --no-ext-diff --binary HEAD -- > "$ARTIFACTS/$side-diff.patch"
+          done
+          test ! -s "$ARTIFACTS/base-status.txt"
+          test ! -s "$ARTIFACTS/base-diff.patch"
+          test "$(cat "$ARTIFACTS/candidate-status.txt")" = ' M pbrs-grpc/src/server/drain.rs'
+          test "$(git -C "$CAND_TREE" diff --name-only HEAD)" = 'pbrs-grpc/src/server/drain.rs'
+          test "$(git -C "$CAND_TREE" hash-object pbrs-grpc/src/server/drain.rs)" = "$CAND_DRAIN_BLOB"
+          sha256sum "$ARTIFACTS/base-diff.patch" "$ARTIFACTS/candidate-diff.patch" > "$ARTIFACTS/source-diffs.sha256"
+      - name: Collect raw diagnostic samples
+        timeout-minutes: 42
+        run: |
+          python3 -I - <<'PY'
+          import hashlib
+          import itertools
+          import json
+          import os
+          from pathlib import Path
+          import statistics
+          import subprocess
+          import time
+          
+          # Every subprocess is sequential. Output is retained even if it fails.
+          root = Path(os.environ["ARTIFACTS"])
+          base = Path(os.environ["BASE_TREE"])
+          cand = Path(os.environ["CAND_TREE"])
+          trees = {"base": base, "candidate": cand}
+          binaries = {
+              "base": Path(os.environ["BASE_TARGET"]) / "release/stream-burst",
+              "candidate": Path(os.environ["CAND_TARGET"]) / "release/stream-burst",
+          }
+          sha = os.environ["BASE_SHA"]
+          started = int((root / "started_epoch").read_text())
+          deadline = started + 42 * 60  # reserve time for tests and artifact upload
+          raw = root / "raw"
+          raw.mkdir(exist_ok=True)
+          
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          
+          files = {
+              "harness": "bench/devloop/src/stream_burst.rs",
+              "manifest": "bench/devloop/Cargo.toml",
+              "lockfile": "bench/devloop/Cargo.lock",
+              "corpus_rpc": "bench/devloop/adoption/src/rpc.rs",
+              "corpus_manifest": "bench/devloop/adoption/Cargo.toml",
+              "corpus_build": "bench/devloop/adoption/build.rs",
+              "corpus_lib": "bench/devloop/adoption/src/lib.rs",
+              "workloads": "bench/devloop/adoption/src/workloads.rs",
+              "devloop_build": "bench/devloop/build.rs",
+              "corpus": "bench/devloop/adoption/src/corpus.rs",
+              "sparse_walks": "bench/devloop/adoption/src/sparse_walks.rs",
+              "sparse_proto": "bench/devloop/adoption/proto/sparse.proto",
+              "adoption_proto": "bench/devloop/adoption/proto/adoption.proto",
+              "subject_server_drain": "pbrs-grpc/src/server/drain.rs",
+          }
+          expected_sources = {
+              side: {key: digest(tree / filename) for key, filename in files.items()}
+              for side, tree in trees.items()
+          }
+          common_keys = set(files) - {"subject_server_drain"}
+          assert all(expected_sources["base"][k] == expected_sources["candidate"][k] for k in common_keys)
+          assert expected_sources["base"]["subject_server_drain"] != expected_sources["candidate"]["subject_server_drain"]
+          expected_diff = {side: digest(root / (side + "-diff.patch")) for side in trees}
+          expected_status = {side: digest(root / (side + "-status.txt")) for side in trees}
+          expected_binary = {side: digest(binary) for side, binary in binaries.items()}
+          
+          cells = list(itertools.product(
+              ("sparse-v0", "query-d3-v0"), ("live8", "ready128"), (4, 64, 128)
+          ))
+          canonical_index = {cell: index for index, cell in enumerate(cells)}
+          schedule = []
+          for repeat in range(4):
+              ordered = cells if repeat % 2 == 0 else list(reversed(cells))
+              for case, producer, replies in ordered:
+                  index = canonical_index[(case, producer, replies)]
+                  ns = (100, 200) if (repeat + index) % 2 == 0 else (200, 100)
+                  for iterations in ns:
+                      n_index = 0 if iterations == 100 else 1
+                      order = ("base", "candidate")
+                      if (repeat // 2 + index + n_index) % 2:
+                          order = tuple(reversed(order))
+                      for side in order:
+                          schedule.append({
+                              "ordinal": len(schedule), "repeat": repeat + 1,
+                              "case": case, "producer": producer, "replies": replies,
+                              "iterations": iterations, "warmup": 25, "side": side,
+                          })
+          # Save the intended schedule even if a balance assertion fails.
+          (root / "schedule.json").write_text(json.dumps({
+              "order": "four repeats; AB/BA and N/2N order balanced for each canonical cell",
+              "samples": schedule,
+          }, indent=2) + "\n")
+          assert len(schedule) == 192
+          for case, producer, replies in cells:
+              for iterations in (100, 200):
+                  combinations = set()
+                  for repeat in range(1, 5):
+                      cell_run = [s for s in schedule if
+                                  (s["case"], s["producer"], s["replies"], s["repeat"]) ==
+                                  (case, producer, replies, repeat)]
+                      pair = [s for s in cell_run if s["iterations"] == iterations]
+                      assert len(cell_run) == 4 and len(pair) == 2
+                      assert pair[1]["ordinal"] == pair[0]["ordinal"] + 1
+                      assert {s["side"] for s in pair} == {"base", "candidate"}
+                      combinations.add((pair[0]["ordinal"] == cell_run[0]["ordinal"], pair[0]["side"]))
+                  assert combinations == {
+                      (True, "base"), (True, "candidate"),
+                      (False, "base"), (False, "candidate"),
+                  }, (case, producer, replies, iterations, combinations)
+          
+          outcomes = []
+          records = {}
+          identity = {}
+          def save_outcomes():
+              (root / "outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+          
+          for item in schedule:
+              remaining = deadline - time.time()
+              if remaining <= 10:
+                  raise RuntimeError("measurement time budget exhausted; partial raw results retained")
+              label = "{ordinal:03d}-{case}-{producer}-{replies}-{side}-n{iterations}-r{repeat}".format(**item)
+              stdout = raw / (label + ".json")
+              stderr = raw / (label + ".stderr")
+              command = [str(binaries[item["side"]]), item["case"], item["producer"],
+                         str(item["replies"]), str(item["iterations"]), str(item["warmup"])]
+              event = dict(item, argv=command, started_utc_epoch=time.time())
+              try:
+                  with stdout.open("wb") as out, stderr.open("wb") as err:
+                      completed = subprocess.run(command, cwd=trees[item["side"]], stdout=out,
+                                                 stderr=err, timeout=min(180, remaining - 5),
+                                                 check=False)
+                  event["returncode"] = completed.returncode
+                  if completed.returncode != 0:
+                      raise RuntimeError("sample command failed: " + label)
+                  sample = json.loads(stdout.read_text())
+                  assert sample["schema"] == "devloop/stream-burst/1"
+                  assert sample["id"] == "stream-burst/v1/{}/{}/{}".format(
+                      item["case"], item["producer"], item["replies"])
+                  for field, expected in (
+                      ("case", item["case"]), ("producer", item["producer"]),
+                      ("reply_count", item["replies"]), ("iterations", item["iterations"]),
+                      ("warmup", item["warmup"]),
+                  ):
+                      assert sample[field] == expected, (label, field)
+                  assert sample["runtime_workers"] == 2
+                  assert sample["channel_capacity"] == (8 if item["producer"] == "live8" else 128)
+                  assert len(bytes.fromhex(sample["input_wire_hex"])) == sample["request_bytes"]
+                  assert sample["request_bytes"] == sample["response_bytes_per_message"]
+                  m = sample["measurement"]
+                  for key in ("allocations", "allocated_bytes", "reallocations", "wall_ns"):
+                      assert type(m[key]) is int and m[key] >= 0, (label, key)
+                  assert m["allocations"] > 0 and m["allocated_bytes"] > 0
+                  assert m["overflow_sampled"] is False
+                  assert m["instructions"] == "not_run"
+                  assert "non-atomic" in m["snapshot"] and "process-wide" in m["scope"]
+                  p = sample["provenance"]
+                  side = item["side"]
+                  assert p["runtime_git_head"] == sha
+                  assert p["runtime_git_dirty"] is (side == "candidate")
+                  assert p["runtime_git_status_sha256"] == expected_status[side]
+                  assert p["runtime_tracked_diff_sha256"] == expected_diff[side]
+                  assert p["embedded_sources_sha256"] == expected_sources[side]
+                  assert p["executable_sha256"] == expected_binary[side]
+                  assert sample["target"]["debug_assertions"] is False
+                  assert sample["target"]["devloop_features"]["stream-burst-diagnostic"] is True
+                  size = sample["batch_item_size"]
+                  assert type(size) is int and size > 0
+                  slots = max(1, min(64, 16384 // size))
+                  capacity = 1 << (slots.bit_length() - 1)
+                  if item["case"] == "sparse-v0":
+                      assert capacity < 64
+                  else:
+                      assert capacity == 64
+                  fields = ("id", "case", "producer", "channel_capacity", "reply_count",
+                            "runtime_workers", "input_wire_fingerprint", "input_wire_hex",
+                            "request_bytes", "response_bytes_per_message", "message_size",
+                            "batch_item_size", "checksum", "target")
+                  key = (item["case"], item["producer"], item["replies"])
+                  values = {field: sample[field] for field in fields}
+                  if key in identity:
+                      assert identity[key] == values, ("fixture identity differs", label)
+                  else:
+                      identity[key] = values
+                  rkey = (item["case"], item["producer"], item["replies"], item["repeat"],
+                          side, item["iterations"])
+                  assert rkey not in records
+                  records[rkey] = sample
+                  event["validated"] = True
+              except Exception as error:
+                  event["error"] = repr(error)
+                  raise
+              finally:
+                  event["finished_utc_epoch"] = time.time()
+                  outcomes.append(event)
+                  save_outcomes()
+          
+          rows = []
+          paired_rows = []
+          for case, producer, replies in cells:
+              by_side = {}
+              for side in ("base", "candidate"):
+                  slopes = {metric: [] for metric in ("allocations", "allocated_bytes", "reallocations", "wall_ns")}
+                  for repeat in range(1, 5):
+                      n = records[(case, producer, replies, repeat, side, 100)]["measurement"]
+                      two_n = records[(case, producer, replies, repeat, side, 200)]["measurement"]
+                      for metric in slopes:
+                          slopes[metric].append((two_n[metric] - n[metric]) / 100)
+                  by_side[side] = slopes
+                  rows.append({
+                      "case": case, "producer": producer, "replies": replies, "side": side,
+                      "per_rpc_n_to_2n": slopes,
+                      "median_per_rpc_n_to_2n": {metric: statistics.median(values) for metric, values in slopes.items()},
+                  })
+              paired = {}
+              for metric in by_side["base"]:
+                  deltas = [candidate - base for base, candidate in
+                            zip(by_side["base"][metric], by_side["candidate"][metric])]
+                  paired[metric] = {
+                      "per_repeat": deltas, "median": statistics.median(deltas),
+                      "min": min(deltas), "max": max(deltas),
+                  }
+              paired_rows.append({
+                  "case": case, "producer": producer, "replies": replies,
+                  "candidate_minus_base_per_rpc_n_to_2n": paired,
+              })
+          (root / "diagnostic-summary.json").write_text(json.dumps({
+              "diagnostic_only": True,
+              "limitations": [
+                  "historical baseline 0cf60a9; not current-main qualification",
+                  "shared hosted runner; no controlled ranking or production latency conclusion",
+                  "client and server share one process",
+                  "relaxed allocation counters and overflow flag are sampled non-atomically",
+                  "wall time is instrumented and secondary; instructions were not measured",
+                  "summary is preliminary until the candidate correctness test steps pass",
+                  "job-level timeout or cancellation may prevent artifact upload",
+              ],
+              "rows": rows,
+              "paired_rows": paired_rows,
+          }, indent=2) + "\n")
+          print("Validated 192 diagnostic samples. Candidate correctness tests follow.")
+          PY
+      - name: Run candidate correctness controls after measurements
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          CARGO_TARGET_DIR="$CAND_TARGET" cargo test --locked \
+            --manifest-path "$CAND_TREE/bench/devloop/Cargo.toml" \
+            --features stream-burst-diagnostic --bin stream-burst \
+            2>&1 | tee "$ARTIFACTS/candidate-diagnostic-tests.log"
+          cd "$CAND_TREE"
+          CARGO_TARGET_DIR="$CAND_TARGET" cargo test --locked -p pbrs-grpc --test sv09_streaming \
+            2>&1 | tee "$ARTIFACTS/candidate-streaming-tests.log"
+      - name: Validate source and binary state after tests
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          for side in base candidate; do
+            if [[ "$side" == base ]]; then tree="$BASE_TREE"; else tree="$CAND_TREE"; fi
+            git -C "$tree/bench/devloop" status --porcelain=v1 --untracked-files=all > "$ARTIFACTS/$side-status-after.txt"
+            git -C "$tree/bench/devloop" diff --no-ext-diff --binary HEAD -- > "$ARTIFACTS/$side-diff-after.patch"
+            cmp "$ARTIFACTS/$side-status.txt" "$ARTIFACTS/$side-status-after.txt"
+            cmp "$ARTIFACTS/$side-diff.patch" "$ARTIFACTS/$side-diff-after.patch"
+            sha256sum --check "$ARTIFACTS/$side-binary.sha256"
+          done
+          python3 -I - "$ARTIFACTS/diagnostic-summary.json" <<'PY'
+          import json
+          import sys
+          
+          with open(sys.argv[1], encoding="utf-8") as source:
+              report = json.load(source)
+          assert report["diagnostic_only"] is True
+          rows = {(r["case"], r["producer"], r["replies"], r["side"]): r
+                  for r in report["rows"]}
+          paired = report["paired_rows"]
+          assert len(rows) == 24 and len(paired) == 12
+          print("Historical baseline 0cf60a9; this is not current-main qualification.")
+          print("Shared-runner, process-wide client+server sampled allocations; non-atomic")
+          print("relaxed counters and overflow flag can race. Results are diagnostic,")
+          print("not a controlled ranking; wall time is instrumented and secondary.")
+          print("Per-RPC N=100 to 2N=200 slopes, four repeats: base/candidate medians;")
+          print("paired candidate-minus-base median [minimum, maximum].")
+          for cell in paired:
+              key = (cell["case"], cell["producer"], cell["replies"])
+              base = rows[key + ("base",)]["median_per_rpc_n_to_2n"]
+              candidate = rows[key + ("candidate",)]["median_per_rpc_n_to_2n"]
+              deltas = cell["candidate_minus_base_per_rpc_n_to_2n"]
+              fields = []
+              for label, metric in (("requested_bytes", "allocated_bytes"),
+                                    ("allocations", "allocations"),
+                                    ("reallocs", "reallocations")):
+                  delta = deltas[metric]
+                  fields.append(
+                      "{}: {:.2f}/{:.2f}; delta {:.2f} [{:.2f},{:.2f}]".format(
+                          label, base[metric], candidate[metric],
+                          delta["median"], delta["min"], delta["max"])
+                  )
+              print("{} {} {} | {}".format(key[0], key[1], key[2], " | ".join(fields)))
+          PY
+          printf '%s\n' 'All measurement provenance checks and candidate correctness tests passed.' > "$ARTIFACTS/PASSED.txt"
+          {
+            echo '### Shared-runner stream-batch diagnostic'
+            echo 'Historical baseline 0cf60a9; this is not current-main qualification.'
+            echo 'Raw allocation counters are non-atomic, process-wide samples; wall time is instrumented. This is not a controlled performance ranking.'
+            echo 'The retained artifact contains the schedule, raw JSON and stderr, source patch, toolchain details, and correctness logs.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain raw diagnostic evidence
+        timeout-minutes: 5
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-batch-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/stream-batch-artifacts/
+          if-no-files-found: warn
+          retention-days: 30
