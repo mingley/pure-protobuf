@@ -1555,8 +1555,10 @@ async fn server_emits_representable_pushback_on_the_wire() {
     ];
     tokio::time::timeout(CALL_BUDGET, async {
         for (delay, expected) in cases {
-            let service =
-                Scripted::new(vec![Step::FailPushback(Code::Unavailable, Pushback::Delay(delay))]);
+            let service = Scripted::new(vec![Step::FailPushback(
+                Code::Unavailable,
+                Pushback::Delay(delay),
+            )]);
             let (addr, _guard) = serve(service, ServerConfig::default())
                 .await
                 .expect("server");
