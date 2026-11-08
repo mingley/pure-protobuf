@@ -1,8 +1,8 @@
 //! Unary call shape.
 
 use super::call::{
-    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, is_direct_cancellation,
-    open, peer_rejection_from_head, poll_now, prefer_deadline,
+    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of,
+    is_direct_cancellation, open, peer_rejection_from_head, poll_now, prefer_deadline,
     prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
     send_request_frame,
 };
@@ -279,8 +279,7 @@ where
                     Ok(head) => {
                         response_committed =
                             cached_commitment.unwrap_or_else(|| response_commits(&head));
-                        if inspect_peer
-                            && (!upload_reset || head.status() != http::StatusCode::OK)
+                        if inspect_peer && (!upload_reset || head.status() != http::StatusCode::OK)
                         {
                             peer_status = peer_rejection_from_head(&head, cached_commitment);
                         }

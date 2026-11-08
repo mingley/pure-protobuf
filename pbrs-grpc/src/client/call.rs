@@ -1313,9 +1313,11 @@ mod tests {
                 (Some("bad"), Code::Unknown),
                 (Some("17"), Code::Unknown),
             ] {
-                let (response, send_error) =
-                    response_after_closed_upload(http::StatusCode::SERVICE_UNAVAILABLE, grpc_status)
-                        .await;
+                let (response, send_error) = response_after_closed_upload(
+                    http::StatusCode::SERVICE_UNAVAILABLE,
+                    grpc_status,
+                )
+                .await;
                 let mut committed = false;
                 let status = super::prefer_peer_rejection_with_commitment::<()>(
                     std::future::ready(Ok(response)),
@@ -1327,7 +1329,10 @@ mod tests {
                 .expect_err("peer rejection");
                 assert_eq!(status.code(), expected);
                 assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
-                assert_eq!(status.metadata().get_bin("x-trace-bin"), Some(vec![0, 1, 255]));
+                assert_eq!(
+                    status.metadata().get_bin("x-trace-bin"),
+                    Some(vec![0, 1, 255])
+                );
                 assert!(committed, "HTTP error headers must remain committed");
                 assert!(!status.is_transport());
             }

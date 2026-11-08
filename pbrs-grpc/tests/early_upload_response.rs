@@ -260,10 +260,8 @@ async fn early_http_error_does_not_retry_and_connection_recovers() {
         let status = if streaming {
             tokio::time::timeout(
                 Duration::from_secs(8),
-                channel.server_streaming::<_, HelloReply>(
-                    "/helloworld.Greeter/ServerHello",
-                    request,
-                ),
+                channel
+                    .server_streaming::<_, HelloReply>("/helloworld.Greeter/ServerHello", request),
             )
             .await
             .expect("early response timed out")
