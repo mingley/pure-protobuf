@@ -58,6 +58,25 @@ Keep adapter alpha warnings until their promotion evidence supports a change.
    release artifacts identify the qualified source. Follow
    [same-tag recovery](RELEASE.md#recovery) after a partial upload.
 
+## Native transport memory
+
+The configured `ByteBudgetTracker` limit applies to charged bytes. A
+successful native send can release its charge after HTTP/2 queues data, before
+the data is written or freed. Native receive buffers are not charged, and a
+zero charge does not mean the transport has no retained buffers. See
+[resource budgets](resource-budgets.md) for the accounting scope.
+
+A strict aggregate transport-memory bound has not been established for the
+native transport. Before claiming one, define its full scope and account for
+the retained lifetime of receive buffers, queued and in-flight HTTP/2 data,
+shared backing allocations, and relevant connection and stream state. Validate
+the bound and recovery on the final source under concurrent slow readers and
+writers, queue saturation, cancellation, reset, and shutdown. Retain evidence
+under the existing [QG-06](plan/world-class/tasks.json) and
+[GR-11](ROADMAP.md#gr-11-promote-narrowly-then-stabilize-the-public-api) gates.
+The core protobuf profile has no transport requirement; the profile-specific
+gates in the checklist remain in effect.
+
 ## Performance claims
 
 Production promotion needs a benchmark baseline; benchmark victory is not a
