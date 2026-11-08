@@ -143,7 +143,6 @@ jobs:
       - name: Bounded compressed buffer lifecycle controls
         run: |
           cargo test --locked -p pbrs-grpc --all-features --test encode_workspace --test decode_workspace --test output_workspace
-          cargo test --locked -p pbrs-grpc --features grpc-web --test grpc_web
           cargo clippy --locked -p pbrs-grpc --all-features --test output_workspace -- -D warnings
       - name: Standalone benchmark correctness contracts (no performance gate)
         run: |
@@ -168,6 +167,16 @@ jobs:
         run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
+
+  grpc-web:
+    name: gRPC-Web protocol
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Native gRPC-Web integration tests
+        run: cargo test --locked -p pbrs-grpc --features grpc-web --test grpc_web
 
   # Cross-language gRPC interop. The kernel talks to grpc-go's reference
   # client and server in both directions, so a protocol regression fails here

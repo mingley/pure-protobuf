@@ -473,7 +473,7 @@ impl Rpc {
         &self.byte_budget
     }
 
-    /// Number of bytes currently allocated in transport buffers on this server.
+    /// Bytes currently charged to this RPC's shared byte budget tracker.
     #[must_use]
     pub fn byte_budget_allocated(&self) -> usize {
         self.byte_budget.allocated()

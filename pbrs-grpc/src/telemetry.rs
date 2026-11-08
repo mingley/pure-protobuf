@@ -378,7 +378,7 @@ pub enum RejectionReason {
     InvalidRequest,
     /// Service or method not registered on the server.
     Unimplemented,
-    /// Transport byte budget exceeded.
+    /// A byte-budget charge could not be acquired.
     ByteBudgetExceeded,
     /// Request message encoding/serialization failure.
     MessageEncode,

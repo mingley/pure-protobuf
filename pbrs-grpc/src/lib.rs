@@ -135,15 +135,16 @@
 //! ## Threat model
 //!
 //! The peer is assumed hostile and able to send any bytes at any rate. Each
-//! defence below is enforced before the memory it guards is committed.
+//! defence below targets a particular stage of work. These limits do not imply
+//! a total process-memory bound.
 //!
 //! | Attack | Defence | Default |
 //! |---|---|---|
-//! | Huge declared message length | Refused from the 5-byte frame header, before the payload is buffered | 4 MiB ([`MessageLimits`]) |
+//! | Huge declared message length | Refused from the 5-byte frame header without a claim-sized carry reservation; HTTP/2 may already hold DATA | 4 MiB ([`MessageLimits`]) |
 //! | Decompression bomb | Bounded inflate that stops one byte past the cap; opt out of inbound gzip entirely | 4 MiB ([`gzip::decode_limited`]); opt-out [`ServerConfig::accept_compressed`] / [`ChannelConfig::accept_compressed`] |
 //! | Metadata flood | HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE` | 16 KiB ([`ServerConfig::max_header_list_size`]) |
 //! | Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`; extras wait, they are not `RESOURCE_EXHAUSTED` | 256 ([`ServerConfig::max_concurrent_streams`]) |
-//! | Unbounded buffering | Per-connection window and send buffer | 16 MiB / 1 MiB |
+//! | Transport buffering | Per-connection receive window and per-stream send-buffer threshold | 16 MiB / 1 MiB |
 //! | Slow reader amplification | Capacity is released only after a chunk is handed on, so a slow handler throttles the peer | always on |
 //! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |
 //! | Truncated or malformed frames | Rejected as a protocol error, never treated as an empty message | always on |
@@ -168,7 +169,7 @@
 //! | Client cancel after a client-streaming half-close | RST while the unary response is pending (handle, drop, or deadline) | always |
 //! | Client request-stream abort ([`StreamSender::fail`]) | RST CANCEL; the [`Call`] resolves with that status (client-streaming, or bidi before headers — not `UNAVAILABLE` from the reset); after bidi headers the received [`Streaming`] sees [`Code::Cancelled`], not that status | always |
 //! | Client streaming deadline | RST the send half before headers (server-streaming and bidi) and after a half-close; after those headers RST the parked send half | always |
-//! | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
+//! | Unsupported method or content type (GET, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken; supported gRPC-Web types are accepted with `grpc-web` and rejected with 415 without it | always |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not

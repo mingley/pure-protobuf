@@ -1491,7 +1491,7 @@ impl super::Channel {
 
     /// Write-time HTTP/2 send buffer threshold for outbound DATA on this clone.
     /// See [`ChannelConfig::max_send_buffer_size`].
-    /// Preserves the aggregate byte budget; set it separately with [`Self::byte_budget`].
+    /// Preserves the byte budget tracker; set its limit separately with [`Self::byte_budget`].
     ///
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Overlay: does not change how a dead slot is
@@ -1503,7 +1503,10 @@ impl super::Channel {
         self.with_local(|local| local.config = config)
     }
 
-    /// Set a transport byte budget for queued and in-flight buffers on this channel.
+    /// Replace this channel's tracker with one capped at `limit` charged bytes.
+    ///
+    /// This does not bound all transport memory. See [`crate::ByteBudgetTracker`]
+    /// for the accounting scope.
     #[must_use]
     pub fn byte_budget(self, limit: usize) -> Self {
         self.with_local(|local| local.byte_budget = ByteBudgetTracker::with_limit(limit))
@@ -1521,7 +1524,7 @@ impl super::Channel {
         &self.local.byte_budget
     }
 
-    /// Number of bytes currently allocated in transport buffers on this channel.
+    /// Bytes currently charged to this channel's byte budget tracker.
     #[must_use]
     pub fn byte_budget_allocated(&self) -> usize {
         self.local.byte_budget.allocated()
@@ -1533,7 +1536,9 @@ impl super::Channel {
         self.local.byte_budget.limit()
     }
 
-    /// Whether transport buffer allocation is currently zero.
+    /// Whether this channel's tracker currently has zero charged bytes.
+    ///
+    /// HTTP/2 and application buffers can still be live.
     #[must_use]
     pub fn is_byte_budget_quiescent(&self) -> bool {
         self.local.byte_budget.is_quiescent()

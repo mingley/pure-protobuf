@@ -62,7 +62,7 @@ owner, limit and release point.
 | **Idle Decoded Buffer Cache** | Transport, shared across the process | At most 4 MiB per inbound stream and 16 MiB in total | Fixed internal capacity policy, separate from transport-byte permits | Reused by the next compressed message; released on observed EOF, error, cancellation, deadline or stream drop |
 | **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
 | **Compressed Member/Frame Setup** | Compression decoder | At most 1,024 admissions per message by default | `MessageLimits::with_max_compression_frames`; includes empty gzip members and Zstd skippable frames | Count resets for each gRPC message |
-| **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
+| **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | On successful native sends, the charge can end after enqueue while HTTP/2 retains the bytes |
 | **Compressed Streaming Scratch and Output Tail** | Transport (`wire::OutBatch`) | Small serialization scratch up to 64 KiB per outbound stream; large serialization scratch and compressed output share one 16 MiB process-wide ledger, at most 4 MiB per backing allocation | Encode-cache capacity ledger; finite encoding limits govern active storage; outside byte-budget permits | Stream destruction, encode/compression failure or panic; oversize/full-cache output declines retention |
 | **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
 | **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
@@ -163,14 +163,18 @@ becomes non-OK trailers after already queued valid replies, unless a peer
 reset prevents delivery. This sample is separate from the benchmark worker
 and does not qualify the original upstream negative-case runner.
 
-The public `pbrs_grpc::ByteBudgetTracker` can share an explicit transport-byte
-cap through `Server::with_byte_budget_tracker` or
-`Channel::with_byte_budget_tracker`. Acquired `BytePermit`s return their bytes
-on drop. `allocated()` / `is_quiescent()` expose the current state, and
-`peak_allocated()` records the lifetime high-water mark of accounted permits
-across clones (including warmup), exact after in-flight acquisitions finish.
-Counter overflow rejects explicitly; neither value measures application
-allocations or process RSS.
+The public `pbrs_grpc::ByteBudgetTracker` can share a limit on charged bytes
+through `Server::with_byte_budget_tracker` or
+`Channel::with_byte_budget_tracker`. Acquired `BytePermit`s return their charges
+on drop. A successful native send can release its charge once data is queued
+in HTTP/2; the queued bytes can remain live after that. Native receive buffers
+are not charged. Some adapter paths account for buffers with different lifetimes.
+
+`allocated()` and `is_quiescent()` report charged bytes, not all live transport
+buffers. In particular, zero does not prove that HTTP/2 queues are empty.
+`peak_allocated()` records the lifetime high-water mark of charged bytes across
+clones (including warmup), exact after in-flight acquisitions finish. Counter
+overflow rejects explicitly; neither value measures process RSS.
 `active_byte_permit_tokens()` separately counts live `BytePermit` handles,
 including successful zero-byte acquisitions; `BytePermit::empty()` has no
 tracker and is not counted. `peak_active_byte_permit_tokens()` records their
@@ -212,7 +216,7 @@ made when a connection opens.
 | Connections | TLS state, HTTP/2 state, HPACK tables, timers, reset tracking, and connection tasks | Set `max_concurrent_connections`; measure memory per connection with the shipping TLS and allocator profile. |
 | HTTP/2 streams | Header maps, stream state, queued outbound DATA, and reset/cancellation state | Set `max_concurrent_streams`; multiply per-stream costs by admitted streams across all connections. |
 | Active RPCs | Handler/client futures, decoded messages, encoded frames, replay buffers, and stream queues | Set `max_concurrent_rpcs`, finite message limits, and bounded application queues. |
-| Accounted transport bytes | Allocations carrying `ByteBudgetTracker` permits | Share a tracker; inspect current and peak allocations after acquisitions settle. Codec scratch, decoder state and allocator overhead are separate costs. |
+| Accounted byte charges | Bytes charged to a shared `ByteBudgetTracker` | Inspect current and peak charges after acquisitions settle. Native HTTP/2 queued data and receive buffers can be outside those charges. |
 | Application and allocator memory | Retained messages, shared backing allocations, handler work, caches, task locals, fragmentation | Application budgets plus measured process RSS under sustained mixed traffic. |
 | Kernel socket memory | TCP receive/send buffers and connection bookkeeping | Measure separately with platform tools; do not equate it with process RSS. |
 
@@ -239,8 +243,8 @@ process memory ≈ base runtime and allocator overhead
 
 Do not count the same shared backing allocation twice merely because two
 `Bytes` handles reference it. Conversely, a small slice can retain an entire
-backing allocation. The byte-permit gauge measures what the transport accounts
-for; it is not an RSS meter.
+backing allocation. The byte-permit gauge measures charged bytes; it is not a
+transport-memory or RSS meter.
 
 The connection receive window limits outstanding, unconsumed HTTP/2 DATA
 credit across streams. Once the transport releases that credit, decoded or
@@ -250,17 +254,19 @@ total memory bound.
 
 ### Independent send buffers and byte budgets
 
-`Server`, `Router`, and `Channel` keep the HTTP/2 send buffer and the aggregate
-byte budget separate. `.config(...)` and `.max_send_buffer_size(...)` preserve
-an attached tracker, including its shared identity and outstanding permits.
-A nondefault send buffer does not create an aggregate budget. Set an aggregate
-limit explicitly with `.byte_budget(...)` or `.with_byte_budget_tracker(...)`.
+`Server`, `Router`, and `Channel` keep the per-stream HTTP/2 send buffer and
+the shared byte tracker separate. `.config(...)` and `.max_send_buffer_size(...)`
+preserve an attached tracker, including its shared identity and outstanding
+permits. A nondefault send buffer does not create a byte-charge limit. Set one
+explicitly with `.byte_budget(...)` or `.with_byte_budget_tracker(...)`.
+The tracker does not bound native receive buffers or all HTTP/2 queued data; set
+finite connection, stream and message limits too, and measure memory under load.
 
-Earlier versions derived an aggregate budget from a nondefault send buffer and
-could replace an attached tracker. Code relying on that implicit limit must now
-set it explicitly. For example, use `.max_send_buffer_size(4096).byte_budget(131072)`
+Earlier versions derived a budget from a nondefault send buffer and could
+replace an attached tracker. Code relying on that implicit limit must now set it
+explicitly. For example, use `.max_send_buffer_size(4096).byte_budget(131072)`
 to allow whole messages larger than the per-stream send buffer while limiting
-accounted transport bytes. This byte budget is not a process-memory limit.
+charged bytes. Neither setting is a process-memory limit.
 
 [`current-h2-soak.py`](../scripts/current-h2-soak.py) freezes a clean commit,
 finite Linux process limits and a bounded workload before executing its test
@@ -366,9 +372,9 @@ RSS ceiling. Sustained current-backend soak evidence is still required by the
 
 ## 5. Admission Control & Error Semantics (Contract for RT-06)
 
-The RT-06 admission contract requires checks at distinct lifecycle boundaries.
-Reject before allocating the memory guarded by a limit. The implementation
-and tests below are the current reference for those checks.
+The checks below apply to different admission and message limits. Their scope
+does not make the byte tracker a complete transport-memory bound. In particular,
+a native unary frame can be serialized before its send charge is acquired.
 
 ```
 Incoming Connection (TCP Accept)
@@ -392,7 +398,7 @@ Frame Header (5-byte prefix)
        │
        ▼
 [ Message Length <= max_decoding? ] ───(Over Limit)───► Immediate RESOURCE_EXHAUSTED
-       │                                                 (Zero payload memory allocated)
+       │                                                 (No claim-sized carry reservation)
        ▼ (Length Valid)
 Payload Data Received
        │
@@ -426,9 +432,9 @@ Payload Data Received
     - `grpc-status = 8` (`Code::ResourceExhausted`)
     - `grpc-message = "too many concurrent RPCs"`
     - `end_stream = true` set directly on the initial `HEADERS` frame.
-  - **Reject before reading the request body:**
-    - **No request body data is read or buffered**.
-    - No `FrameReader` chunk or carry buffer is allocated or expanded.
+  - **Reject before the handler reads the request body:**
+    - The HTTP/2 layer may already have buffered DATA sent with the headers.
+    - No handler `FrameReader` chunk or carry buffer is allocated or expanded.
     - No decompression or protobuf parsing is attempted.
     - No handler task or async future is spawned.
 - **Client Rejection Behavior:**
@@ -442,7 +448,9 @@ Payload Data Received
   - Enforced in `limits.check_decode(n)` and `wire::codec::pop_limited`.
   - The 5-byte gRPC framing header `[compressed: u8, len: u32]` is parsed from the wire.
   - If `len > max_decoding`, the frame is rejected immediately with `Code::ResourceExhausted("decoded message length {n} exceeds limit {max}")`.
-  - **Invariant:** The payload memory is rejected **before** allocating the destination buffer or reading the payload bytes from the stream.
+  - **Invariant:** An oversized length is rejected before allocating a carry
+    buffer based on that claim. HTTP/2 may already have received payload DATA in
+    the same or an earlier chunk.
 - **Outbound Encoding Cap:**
   - Enforced in `limits.check_encode(n)` and `wire::frame_from_msg` / `StreamSender::send`.
   - The message's serialized length is computed via `T::serialized_len(&msg)`.
@@ -500,7 +508,7 @@ in memory measurements; the message cap alone is not a process-memory bound.
 | **Connection Cap** | `listener.accept()` | 0 bytes | Drop TCP socket immediately | Socket RST / Drop |
 | **Server RPC Cap** | `conn.poll_accept()` | 0 bytes body | Send Trailers-Only HEADERS (`end_stream=true`) | `RESOURCE_EXHAUSTED` (8) |
 | **Client RPC Cap** | `Call::poll()` / invoke | 0 bytes | Fail client future locally, no wire frames | `RESOURCE_EXHAUSTED` (8) |
-| **Inbound Msg Size** | 5-byte frame header | 0 bytes payload | Send Trailers-Only response or stream reset | `RESOURCE_EXHAUSTED` (8) |
+| **Inbound Msg Size** | 5-byte frame header | No claim-sized carry reservation; HTTP/2 may already hold DATA | Send Trailers-Only response or stream reset | `RESOURCE_EXHAUSTED` (8) |
 | **Outbound Msg Size** | `T::serialized_len()` | 0 bytes frame | Abort serialization, return error | `RESOURCE_EXHAUSTED` (8) |
 | **Decompression Overflow** | Decompression loop | Output reservation up to `budget`; decoder and stack costs are separate | Abort inflate, send Trailers-Only error | `RESOURCE_EXHAUSTED` (8) |
 | **Compressed Member/Frame Count** | Before the next decoder reset | Already-admitted decoder/input/output state may remain until cleanup | Reject the message | `RESOURCE_EXHAUSTED` (8) |
@@ -605,10 +613,11 @@ let config = ServerConfig::new()
     .max_encoding_message_size(256 * 1024);
 ```
 
-Set the intended aggregate transport byte budget explicitly with
-`Server::byte_budget` or `with_byte_budget_tracker`. Its value can exceed the
-per-stream send threshold so whole encoded messages fit. Transport configuration
-preserves this tracker regardless of builder order.
+Set the intended shared byte-charge limit explicitly with `Server::byte_budget`
+or `with_byte_budget_tracker`. Its value can exceed the per-stream send threshold
+so whole encoded messages fit. Transport configuration preserves this tracker
+regardless of builder order. Account separately for native receive buffers and
+HTTP/2 queued bytes that outlive the native send permits.
 
 ---
 
@@ -722,12 +731,12 @@ The table below is the pass/fail contract enforced in `pbrs-grpc/tests/resource_
 | F-4 | Fast-client p99 with a slow reader or slow writer peer | < 200 ms | Server | `test_slow_reader_peer_isolation`, `test_slow_writer_peer_isolation` |
 | F-5 | Legitimate-call p99 during an RST storm | < 300 ms | Server | `test_reset_storm_isolation_and_competing_progress` |
 | F-6 | Idle-peer contention: active-call p99 | < 200 ms | Server | `test_idle_peers_contention_and_fairness` |
-| O-1 | Overload: every offered call gets an explicit outcome (success or `RESOURCE_EXHAUSTED` citing the violated limit); no silent buffering, no silent drop | 100% explicit | Client + Server | `test_overload_explicit_status_rejection_no_silent_buffering` |
+| O-1 | Overload: every offered call gets an explicit outcome (success or `RESOURCE_EXHAUSTED` citing the violated limit); no silent drop | 100% explicit | Client + Server | `test_overload_explicit_status_rejection_no_silent_buffering` |
 | O-2 | Overload: admitted-call p99 latency | < 500 ms | Server | `test_overload_explicit_status_rejection_no_silent_buffering` |
-| O-3 | Transport byte budget under mixed large/small/compressed load: explicit outcomes only (success or `RESOURCE_EXHAUSTED` citing the budget); held allocations block admission, release re-admits (hard ceiling additionally unit-covered in `limits.rs`) | 100% explicit, block/release | Client + Server | `test_mixed_large_small_compressed_byte_budget` |
+| O-3 | Byte charges under mixed large/small/compressed load: explicit outcomes only (success or `RESOURCE_EXHAUSTED` citing the budget); held charges block admission, release re-admits (the charge ceiling is unit-covered in `limits.rs`) | 100% explicit, block/release | Client + Server | `test_mixed_large_small_compressed_byte_budget` |
 | C-1 | Cancellation, encode error, or peer reset returns byte accounting to baseline | `allocated() == 0` | Client + Server | `test_client_cancellation_releases_budget`, `test_encode_error_releases_budget_to_baseline`, `test_reset_storm_isolation_and_competing_progress` |
-| C-2 | Dropping `Call` futures across all four shapes releases concurrency permits immediately (next calls succeed) and quiesces buffers | probe succeeds, `allocated() == 0` | Client + Server | `test_cancellation_cleanup_drops_call_futures_and_quiesces` |
-| C-3 | Graceful drain with unending streams or blocked uploads terminates within the grace policy and quiesces | `T_drain <= grace` (test window), `allocated() == 0` | Server | `test_graceful_shutdown_bounded_drain_unending_client_stream`, `test_graceful_shutdown_blocked_upload_stream` |
+| C-2 | Dropping `Call` futures across all four shapes releases concurrency permits immediately (next calls succeed) and returns accounted charges to zero | probe succeeds, `allocated() == 0` | Client + Server | `test_cancellation_cleanup_drops_call_futures_and_quiesces` |
+| C-3 | Graceful drain with unending streams or blocked uploads terminates within the grace policy and returns accounted charges to zero | `T_drain <= grace` (test window), `allocated() == 0` | Server | `test_graceful_shutdown_bounded_drain_unending_client_stream`, `test_graceful_shutdown_blocked_upload_stream` |
 | C-4 | Stalled handshakes never extend termination | drain completes promptly, `allocated() == 0` | Server | `test_graceful_shutdown_handshake_stall_terminates_promptly` |
 | C-5 | Deadline-expired unending streams abort, quiesce, and drain fast | `DeadlineExceeded`, `allocated() == 0` | Server | `test_unending_stream_deadline_expiration_and_drain` |
 
@@ -751,10 +760,13 @@ paired reference runs remain unqualified.
 
 The implementation cards and checks are:
 
-1. **RT-06 ("Enforce the approved transport byte budget"):**
-   - Implements the shared byte-admission and accounting mechanism in `pbrs-grpc/src/limits.rs`, `client.rs`, and `server.rs`.
-   - Adopts the error and rejection semantics specified in Section 5 (immediate TCP drop, Trailers-Only `RESOURCE_EXHAUSTED` with `end_stream=true`, zero payload buffering).
-   - Validates memory bounds under synthetic hostile tests in `pbrs-grpc/tests/resource_bounds.rs`.
+1. **RT-06 (byte admission and accounting):**
+   - Uses shared byte-charge permits, as described above. Native receive buffers
+     and some HTTP/2 queued data are outside those charges.
+   - Applies the separate connection, RPC and message admission checks in §5.
+   - Exercises charge rejection and recovery in
+     `pbrs-grpc/tests/resource_bounds.rs`; these tests do not establish a total
+     transport-memory or process-memory ceiling.
 2. **RT-07 ("Verify overload fairness and slow-peer isolation"):**
    - Uses the bounded production profiles defined in Section 6 to benchmark mixed workloads (bulk streams mixed with small unary RPCs, slow readers/writers, and reset storms).
    - Checks admitted-call progress and the queue-delay bounds above; RSS is recorded separately.

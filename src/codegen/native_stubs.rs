@@ -448,7 +448,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{g}::ServerConfig::max_send_buffer_size`]."
+        "    /// Per-stream HTTP/2 send buffer threshold. Applies to every call shape. See [`{g}::ServerConfig::max_send_buffer_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

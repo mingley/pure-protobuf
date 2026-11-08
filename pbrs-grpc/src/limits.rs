@@ -13,11 +13,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Default inbound message cap: 4 MiB, matching gRPC's cross-language default.
 pub const DEFAULT_MAX_DECODING_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
 
-/// Tracks allocated transport buffer bytes against a configured budget.
+/// Tracks byte charges against an optional limit.
 ///
-/// Permits are acquired via [`ByteBudgetTracker::try_acquire`] or [`ByteBudgetTracker::acquire`].
-/// When a [`BytePermit`] is dropped or explicitly released, the allocated bytes are returned
-/// to the tracker.
+/// The native client and server charge selected outbound frames while sending.
+/// A charge can end when data is queued in HTTP/2, before that data is written
+/// or freed. Native receive buffers are not charged. This is not a bound on all
+/// transport memory or process memory.
+///
+/// Acquire charges with [`Self::try_acquire`] or [`Self::acquire`]. Dropping or
+/// releasing a [`BytePermit`] returns its charge to the tracker.
 #[derive(Clone, Debug)]
 pub struct ByteBudgetTracker {
     inner: Arc<ByteBudgetInner>,
@@ -57,7 +61,8 @@ impl Default for ByteBudgetTracker {
 
 impl ByteBudgetTracker {
     /// Create a new byte budget tracker with an optional limit.
-    /// `None` indicates an unlimited budget (bytes are tracked, but never rejected).
+    /// `None` means there is no configured byte limit. Counter overflow can
+    /// still reject an acquisition.
     #[must_use]
     pub fn new(limit: Option<usize>) -> Self {
         Self {
@@ -71,7 +76,7 @@ impl ByteBudgetTracker {
         }
     }
 
-    /// Create an unlimited tracker that tracks allocations without rejecting.
+    /// Create a tracker with no configured byte limit.
     #[must_use]
     pub fn unlimited() -> Self {
         Self::new(None)
@@ -136,7 +141,10 @@ impl ByteBudgetTracker {
             .map(|lim| lim.saturating_sub(self.allocated()))
     }
 
-    /// Whether there are currently zero bytes allocated.
+    /// Whether there are currently zero charged bytes.
+    ///
+    /// This can be true while a zero-byte permit is live or uncharged transport
+    /// buffers remain. It does not mean all RPCs or streams have finished.
     #[must_use]
     pub fn is_quiescent(&self) -> bool {
         self.allocated() == 0
@@ -164,9 +172,9 @@ impl ByteBudgetTracker {
 
     /// Try to acquire a permit for `bytes`.
     ///
-    /// If the allocation would exceed the configured limit, returns
-    /// `Status::resource_exhausted`. Otherwise, returns an RAII [`BytePermit`]
-    /// that will release the bytes back to this tracker when dropped.
+    /// If the charge would exceed the configured limit or a counter would
+    /// overflow, returns `Status::resource_exhausted`. Otherwise, returns an
+    /// RAII [`BytePermit`] that releases the charge when dropped.
     pub fn try_acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
         // The unlimited tracker still checks representational overflow.
         match self.inner.limit {
@@ -315,10 +323,9 @@ impl ByteBudgetTracker {
     }
 }
 
-/// An RAII permit representing allocated transport buffer bytes.
+/// An RAII permit representing bytes charged to a [`ByteBudgetTracker`].
 ///
-/// When dropped or explicitly released with [`Self::release`], the allocated bytes
-/// are deducted from the associated [`ByteBudgetTracker`].
+/// Dropping the permit or calling [`Self::release`] returns its charge.
 #[derive(Debug)]
 pub struct BytePermit {
     tracker: Option<ByteBudgetTracker>,

@@ -55,9 +55,9 @@
 //! Unlimited changed outbound compression policies, a selected unsupported
 //! codec, finite byte budgets, response hooks, binary logging, lifecycle observers
 //! and grpc-web cannot currently apply to these bodies: they fail with
-//! `FAILED_PRECONDITION` before Tower readiness or business dispatch. This
-//! includes a native send-buffer setting that implicitly enables a finite
-//! byte budget. Inbound native authentication interceptors remain supported.
+//! `FAILED_PRECONDITION` before Tower readiness or business dispatch. Setting a
+//! native HTTP/2 send-buffer threshold alone does not set a finite byte budget.
+//! Inbound native authentication interceptors remain supported.
 //! Default native message/compression settings are not an additional codec
 //! policy over the tonic service; full native opaque-body policy enforcement
 //! and performance qualification remain separate work.

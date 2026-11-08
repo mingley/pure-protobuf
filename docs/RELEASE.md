@@ -111,6 +111,7 @@ rehearsals reuse the completed main-push run of that same CI policy:
 |---|---|
 | `semver` | Pinned `cargo-semver-checks` compares all public APIs in `pbrs`, `pbrs-grpc`, and `protobuf-tonic` against their last published releases; a breaking change blocks publication. |
 | `test` | fmt, strict Clippy for core and gRPC/tonic/example targets, fail-closed Python interop/benchmark/publisher and checked Edition 2024/v4 benchmark binding integrity contracts, `cargo test --workspace`, serial standalone rpc-bench/tonic-bench correctness tests (not performance gates), docs `-D warnings` |
+| `grpc-web` | Native gRPC-Web protocol integration tests with the `grpc-web` feature enabled. |
 | `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
 | `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then non-mutating checks of all bundled bindings and adapter descriptor/codegen parity with pinned protoc |

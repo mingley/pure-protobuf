@@ -252,7 +252,10 @@ impl Router {
         self
     }
 
-    /// Set a transport byte budget for queued and in-flight buffers.
+    /// Replace this router's tracker with one capped at `limit` charged bytes.
+    ///
+    /// This does not bound all transport memory. See [`crate::ByteBudgetTracker`]
+    /// for the accounting scope.
     #[must_use]
     pub fn byte_budget(mut self, limit: usize) -> Self {
         self.byte_budget = ByteBudgetTracker::with_limit(limit);
@@ -272,7 +275,7 @@ impl Router {
         &self.byte_budget
     }
 
-    /// Number of bytes currently allocated in transport buffers on this router.
+    /// Bytes currently charged to this router's byte budget tracker.
     #[must_use]
     pub fn byte_budget_allocated(&self) -> usize {
         self.byte_budget.allocated()
@@ -284,7 +287,9 @@ impl Router {
         self.byte_budget.limit()
     }
 
-    /// Whether transport buffer allocation is currently zero.
+    /// Whether this router's tracker currently has zero charged bytes.
+    ///
+    /// HTTP/2 and application buffers can still be live.
     #[must_use]
     pub fn is_byte_budget_quiescent(&self) -> bool {
         self.byte_budget.is_quiescent()
@@ -459,9 +464,9 @@ impl Router {
         self
     }
 
-    /// Per-connection HTTP/2 send buffer. Applies to every call shape.
+    /// Per-stream HTTP/2 send buffer threshold. Applies to every call shape.
     /// See [`ServerConfig::max_send_buffer_size`].
-    /// Preserves the aggregate byte budget; set it separately with [`Self::byte_budget`].
+    /// Preserves the byte budget tracker; set its limit separately with [`Self::byte_budget`].
     /// Write backpressure still completes every call shape, including over
     /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
     /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS

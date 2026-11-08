@@ -107,7 +107,7 @@ deployment:
 | Budget | Server | Client |
 |---|---|---|
 | Connections and RPCs | 4 concurrent connections; 1 RPC process-wide; 4 HTTP/2 streams per connection | 1 pooled connection; 4 concurrent RPCs |
-| Transport and messages | 64 KiB process-wide transport byte budget; 1 KiB inbound/outbound uncompressed message caps | 1 KiB inbound/outbound uncompressed message caps |
+| Byte charges and messages | 64 KiB shared byte-charge limit; 1 KiB inbound/outbound uncompressed message caps | 1 KiB inbound/outbound uncompressed message caps |
 | Flow control and metadata | 64 KiB connection / 32 KiB stream windows; 32 KiB send buffer; 4 KiB header list; 1 KiB HPACK table | Same windows, send buffer, header list and HPACK table |
 | Application streams | At most 4 upload/bidi names, 128 bytes each; 3 download replies, channel capacity 2 | 2-message sender buffer; reads terminate at the declared counts and final status |
 | Handshake and RPC | 2 s per TLS/HTTP2 handshake stage; server RPC cap 6 s | 3 s whole dial; 5 s default RPC cap; explicit 1–2 s call timeouts |
@@ -121,8 +121,9 @@ can queue indefinitely. With one process-wide RPC slot, an in-flight upload
 can also reject a health probe as `RESOURCE_EXHAUSTED`. Real services must
 budget probe capacity separately rather than treating this tiny test cap as
 a universal production value. These are application and transport caps, **not
-a claim of a strict process RSS ceiling**: TLS, socket buffers and unrelated
-application work require separate budgets.
+a claim of a strict process RSS ceiling**: native receive buffers and data
+queued in HTTP/2 after a native send can be outside the byte tracker. TLS,
+socket buffers and application work also require separate budgets.
 
 <a id="graceful-shutdown"></a>
 <a id="connection-age"></a>
