@@ -97,6 +97,20 @@ jobs:
             tests/interop/tonic/Cargo.toml; do
             cargo fetch --locked --manifest-path "$manifest"
           done
+      - name: Compile and smoke the shipping HTTP/2 frame fuzz target
+        run: |
+          # Explicit selection keeps subsequent workspace checks on stable.
+          rustup toolchain install nightly --profile minimal
+          cargo +stable install cargo-fuzz --version 0.13.2 --locked
+          ./scripts/fuzz-h2-frame-smoke.sh
+      - name: Retain HTTP/2 frame fuzz smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: h2-frame-fuzz-smoke
+          path: target/h2-frame-fuzz-smoke/
+          if-no-files-found: warn
+          retention-days: 14
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Lint native gRPC, tonic adapter, and example targets
         run: cargo clippy --all-targets --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
@@ -126,20 +140,6 @@ jobs:
       - name: Build workspace binaries and examples (DX-07 documentation contract)
         run: cargo build --workspace --bins --examples
       - run: cargo test --workspace
-      - name: Compile and smoke the shipping HTTP/2 frame fuzz target
-        run: |
-          # Explicit selection keeps subsequent workspace checks on stable.
-          rustup toolchain install nightly --profile minimal
-          cargo +stable install cargo-fuzz --version 0.13.2 --locked
-          ./scripts/fuzz-h2-frame-smoke.sh
-      - name: Retain HTTP/2 frame fuzz smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: h2-frame-fuzz-smoke
-          path: target/h2-frame-fuzz-smoke/
-          if-no-files-found: warn
-          retention-days: 14
       - name: Bounded compressed buffer lifecycle controls
         run: |
           cargo test --locked -p pbrs-grpc --all-features --test encode_workspace --test decode_workspace --test output_workspace

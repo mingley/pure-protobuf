@@ -101,6 +101,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1944426bf7d03f1d14f708785e4b33efd750b36d48a157b836b3efc15ede8e1d"
 
 [[package]]
+name = "futures-task"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd"
+
+[[package]]
+name = "futures-util"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "pin-project-lite",
+ "slab",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -142,25 +160,6 @@ checksum = "00678994ed89e22df4c4d99e3105b0ae69206d4b9aaeaeec3a52c2bec55c1f01"
 dependencies = [
  "cfg-if",
  "getrandom 0.3.4",
-]
-
-[[package]]
-name = "h2"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
-dependencies = [
- "atomic-waker",
- "bytes",
- "fnv",
- "futures-core",
- "futures-sink",
- "http",
- "indexmap",
- "slab",
- "tokio",
- "tokio-util",
- "tracing",
 ]
 
 [[package]]
@@ -285,12 +284,16 @@ dependencies = [
 name = "pbrs-grpc"
 version = "0.1.0-alpha.3"
 dependencies = [
+ "atomic-waker",
  "base64",
  "bytes",
  "flate2",
+ "fnv",
  "futures-core",
- "h2",
+ "futures-sink",
+ "futures-util",
  "http",
+ "indexmap",
  "libc",
  "pbrs",
  "pin-project-lite",
@@ -298,9 +301,12 @@ dependencies = [
  "rustls-graviola",
  "rustls-pemfile",
  "serde_json",
+ "slab",
  "socket2",
  "tokio",
  "tokio-rustls",
+ "tokio-util",
+ "tracing",
  "webpki-roots",
 ]
 
