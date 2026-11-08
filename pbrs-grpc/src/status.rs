@@ -217,7 +217,11 @@ pub enum Pushback {
 ///
 /// Negative, malformed, and out-of-range values ask the client not to retry.
 pub(crate) fn parse_pushback_value(raw: &str) -> Pushback {
-    match raw.parse::<i32>().ok().and_then(|ms| u64::try_from(ms).ok()) {
+    match raw
+        .parse::<i32>()
+        .ok()
+        .and_then(|ms| u64::try_from(ms).ok())
+    {
         Some(ms) => Pushback::Delay(Duration::from_millis(ms)),
         None => Pushback::DoNotRetry,
     }

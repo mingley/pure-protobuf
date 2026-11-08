@@ -51,7 +51,9 @@ async fn peer_response(values: &[&str], trailers_only: bool) -> (pbrs_grpc::Stat
                     .expect("response");
                 if trailers_only {
                     response.headers_mut().extend(status_block);
-                    respond.send_response(response, true).expect("trailers-only");
+                    respond
+                        .send_response(response, true)
+                        .expect("trailers-only");
                 } else {
                     let mut send = respond.send_response(response, false).expect("headers");
                     send.send_trailers(status_block).expect("trailers");

@@ -1171,8 +1171,14 @@ mod tests {
         block.insert(GRPC_STATUS, HeaderValue::from_static("14"));
         for (first, second) in [("0", "1"), ("-2", "0"), ("0", "-2")] {
             drop(block.remove(GRPC_RETRY_PUSHBACK_MS));
-            block.append(GRPC_RETRY_PUSHBACK_MS, HeaderValue::from_str(first).expect("value"));
-            block.append(GRPC_RETRY_PUSHBACK_MS, HeaderValue::from_str(second).expect("value"));
+            block.append(
+                GRPC_RETRY_PUSHBACK_MS,
+                HeaderValue::from_str(first).expect("value"),
+            );
+            block.append(
+                GRPC_RETRY_PUSHBACK_MS,
+                HeaderValue::from_str(second).expect("value"),
+            );
             assert_eq!(
                 status_from(&block, None).retry_pushback(),
                 Some(Pushback::DoNotRetry),
