@@ -2,8 +2,8 @@
 
 use super::call::{
     AttemptCommitment, cancel_attempt, finish_attempt, first_of, open, poll_now, prefer_deadline,
-    prefer_peer_rejection_with_commitment, race, reject_attempt, reset_send_on_cancel,
-    response_commits, send_request_frame,
+    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
+    send_request_frame,
 };
 use super::pool;
 use super::retry::{
