@@ -777,9 +777,8 @@ async fn server_streaming_policy_does_not_replay_committed_http_errors() {
                                     .header(CONTENT_TYPE, "application/grpc")
                                     .body(())
                                     .expect("response");
-                                let mut send = respond
-                                    .send_response(response, false)
-                                    .expect("headers");
+                                let mut send =
+                                    respond.send_response(response, false).expect("headers");
                                 let payload = reply("follow-up").serialize().expect("serialize");
                                 send.send_data(
                                     codec::encode(&payload, false).expect("frame"),
