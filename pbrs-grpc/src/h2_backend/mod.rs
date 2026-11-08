@@ -161,9 +161,8 @@ pub mod ext;
 pub mod server;
 mod share;
 
-#[cfg(any())]
-#[cfg_attr(any(), allow(missing_docs))]
-pub mod fuzz_bridge;
+#[cfg(any(test, fuzzing))]
+pub(crate) mod fuzz_bridge;
 
 pub use crate::h2_backend::error::{Error, Reason};
 pub use crate::h2_backend::share::{FlowControl, Ping, PingPong, Pong, RecvStream, SendStream, StreamId};

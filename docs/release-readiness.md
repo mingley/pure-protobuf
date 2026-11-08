@@ -33,6 +33,8 @@ Keep adapter alpha warnings until their promotion evidence supports a change.
    [QG-06 and QG-08 requirements](plan/world-class/tasks.json), including finite
    resource and recovery bounds and the security packet with at least
    24 aggregate CPU-hours of fuzzing. Retain failures, seeds and exclusions.
+   For native transport workloads, follow the
+   [resource campaign commands](resource-campaign.md).
 3. **Record promotion and support decisions.** Obtain operator and maintainer
    signoff for each profile. Approve the maintenance owner, response
    expectations, supported versions and upgrade policy. The

@@ -46,3 +46,9 @@ name = "varint_diff"
 path = "fuzz_targets/varint_diff.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "h2_frame"
+path = "fuzz_targets/h2_frame.rs"
+test = false
+doc = false

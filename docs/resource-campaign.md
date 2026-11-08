@@ -12,13 +12,14 @@ cannot make the entire response fit into initial HTTP/2 credit. The fixture
 allows up to one second for production to reach a stall, then checks unchanged
 progress over a 30 ms observation.
 
-Run from a clean, committed checkout on Linux:
+Run from a clean, committed checkout on Linux. These commands use the release
+build; the runner defaults to debug for diagnostics:
 
 ```sh
 python3 scripts/grpc-resource-campaign.py --source "$(git rev-parse HEAD)" \
-  --duration 30 --output target/resource-campaign/preview
+  --build-profile release --duration 30 --output target/resource-campaign/preview
 python3 scripts/grpc-resource-campaign.py --source "$(git rev-parse HEAD)" \
-  --duration 86400 --output target/resource-campaign/24h
+  --build-profile release --duration 86400 --output target/resource-campaign/24h
 python3 scripts/grpc-resource-campaign.py --validate target/resource-campaign/24h/report.json
 ```
 

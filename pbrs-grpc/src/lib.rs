@@ -361,6 +361,14 @@ mod transport;
 // have scoped unsafe invariants; the transport seam remains safe-only.
 #[rustfmt::skip]
 mod h2_backend;
+
+/// Runs the bounded receive-codec driver for cargo-fuzz; absent from normal builds.
+#[cfg(fuzzing)]
+#[doc(hidden)]
+pub fn __fuzz_h2_frames(data: &[u8]) {
+    h2_backend::fuzz_bridge::fuzz_h2_frames(data);
+}
+
 #[forbid(unsafe_code)]
 mod wire;
 #[forbid(unsafe_code)]
