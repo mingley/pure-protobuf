@@ -193,7 +193,9 @@ async fn exercise_deadline_boundary(server_stream: bool, send_headers: bool) {
                 .header("grpc-status", "14")
                 .body(())
                 .unwrap();
-            respond.send_response(response, true).expect("retry response");
+            respond
+                .send_response(response, true)
+                .expect("retry response");
         }
         drop((held_send, respond));
     });

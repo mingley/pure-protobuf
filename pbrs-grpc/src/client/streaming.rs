@@ -196,8 +196,8 @@ where
         let mut response_observed = ready.is_some();
         let mut cached_commitment = received.committed;
         if let Some(Ok(head)) = &ready {
-            let committed = cached_commitment
-                .unwrap_or_else(|| received.reset || response_commits(head));
+            let committed =
+                cached_commitment.unwrap_or_else(|| received.reset || response_commits(head));
             cached_commitment = Some(committed);
             *response_committed = committed;
         }
@@ -205,8 +205,7 @@ where
             return Err(status);
         }
         let may_prefer_refusal = status.is_transport()
-            || std::error::Error::source(&status)
-                .is_some_and(|cause| cause.is::<TransportError>());
+            || std::error::Error::source(&status).is_some_and(|cause| cause.is::<TransportError>());
         let result = first_of(
             prefer_peer_rejection_with_commitment(
                 async {
@@ -240,8 +239,7 @@ where
                         }
                     }
                     Err(error)
-                        if may_prefer_refusal
-                            && error.reason() == Some(Reason::REFUSED_STREAM) =>
+                        if may_prefer_refusal && error.reason() == Some(Reason::REFUSED_STREAM) =>
                     {
                         peer_status = Some(Status::from_h2_post_dispatch(error));
                     }
@@ -314,8 +312,8 @@ where
     let mut response_observed = ready.is_some();
     let cached_commitment = received.committed;
     if let Some(Ok(head)) = &ready {
-        *response_committed = cached_commitment
-            .unwrap_or_else(|| received.reset || response_commits(head));
+        *response_committed =
+            cached_commitment.unwrap_or_else(|| received.reset || response_commits(head));
     }
     let response = first_of(
         async {
@@ -328,8 +326,8 @@ where
                 }
             }
             .map_err(|e| commitment.classify_h2(e))?;
-            *response_committed = cached_commitment
-                .unwrap_or_else(|| received.reset || response_commits(&response));
+            *response_committed =
+                cached_commitment.unwrap_or_else(|| received.reset || response_commits(&response));
             commitment = AttemptCommitment::ResponseCommitted;
             finish_stream::<Resp>(
                 response,

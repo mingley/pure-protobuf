@@ -1,8 +1,8 @@
 //! Unary call shape.
 
 use super::call::{
-    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, open, poll_now,
-    peer_rejection_from_head, prefer_deadline, prefer_peer_rejection_with_commitment,
+    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of, open,
+    peer_rejection_from_head, poll_now, prefer_deadline, prefer_peer_rejection_with_commitment,
     reject_attempt, reset_send_on_cancel, response_commits, send_request_frame,
 };
 use super::retry::{

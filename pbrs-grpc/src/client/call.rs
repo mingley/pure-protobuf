@@ -1243,7 +1243,14 @@ mod tests {
             send.send_reset(Reason::CANCEL);
             saved.reset = true;
             assert!(
-                !saved.head.as_ref().unwrap().as_ref().unwrap().body().is_end_stream(),
+                !saved
+                    .head
+                    .as_ref()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .body()
+                    .is_end_stream(),
                 "local reset must erase the live EOS state for this regression"
             );
             // The response future has already returned Ready. These probes
