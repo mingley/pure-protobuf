@@ -220,7 +220,10 @@ impl Diagnostics {
 #[cfg(any(test, feature = "copy-counts"))]
 #[cfg_attr(
     all(test, not(feature = "copy-counts")),
-    allow(unreachable_pub, reason = "unit tests use counters without exposing them")
+    allow(
+        unreachable_pub,
+        reason = "unit tests use counters without exposing them"
+    )
 )]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RetainedDecodeCounts {
