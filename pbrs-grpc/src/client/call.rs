@@ -59,6 +59,7 @@ impl AttemptCommitment {
     }
 }
 
+#[cfg(test)]
 pub(crate) async fn prefer_peer_rejection_after_send<T>(
     response: impl std::future::Future<Output = ResponseHead>,
     send_error: Status,
@@ -163,6 +164,17 @@ pub(crate) fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Ou
     }
 }
 
+// Observe a queued head before resetting a failed upload. Do not poll a
+// response future twice once it has returned Ready.
+fn capture_ready_response(
+    response: &mut backend::ResponseFuture,
+    received: &mut Option<ResponseHead>,
+) {
+    if received.is_none() {
+        *received = poll_now(Pin::new(response));
+    }
+}
+
 /// `true` when a cancel watch has been set.
 ///
 /// An unchanged version is still the initial `false`, so the steady path is
@@ -185,15 +197,20 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     // The pre-checks mirror `first_of_in`'s biased order (cancel, then
     // deadline) so an already-fired signal still wins, with the same reset.
     if cancel_requested(cancel_rx) {
+        capture_ready_response(response, received);
         send.send_reset(Reason::CANCEL);
         return Err(Status::cancelled());
     }
     if remaining_timeout(deadline).is_err() {
+        capture_ready_response(response, received);
         send.send_reset(Reason::CANCEL);
         return Err(Status::deadline_exceeded());
     }
     let frame = match send_frame_if_ready(send, frame, true, send_buffer) {
         ImmediateSend::Done(result) => {
+            if result.is_err() {
+                capture_ready_response(response, received);
+            }
             return finish_request_send::<R>(send, result, deadline);
         }
         ImmediateSend::Blocked(frame) => frame,
@@ -233,6 +250,9 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
             }
         }
     };
+    if raced.is_err() {
+        capture_ready_response(response, received);
+    }
     finish_request_send::<R>(send, raced, deadline)
 }
 
@@ -626,7 +646,10 @@ async fn grab_wait<R: Runtime>(
     Ok(grabbed)
 }
 
-fn reset_send_on_cancel<T>(send: Option<&mut backend::SendStream>, result: &Result<T, Status>) {
+pub(crate) fn reset_send_on_cancel<T>(
+    send: Option<&mut backend::SendStream>,
+    result: &Result<T, Status>,
+) {
     if let Some(send) = send {
         if matches!(
             result,

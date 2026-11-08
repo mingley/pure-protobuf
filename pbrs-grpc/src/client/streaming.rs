@@ -1,8 +1,9 @@
 //! Streaming call shapes.
 
 use super::call::{
-    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open, prefer_deadline,
-    prefer_peer_rejection_after_send, race, reject_attempt, send_request_frame,
+    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open, poll_now, prefer_deadline,
+    prefer_peer_rejection_with_commitment, race, reject_attempt, reset_send_on_cancel,
+    response_commits, send_request_frame,
 };
 use super::pool;
 use super::retry::{
@@ -56,7 +57,7 @@ where
 {
     run_server_stream_frame(
         send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, permit, tap, socket, None,
+        user_agent, permit, tap, socket, None, &mut false,
     )
     .await
 }
@@ -82,6 +83,7 @@ async fn run_server_stream_frame<Resp>(
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+    response_committed: &mut bool,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
@@ -102,6 +104,7 @@ where
         tap,
         socket,
         policy_dispatch,
+        response_committed,
     )
     .await;
     if let (Some(tap), Err(status)) = (tap, &outcome) {
@@ -132,6 +135,7 @@ async fn run_server_stream_inner<Resp>(
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+    response_committed: &mut bool,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
@@ -186,37 +190,69 @@ where
     }
     drop(log_frame);
     if let Err(status) = sent {
+        // Capture headers that arrived while upload was blocked even when
+        // cancellation or a send error wins the next race.
+        let mut response = std::pin::pin!(resp_fut);
+        let mut ready = received.or_else(|| poll_now(response.as_mut()));
+        let mut response_observed = ready.is_some();
+        if let Some(Ok(head)) = &ready {
+            *response_committed = response_commits(head);
+        }
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
             return Err(status);
         }
-        return race(
-            prefer_peer_rejection_after_send(
-                async move {
-                    match received {
+        let result = first_of(
+            prefer_peer_rejection_with_commitment(
+                async {
+                    match ready.take() {
                         Some(head) => head,
-                        None => resp_fut.await,
+                        None => {
+                            let head = response.as_mut().await;
+                            response_observed = true;
+                            head
+                        }
                     }
                 },
                 commitment.classify(status),
+                response_committed,
             ),
             cancel_rx,
             deadline,
-            Some(&mut send_stream),
         )
         .await;
+        if !response_observed {
+            if let Some(Ok(head)) = poll_now(response.as_mut()) {
+                *response_committed = response_commits(&head);
+            }
+        }
+        reset_send_on_cancel(Some(&mut send_stream), &result);
+        return prefer_deadline(result, deadline);
     }
     // Channelz: the single request message went out (failed sends claim
     // none, like unary).
     if let Some(sock) = socket {
         crate::channelz::Registry::global().note_messages(sock, true, 1);
     }
-    let response = race(
+    // Retain the response future across a timeout or cancellation so queued
+    // headers can commit the attempt before the send half is reset.
+    let mut response_future = std::pin::pin!(resp_fut);
+    let mut ready = received;
+    let mut response_observed = ready.is_some();
+    if let Some(Ok(head)) = &ready {
+        *response_committed = response_commits(head);
+    }
+    let response = first_of(
         async {
-            let response = match received {
+            let response = match ready.take() {
                 Some(head) => head,
-                None => resp_fut.await,
+                None => {
+                    let head = response_future.as_mut().await;
+                    response_observed = true;
+                    head
+                }
             }
             .map_err(|e| commitment.classify_h2(e))?;
+            *response_committed = response_commits(&response);
             commitment = AttemptCommitment::ResponseCommitted;
             finish_stream::<Resp>(
                 response,
@@ -229,9 +265,17 @@ where
         },
         cancel_rx.clone(),
         deadline,
-        Some(&mut send_stream),
     )
     .await;
+    if !response_observed {
+        if let Some(Ok(head)) = poll_now(response_future.as_mut()) {
+            *response_committed = response_commits(&head);
+        }
+    }
+    // Match race's reset and deadline precedence, after capturing any queued
+    // response. Never poll the response future again after it returned Ready.
+    reset_send_on_cancel(Some(&mut send_stream), &response);
+    let response = prefer_deadline(response, deadline);
     // Channelz: count the attempt's stream like unary (started on every
     // post-setup attempt, end on failure now and on success via the bound
     // Streaming's polls/drop). Early `?` exits above never started.
@@ -1503,6 +1547,7 @@ impl super::Channel {
                         .map(|capped| deadline.map_or(capped, |overall| overall.min(capped)))
                         .or(deadline);
                     let routing = channel.local.for_attempt(route.authority());
+                    let mut response_committed = false;
                     match run_server_stream_frame(
                         live.send,
                         &routing,
@@ -1519,6 +1564,7 @@ impl super::Channel {
                         tap.as_ref(),
                         live_socket,
                         policy_dispatch.as_mut(),
+                        &mut response_committed,
                     )
                     .await
                     {
@@ -1562,7 +1608,8 @@ impl super::Channel {
                             }
                         }
                         Err(status)
-                            if !retried
+                            if !response_committed
+                                && !retried
                                 && replay.allowed()
                                 && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
@@ -1594,7 +1641,7 @@ impl super::Channel {
                                 })
                                 && remaining_timeout(deadline).is_ok()
                                 && !cancelled;
-                            let decision = if replay.allowed() {
+                            let decision = if !response_committed && replay.allowed() {
                                 policy_retry_delay(
                                     &channel,
                                     retry_policy.as_ref(),
@@ -1653,7 +1700,8 @@ impl super::Channel {
                                     channel.local.retry_stats.record_pushback_refusal();
                                 }
                                 PolicyDecision::Declined => {
-                                    if replay.allowed()
+                                    if !response_committed
+                                        && replay.allowed()
                                         && retry_exhausted(
                                             retry_policy.as_ref(),
                                             &status,
