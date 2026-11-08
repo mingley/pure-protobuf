@@ -616,56 +616,6 @@ where
     }
 }
 
-pub(crate) fn race<'a, T>(
-    fut: impl Future<Output = Result<T, Status>> + Send + 'a,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
-    deadline: Option<tokio::time::Instant>,
-    send: Option<&'a mut backend::SendStream>,
-) -> impl Future<Output = Result<T, Status>> + Send + 'a
-where
-    T: Send + 'a,
-{
-    match deadline {
-        None => Either::Left(race_plain(fut, cancel_rx, send)),
-        Some(at) => Either::Right(Box::pin(race_deadline::<TokioRuntime, T, _>(
-            fut, cancel_rx, at, send,
-        ))
-            as Pin<Box<dyn Future<Output = Result<T, Status>> + Send + 'a>>),
-    }
-}
-
-async fn race_plain<T>(
-    fut: impl Future<Output = Result<T, Status>> + Send,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
-    send: Option<&mut backend::SendStream>,
-) -> Result<T, Status> {
-    // Inlined from `first_of_cancel`. Awaiting that helper stored `fut` here
-    // and again inside the helper.
-    let result = tokio::select! {
-        biased;
-        _ = cancel_rx.wait() => Err(Status::cancelled()),
-        r = fut => r,
-    };
-    reset_send_on_cancel(send, &result);
-    result
-}
-
-async fn race_deadline<R, T, F>(
-    fut: F,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
-    at: tokio::time::Instant,
-    send: Option<&mut backend::SendStream>,
-) -> Result<T, Status>
-where
-    R: Runtime,
-    T: Send,
-    F: Future<Output = Result<T, Status>> + Send,
-{
-    let result = first_of_deadline::<R, T, F>(fut, cancel_rx, at).await;
-    reset_send_on_cancel(send, &result);
-    prefer_deadline_in::<R, _>(result, Some(at))
-}
-
 async fn grab_wait<R: Runtime>(
     inner: Arc<ChannelInner>,
     obs: Option<Arc<dyn LifecycleObserver>>,
