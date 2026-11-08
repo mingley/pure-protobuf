@@ -255,7 +255,9 @@ where
                 }
                 Producer::Ready128 => {
                     for _ in 0..replies {
-                        tx.send(message.clone()).await.map_err(|_| Status::cancelled())?;
+                        tx.send(message.clone())
+                            .await
+                            .map_err(|_| Status::cancelled())?;
                     }
                     drop(tx);
                 }
@@ -528,7 +530,10 @@ fn main() {
         .build()
         .expect("runtime");
     let result = runtime.block_on(run(options, provenance));
-    println!("{}", serde_json::to_string(&result).expect("serialize result"));
+    println!(
+        "{}",
+        serde_json::to_string(&result).expect("serialize result")
+    );
 }
 
 #[cfg(test)]
@@ -578,9 +583,8 @@ mod tests {
         pair.assert_equal_wire_work();
         assert!(
             std::mem::size_of::<Result<Framed<TransportMessage<prost_types::Sparse>>, Status>>()
-                > std::mem::size_of::<
-                    Result<Framed<TransportMessage<prost_types::Query>>, Status>,
-                >()
+                > std::mem::size_of::<Result<Framed<TransportMessage<prost_types::Query>>, Status>>(
+                )
         );
         assert_eq!((pair.read_prost)(&pair.prost), pair.checksum);
     }
