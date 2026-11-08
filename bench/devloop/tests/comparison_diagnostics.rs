@@ -277,3 +277,433 @@ fn unknown_metric_fields_remain_readable() {
         );
     }
 }
+
+#[test]
+fn duplicate_cell_ids_fail_before_any_ratios_are_printed() {
+    let base = report(Some(100.0));
+    let current = report(Some(1.0));
+    for side in ["baseline", "current"] {
+        let original = if side == "baseline" { &base } else { &current };
+        let mut duplicate: serde_json::Value = serde_json::from_str(original).unwrap();
+        let second = duplicate["cells"][0].clone();
+        duplicate["cells"].as_array_mut().unwrap().push(second);
+        let duplicate = duplicate.to_string();
+        let (old, new) = if side == "baseline" {
+            (&duplicate, &current)
+        } else {
+            (&base, &duplicate)
+        };
+        let output = compare_json(old, new, None);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(output.status.code(), Some(1), "{side}: {stdout}");
+        assert!(
+            stdout.contains(&format!("INCOMPARABLE duplicate {side} cell ID")),
+            "{stdout}"
+        );
+        assert!(
+            !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+            "{stdout}"
+        );
+    }
+}
+
+#[test]
+fn empty_or_disjoint_reports_fail_without_claiming_a_comparison() {
+    let valid = report(Some(1.0));
+    let mut empty: serde_json::Value = serde_json::from_str(&valid).unwrap();
+    empty["cells"] = json!([]);
+    let empty = empty.to_string();
+    let mut disjoint: serde_json::Value = serde_json::from_str(&valid).unwrap();
+    disjoint["cells"][0]["id"] = json!("lb.ring_hash.pick");
+    let disjoint = disjoint.to_string();
+    for (old, new) in [
+        (&empty, &empty),
+        (&empty, &valid),
+        (&valid, &empty),
+        (&valid, &disjoint),
+        (&disjoint, &valid),
+    ] {
+        let output = compare_json(old, new, None);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(output.status.code(), Some(1), "{stdout}");
+        assert!(stdout.contains("INCOMPARABLE: no shared cells"), "{stdout}");
+        assert!(
+            !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+            "{stdout}"
+        );
+    }
+}
+
+#[test]
+fn empty_cell_identity_fields_are_rejected() {
+    let valid = report(Some(1.0));
+    for field in ["id", "kind", "codec"] {
+        for value in ["", "   "] {
+            let mut invalid: serde_json::Value = serde_json::from_str(&valid).unwrap();
+            invalid["cells"][0][field] = json!(value);
+            let invalid = invalid.to_string();
+            for (old, new) in [
+                (&invalid, &invalid),
+                (&invalid, &valid),
+                (&valid, &invalid),
+            ] {
+                let output = compare_json(old, new, None);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                assert_eq!(output.status.code(), Some(1), "{field}: {stdout}");
+                assert!(
+                    stdout.contains(&format!("invalid baseline {field}"))
+                        || stdout.contains(&format!("invalid current {field}")),
+                    "{stdout}"
+                );
+                assert!(
+                    !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                    "{stdout}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn zero_sample_counts_fail_even_when_both_reports_match() {
+    let valid = report(Some(1.0));
+    for field in ["iters", "repeats"] {
+        let mut invalid: serde_json::Value = serde_json::from_str(&valid).unwrap();
+        invalid["cells"][0][field] = json!(0);
+        let invalid = invalid.to_string();
+        for (old, new) in [
+            (&invalid, &invalid),
+            (&invalid, &valid),
+            (&valid, &invalid),
+        ] {
+            let output = compare_json(old, new, None);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(output.status.code(), Some(1), "{field}: {stdout}");
+            assert!(stdout.contains("INCOMPARABLE invalid"), "{stdout}");
+            assert!(stdout.contains("sample counts"), "{stdout}");
+            assert!(
+                !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                "{stdout}"
+            );
+        }
+    }
+}
+
+#[test]
+fn changed_cell_metadata_fails_without_comparing_values() {
+    let base = report(Some(100.0));
+    for (field, different) in [
+        ("kind", json!("rpc")),
+        ("codec", json!("other")),
+        ("iters", json!(123)),
+        ("repeats", json!(2)),
+    ] {
+        let mut changed: serde_json::Value = serde_json::from_str(&report(Some(1.0))).unwrap();
+        changed["cells"][0][field] = different;
+        let changed = changed.to_string();
+        for (old, current) in [(&base, &changed), (&changed, &base)] {
+            let output = compare_json(old, current, None);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(output.status.code(), Some(1), "{field}: {stdout}");
+            assert!(
+                stdout.contains(&format!("INCOMPARABLE {field}")),
+                "{stdout}"
+            );
+            assert!(
+                !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                "{stdout}"
+            );
+        }
+    }
+}
+
+#[test]
+fn local_comparison_does_not_require_matching_hosts() {
+    let base = report(Some(1.0));
+    let mut other_host: serde_json::Value = serde_json::from_str(&base).unwrap();
+    other_host["host"]["cpu"] = json!("other CPU");
+    let output = compare_json(&base, &other_host.to_string(), None);
+    assert!(output.status.success());
+}
+
+fn measured_report(metric: &str, value: f64, unit: &str, method: Option<&str>) -> String {
+    let mut result: serde_json::Value = serde_json::from_str(&report(None)).unwrap();
+    result["cells"][0][metric] =
+        json!({"status": "measured", "data": {"value": value, "unit": unit}});
+    if let Some(method) = method {
+        result["cells"][0]["instruction_method"] = json!(method);
+    }
+    result.to_string()
+}
+
+#[test]
+fn bridge_fingerprints_are_checked_without_the_bridge_feature() {
+    fn bridge_report(fingerprint: Option<&str>) -> String {
+        let mut result: serde_json::Value = serde_json::from_str(&report(Some(1.0))).unwrap();
+        result["cells"][0]["id"] =
+            json!("codec.adoption.bridge.prost_to_pbrs.query.d3.v0.read_all");
+        if let Some(fingerprint) = fingerprint {
+            result["cells"][0]["input_wire_fingerprint"] = json!(fingerprint);
+        }
+        result.to_string()
+    }
+
+    for (first, second) in [
+        (None, None),
+        (Some(""), Some("")),
+        (Some(" "), Some(" ")),
+        (Some("\t\n"), Some("source")),
+        (Some("source"), Some("\t\n")),
+        (Some("source"), None),
+        (None, Some("source")),
+        (Some("source"), Some("different")),
+    ] {
+        let output = compare_json(&bridge_report(first), &bridge_report(second), None);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(output.status.code(), Some(1), "{stdout}");
+        assert!(
+            stdout.contains("INCOMPARABLE") && stdout.contains("input fingerprint"),
+            "{stdout}"
+        );
+        assert!(
+            !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+            "{stdout}"
+        );
+    }
+    let mut null: serde_json::Value = serde_json::from_str(&bridge_report(None)).unwrap();
+    null["cells"][0]["input_wire_fingerprint"] = serde_json::Value::Null;
+    assert!(
+        !compare_json(&null.to_string(), &bridge_report(None), None)
+            .status
+            .success()
+    );
+    let valid = bridge_report(Some("source"));
+    assert!(compare_json(&valid, &valid, None).status.success());
+}
+
+#[test]
+fn ordinary_adoption_rejects_present_blank_fingerprints_but_keeps_legacy_pairs() {
+    fn adoption_report(id: &str, fingerprint: Option<&str>) -> String {
+        let mut result: serde_json::Value = serde_json::from_str(&report(Some(1.0))).unwrap();
+        result["cells"][0]["id"] = json!(id);
+        if let Some(fingerprint) = fingerprint {
+            result["cells"][0]["input_wire_fingerprint"] = json!(fingerprint);
+        }
+        result.to_string()
+    }
+
+    for id in [
+        "codec.adoption.pbrs.maps.n8.read_all",
+        "rpc.adoption.native_pbrs.maps.n8.unary",
+        "rpc.tonic_transport.native_native.maps.n8.unary",
+    ] {
+        let legacy = adoption_report(id, None);
+        let valid = adoption_report(id, Some("wire"));
+        assert!(compare_json(&legacy, &legacy, None).status.success());
+        assert!(compare_json(&valid, &valid, None).status.success());
+        for fingerprint in ["", " ", "\t\n"] {
+            let blank = adoption_report(id, Some(fingerprint));
+            for (old, new) in [
+                (&blank, &blank),
+                (&blank, &valid),
+                (&valid, &blank),
+                (&blank, &legacy),
+                (&legacy, &blank),
+            ] {
+                let output = compare_json(old, new, None);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                assert_eq!(output.status.code(), Some(1), "{id}: {stdout}");
+                assert!(
+                    stdout.contains("INCOMPARABLE blank")
+                        && stdout.contains("input fingerprint"),
+                    "{stdout}"
+                );
+                assert!(
+                    !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                    "{stdout}"
+                );
+            }
+        }
+    }
+    // A blank fingerprint is invalid even on a newly added or removed cell.
+    let common = report(Some(1.0));
+    let mut with_extra: serde_json::Value = serde_json::from_str(&common).unwrap();
+    let extra: serde_json::Value = serde_json::from_str(&adoption_report(
+        "codec.adoption.pbrs.maps.n8.read_all",
+        Some(" "),
+    ))
+    .unwrap();
+    with_extra["cells"]
+        .as_array_mut()
+        .unwrap()
+        .push(extra["cells"][0].clone());
+    let with_extra = with_extra.to_string();
+    for (old, new) in [(&with_extra, &common), (&common, &with_extra)] {
+        let output = compare_json(old, new, None);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(output.status.code(), Some(1), "{stdout}");
+        assert!(stdout.contains("input fingerprint"), "{stdout}");
+    }
+}
+
+#[test]
+fn negative_measured_values_fail_even_against_not_run() {
+    let missing = report(None);
+    for metric in [
+        "instructions",
+        "allocs",
+        "alloc_bytes",
+        "syscalls",
+        "locks",
+        "wall_ns",
+    ] {
+        let invalid = measured_report(metric, -1.0, "test", Some("differential_perf_2n_minus_n"));
+        for (old, new, side) in [(&invalid, &missing, "baseline"), (&missing, &invalid, "current")]
+        {
+            let output = compare_json(old, new, None);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(output.status.code(), Some(1), "{metric}: {stdout}");
+            assert!(
+                stdout.contains(&format!("{metric}: INCOMPARABLE invalid {side} value")),
+                "{stdout}"
+            );
+            assert!(
+                !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                "{stdout}"
+            );
+        }
+    }
+}
+
+#[test]
+fn zero_baselines_report_new_cost_without_division() {
+    for metric in ["instructions", "allocs", "alloc_bytes", "syscalls", "locks"] {
+        let zero = measured_report(metric, 0.0, "test", Some("differential_perf_2n_minus_n"));
+        let positive = measured_report(metric, 1.0, "test", Some("differential_perf_2n_minus_n"));
+        let output = compare_json(&zero, &positive, None);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(output.status.code(), Some(1), "{metric}: {stdout}");
+        assert!(
+            stdout.contains(&format!("{metric}: REGRESSED")),
+            "{stdout}"
+        );
+        assert!(stdout.contains("(zero baseline)"), "{stdout}");
+        assert!(!stdout.contains("improved"), "{stdout}");
+        assert!(compare_json(&zero, &zero, None).status.success());
+        let output = compare_json(&positive, &zero, None);
+        assert!(output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains(&format!("{metric}: improved"))
+        );
+    }
+    let zero = measured_report("wall_ns", 0.0, "ns per op (secondary)", None);
+    let positive = measured_report("wall_ns", 1.0, "ns per op (secondary)", None);
+    let output = compare_json(&zero, &positive, None);
+    assert!(output.status.success());
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("REGRESSED"));
+}
+
+#[test]
+fn incompatible_measured_units_fail_without_reporting_a_win_or_loss() {
+    for metric in [
+        "instructions",
+        "allocs",
+        "alloc_bytes",
+        "syscalls",
+        "locks",
+        "wall_ns",
+    ] {
+        let old = measured_report(
+            metric,
+            100.0,
+            "old unit",
+            Some("differential_perf_2n_minus_n"),
+        );
+        let new = measured_report(
+            metric,
+            1.0,
+            "new unit",
+            Some("differential_perf_2n_minus_n"),
+        );
+        for (base, current) in [(&old, &new), (&new, &old)] {
+            let output = compare_json(base, current, None);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(output.status.code(), Some(1), "{metric}: {stdout}");
+            assert!(
+                stdout.contains(&format!("{metric}: INCOMPARABLE units")),
+                "{stdout}"
+            );
+            assert!(
+                !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                "{stdout}"
+            );
+        }
+    }
+    let blank = measured_report("locks", 1.0, "", None);
+    let output = compare_json(&blank, &blank, None);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("locks: INCOMPARABLE units"));
+}
+
+#[test]
+fn instruction_methods_must_match_when_both_values_are_measured() {
+    let perf = measured_report(
+        "instructions",
+        100.0,
+        "retired per op",
+        Some("differential_perf_2n_minus_n"),
+    );
+    let callgrind = measured_report(
+        "instructions",
+        1.0,
+        "retired per op",
+        Some("differential_callgrind_2n_minus_n"),
+    );
+    let legacy = measured_report("instructions", 1.0, "retired per op", None);
+    for other in [&callgrind, &legacy] {
+        for (base, current) in [(&perf, other), (other, &perf)] {
+            let output = compare_json(base, current, None);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(output.status.code(), Some(1), "{stdout}");
+            assert!(
+                stdout.contains("instructions: INCOMPARABLE instruction methods"),
+                "{stdout}"
+            );
+            assert!(
+                !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+                "{stdout}"
+            );
+        }
+    }
+    for invalid in ["", "not_run"] {
+        let report = measured_report("instructions", 1.0, "retired per op", Some(invalid));
+        let output = compare_json(&report, &report, None);
+        assert_eq!(output.status.code(), Some(1));
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("INCOMPARABLE instruction methods")
+        );
+    }
+    assert!(compare_json(&perf, &perf, None).status.success());
+    // A missing method retains the existing whole-process legacy default.
+    assert!(compare_json(&legacy, &legacy, None).status.success());
+}
+
+#[test]
+fn not_run_still_skips_and_wall_values_are_not_thresholded() {
+    let missing = report(None);
+    let measured = measured_report("instructions", 1.0, "retired per op", Some("not_run"));
+    for (base, current) in [(&missing, &measured), (&measured, &missing)] {
+        let output = compare_json(base, current, None);
+        assert!(output.status.success());
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("INCOMPARABLE"));
+    }
+    let old = measured_report("wall_ns", 100.0, "ns per op (secondary)", None);
+    let new = measured_report("wall_ns", 1.0, "ns per op (secondary)", None);
+    let output = compare_json(&old, &new, None);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("improved") && !stdout.contains("REGRESSED"),
+        "{stdout}"
+    );
+}

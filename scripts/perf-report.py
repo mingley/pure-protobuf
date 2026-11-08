@@ -79,7 +79,8 @@ def validate_report(report, expected_sha, label):
         errors.append(f"{label}: no measured cells")
         return cells, errors
     for cell in rows:
-        if not isinstance(cell, dict) or not isinstance(cell.get("id"), str) or not cell["id"]:
+        if (not isinstance(cell, dict) or not isinstance(cell.get("id"), str)
+                or not cell["id"].strip()):
             errors.append(f"{label}: invalid cell")
             continue
         name = cell["id"]
@@ -93,21 +94,32 @@ def validate_report(report, expected_sha, label):
             elif not isinstance(profile, str) or profile != FRESH_ENCODE_PROFILE:
                 errors.append(f"{label}/{name}: unsupported fresh encode profile {profile!r}")
         for key in ("kind", "codec"):
-            if not isinstance(cell.get(key), str) or not cell[key]:
+            if not isinstance(cell.get(key), str) or not cell[key].strip():
                 errors.append(f"{label}/{name}: missing {key}")
         for key in ("iters", "repeats"):
             value = cell.get(key)
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 errors.append(f"{label}/{name}: invalid {key}")
+        fingerprint = cell.get("input_wire_fingerprint")
+        if fingerprint is not None and not isinstance(fingerprint, str):
+            errors.append(f"{label}/{name}: invalid input_wire_fingerprint")
+        if (name.startswith(("codec.adoption.", "rpc.adoption.", "rpc.tonic_transport."))
+                and (not isinstance(fingerprint, str) or not fingerprint.strip())):
+            errors.append(f"{label}/{name}: input_wire_fingerprint missing or blank")
+        length = cell.get("input_wire_bytes")
+        if (length is not None and (isinstance(length, bool) or not isinstance(length, int)
+                                    or not 0 <= length <= 2**64 - 1)):
+            errors.append(f"{label}/{name}: invalid input_wire_bytes")
         for key in METRICS:
             metric = cell.get(key)
             try:
                 value = measured(metric)
                 if value is None:
                     data = metric.get("data", {}) if isinstance(metric, dict) else {}
+                    reason = data.get("reason") if isinstance(data, dict) else None
                     if (not isinstance(metric, dict) or metric.get("status") != "not_run"
-                            or not isinstance(data, dict) or not data.get("reason")):
-                        raise ValueError("missing measured value or not_run reason")
+                            or not isinstance(reason, str) or not reason.strip()):
+                        raise ValueError("missing measured value or nonempty not_run reason")
                     if key in REQUIRED_METRICS:
                         raise ValueError("required measurement is not_run")
             except ValueError as error:
@@ -142,6 +154,23 @@ def validate_pair(base, head, base_sha, head_sha):
         for key in ("kind", "codec", "iters", "repeats"):
             if before.get(key) != after.get(key):
                 errors.append(f"{name}: {key} differs between base and head")
+        # Qualification requires actual input evidence for adoption cells.
+        # The local comparator still permits absent identities on legacy rows.
+        first_fingerprint = before.get("input_wire_fingerprint")
+        second_fingerprint = after.get("input_wire_fingerprint")
+        if name.startswith(("codec.adoption.", "rpc.adoption.", "rpc.tonic_transport.")):
+            if (not isinstance(first_fingerprint, str) or not first_fingerprint.strip()
+                    or not isinstance(second_fingerprint, str) or not second_fingerprint.strip()):
+                errors.append(f"{name}: input_wire_fingerprint missing or blank")
+            elif first_fingerprint != second_fingerprint:
+                errors.append(f"{name}: input_wire_fingerprint differs")
+        if name.startswith(("rpc.adoption.", "rpc.tonic_transport.")):
+            first_length = before.get("input_wire_bytes")
+            second_length = after.get("input_wire_bytes")
+            if first_length is None or second_length is None:
+                errors.append(f"{name}: input_wire_bytes missing")
+            elif first_length != second_length:
+                errors.append(f"{name}: input_wire_bytes differs")
         metrics = []
         for key in METRICS:
             try:
@@ -152,10 +181,10 @@ def validate_pair(base, head, base_sha, head_sha):
             if before[key]["data"]["unit"] != after[key]["data"]["unit"]:
                 errors.append(f"{name}/{key}: units differ")
                 continue
+            method = before.get("instruction_method")
             if key == "instructions" and (
-                not before.get("instruction_method")
-                or before.get("instruction_method") == "not_run"
-                or before.get("instruction_method") != after.get("instruction_method")
+                not isinstance(method, str) or not method.strip() or method == "not_run"
+                or method != after.get("instruction_method")
             ):
                 errors.append(f"{name}: instruction methods differ or are missing")
                 continue

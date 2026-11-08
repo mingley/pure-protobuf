@@ -33,6 +33,6 @@
       "locks": 0
     }
   },
-  "note": "Zero ceilings for guarded allocations per pick and the child process's futex-family syscall rate. The futex count includes setup, teardown, wakes and unsuccessful waits; it does not isolate blocking or picker activity. Instructions and wall stay relative; see baselines/README.md.",
+  "note": "Zero ceilings for guarded allocations per pick and the child process's futex-family syscall rate. The futex count includes setup, teardown, wakes and unsuccessful waits; it does not isolate blocking or picker activity. Instructions compare relatively; wall is retained for inspection without a threshold; see baselines/README.md.",
   "schema": "devloop-budget/1"
 }

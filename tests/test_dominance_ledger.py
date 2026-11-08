@@ -1,4 +1,5 @@
 """Counter validity and N/2N workload matching for the diagnostic ledger."""
+import hashlib
 import importlib.util
 import json
 import tempfile
@@ -91,6 +92,80 @@ class FailedCaptureTests(unittest.TestCase):
             "binary_sha256": "a" * 64, "head": "b" * 40, "rpc_count": count,
             "callgrind": "valgrind", "allocation_counts": True, "host": {},
             "cpu_affinity": [0], "cells": cells, "runs": runs}))
+
+    def attach_verifier(self, path, contents=b"verified helper\n"):
+        (path / "build-verifier.py").write_bytes(contents)
+        report = json.loads((path / "report.json").read_text())
+        report.update(build_record={"schema": "pbrs.rpc-bench-build.v2"},
+                      build_verifier_sha256=hashlib.sha256(contents).hexdigest(),
+                      build_verifier_file="build-verifier.py", build_verifier_unchanged=True)
+        (path / "report.json").write_text(json.dumps(report))
+        return report
+
+    def test_legacy_reports_without_verifier_metadata_remain_compatible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            self.assertFalse(LEDGER.compare(small, large)["qualified"])
+
+    def test_v2_build_cannot_omit_all_verifier_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8)
+            report = json.loads((path / "report.json").read_text())
+            report["build_record"] = {"schema": "pbrs.rpc-bench-build.v2"}
+            (path / "report.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "verifier"):
+                LEDGER.load(path, allow_failed=True)
+
+    def test_verifier_provenance_is_required_even_in_failed_capture_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8, failed=True)
+            original = self.attach_verifier(path)
+            self.assertEqual(LEDGER.load(path, allow_failed=True)[0]["build_verifier_sha256"],
+                             original["build_verifier_sha256"])
+            for change in ({"build_verifier_unchanged": False}, {"build_verifier_unchanged": None},
+                           {"build_verifier_sha256": None}, {"build_verifier_sha256": "a" * 63},
+                           {"build_verifier_sha256": "A" * 64}, {"build_verifier_file": "../outside"}):
+                with self.subTest(change=change):
+                    (path / "report.json").write_text(json.dumps({**original, **change}))
+                    with self.assertRaisesRegex(ValueError, "verifier"):
+                        LEDGER.load(path, allow_failed=True)
+            for missing in ("build_verifier_sha256", "build_verifier_file", "build_verifier_unchanged"):
+                with self.subTest(missing=missing):
+                    partial = dict(original)
+                    del partial[missing]
+                    (path / "report.json").write_text(json.dumps(partial))
+                    with self.assertRaisesRegex(ValueError, "verifier"):
+                        LEDGER.load(path, allow_failed=True)
+            (path / "report.json").write_text(json.dumps(original))
+            (path / "build-verifier.py").write_bytes(b"mutated helper\n")
+            with self.assertRaisesRegex(ValueError, "retained build verifier differs"):
+                LEDGER.load(path, allow_failed=True)
+            (path / "build-verifier.py").unlink()
+            with self.assertRaisesRegex(ValueError, "retained build verifier is missing"):
+                LEDGER.load(path, allow_failed=True)
+
+    def test_paired_captures_require_matching_retained_verifiers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            self.attach_verifier(small)
+            self.attach_verifier(large)
+            self.assertFalse(LEDGER.compare(small, large)["qualified"])
+            self.attach_verifier(large, b"different but valid helper\n")
+            with self.assertRaisesRegex(ValueError, "build_verifier_sha256"):
+                LEDGER.compare(small, large)
+            report = json.loads((small / "report.json").read_text())
+            for field in ("build_verifier_sha256", "build_verifier_file", "build_verifier_unchanged"):
+                del report[field]
+            report["build_record"] = {"schema": "pbrs.rpc-bench-build.v1"}
+            (small / "report.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "build_verifier_sha256"):
+                LEDGER.compare(small, large)
 
     def test_invalid_pair_cannot_turn_into_a_win_in_partial_mode(self):
         with tempfile.TemporaryDirectory() as directory:

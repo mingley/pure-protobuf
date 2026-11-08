@@ -38,6 +38,26 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
+Before comparing any cells, `compare` rejects duplicate IDs, blank cell IDs,
+kinds or codecs, zero iteration or repeat counts, and non-finite or negative
+measured values in either report. It
+also rejects empty reports and pairs with no shared cells. For
+each shared cell, it requires matching kind, codec, iteration count and repeat
+count. For two measured values
+it checks that units match and are nonempty; measured instruction values must
+also have the same nonempty collection method other than `not_run`.
+Incompatible values print `INCOMPARABLE`, are not classified as improvements
+or regressions, and make the command exit nonzero. A thresholded metric that
+increases from zero is a regression without a percentage. Local comparison does
+not require matching hosts. For historical reports without an instruction method,
+the local command retains the `whole_process_legacy` default; the CI verifier
+requires an explicit method for measured instructions. If either metric is
+`not_run`, it remains skipped and cannot establish a pass. Wall time is
+recorded for inspection and
+its units are validated, but the command does not apply a wall-time threshold.
+The timed child may itself run under perf or Callgrind; such wall observations
+do not establish native latency.
+
 Fresh-encode rows prepare separate message sets for warmup and measurement.
 Each measured object is encoded once, and preparation stays outside the
 window. New reports carry `fresh_encode_profile: "independent-warmup-v1"`;
@@ -61,7 +81,13 @@ identity and length across N/2N children and repeats. The fingerprint identifies
 the common wire used to prepare both messages. Subsequent encodes of unordered
 maps can use a different entry order; full decoded values and equal encoded
 lengths remain separate required checks. Older reports still decode, but a
-missing identity or length cannot qualify against a new RPC capture.
+missing identity or length cannot qualify against a new RPC capture. The local
+comparator keeps ordinary legacy pairs with both sides absent readable; any
+fingerprint that is present must contain non-whitespace characters. Bridge
+cells require matching nonblank fingerprints. CI noise qualification requires
+nonblank fingerprints on both sides of every adoption cell and explicit prepared
+input lengths on both sides of RPC cells, even when both legacy values are
+absent. Valid `not_run` counters remain excluded.
 
 The standalone transport collector derives coverage from its pinned specimen
 table. Current equal-wire inventories name
@@ -104,7 +130,8 @@ does not prove a usable counter. Missing or malformed output stays `not_run`,
 including partial-repeat measurements. The legacy `locks` JSON field counts
 futex-family syscalls for the whole child process, divided by its iteration
 count. This includes wakes, unsuccessful waits and setup/teardown overhead;
-it does not isolate blocking waits or picker activity. Its corrected unit is
+it does not isolate blocking waits or picker activity. Small changes in syscall
+and futex counts may reflect scheduling and setup noise. Its corrected unit is
 deliberately incompatible with older reports labeled as blocking waits; do not
 mix those series.
 

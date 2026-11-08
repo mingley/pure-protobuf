@@ -45,10 +45,39 @@ call shapes, plaintext/TLS and identity/gzip. Each cell attempts 20 RPCs with a
 interrupted run keeps `manifest.json` and completed cell files; `report.json`
 is written when the matrix finishes.
 
-The builder above always enables allocation counters. Omitting the runner's
-`--allocation-counts` flag does not remove that instrumentation from the binary.
-Use a separate build without the feature for CPU and latency diagnostics. The
-source-pinned builder does not currently produce a build record for that binary.
+The builder enables allocation counters by default. Omitting the runner's
+`--allocation-counts` flag does not remove instrumentation from that binary.
+For CPU and latency diagnostics, build and record a separate binary with the
+benchmark package's Cargo allocation-count feature disabled:
+
+```sh
+source_commit=$(git rev-parse HEAD)
+bench_output=$(mktemp -d)
+python3 scripts/build-rpc-bench.py --source "$source_commit" \
+  --no-allocation-counts --output "$bench_output/build"
+python3 scripts/grpc-load-smoke.py \
+  --binary "$bench_output/build/rpc-bench" \
+  --build-record "$bench_output/build/build.json" \
+  --payloads=1024 --rpc-count=20 --duration=60 \
+  --output "$bench_output/results"
+```
+
+The build record checks the Cargo command and the benchmark package's resolved
+artifact features as well as source, binary and log hashes. The runner retains
+and hashes its build verifier when using a record. A verified plain build
+cannot be used for allocator snapshots. Use an external or ignored output
+directory so the build does not make the source checkout dirty.
+
+Cargo's package feature list records its resolution, not every effect on the
+executable: custom Rust flags or compiler wrappers can alter compilation, and
+dependency feature unification is separate. Inspect those inputs and the
+dependency graph before comparison; this record alone does not prove the
+compiled executable has no allocation instrumentation.
+
+The no-counter source-pinned builder must exist in the source checkout being
+built. Older checkouts with the legacy builder can only produce its instrumented
+record; the current driver can still validate those legacy records. Building an
+older uninstrumented baseline needs a separate verified build workflow.
 
 The [RPC harness guide](../../rpc-bench/README.md) covers all call shapes,
 compression, TLS, open-loop arrivals and independent peers. For noise payloads,

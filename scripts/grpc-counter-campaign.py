@@ -93,6 +93,13 @@ def main():
     ledger = load_module('counter_ledger', source / 'scripts/dominance-ledger.py')
     build = smoke.verified_build(build_record, binary, source)
     # The build verifier requires a release build with allocation-counts.
+    # New records retain the exact verifier across all captures. Older source
+    # checkouts use their original v1 verifier and report format.
+    helper_path = source / 'scripts/build-rpc-bench.py'
+    helper_bytes = helper_path.read_bytes() if build.get('schema') == 'pbrs.rpc-bench-build.v2' else None
+    helper_hash = hashlib.sha256(helper_bytes).hexdigest() if helper_bytes is not None else None
+    if helper_hash is not None:
+        smoke.verified_build(build_record, binary, source, verifier_sha256=helper_hash)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     controller = output / 'controller.py'
@@ -153,6 +160,9 @@ def main():
                               callgrind=str(args.valgrind) if args.phase == 'callgrind' else None,
                               strace=str(args.strace) if args.phase == 'syscalls' else None,
                               strace_version=strace_version, qualification={'qualified': False}, runs=[])
+                if helper_bytes is not None:
+                    record.update(build_verifier_sha256=helper_hash, build_verifier_file='build-verifier.py')
+                    (directory / 'build-verifier.py').write_bytes(helper_bytes)
                 (directory / 'manifest.json').write_text(json.dumps(record, indent=2) + '\n')
                 shutil.copy2(smoke_path, directory / 'harness.py')
                 settings = SimpleNamespace(binary=binary, duration=args.outer_timeout,
@@ -170,7 +180,13 @@ def main():
                             shutil.copyfileobj(original, zipped)
                         profile.unlink()
                     print(f'{group_path.name} N={count}: {index + 1}/{len(cells)} {result["passed"]}', flush=True)
-                smoke.verified_build(build_record, binary, source)
+                if helper_hash is None:
+                    smoke.verified_build(build_record, binary, source)
+                else:
+                    smoke.verified_build(build_record, binary, source, verifier_sha256=helper_hash)
+                    record['build_verifier_unchanged'] = (
+                        digest(helper_path) == helper_hash
+                        and digest(directory / 'build-verifier.py') == helper_hash)
                 record['binary_unchanged'] = digest(binary) == binary_hash
                 record['source_unchanged'] = True
                 record['harness_script_unchanged'] = digest(smoke_path) == harness_hash
@@ -178,6 +194,7 @@ def main():
                 record['harness_script_unchanged'] &= record['campaign_controller_unchanged']
                 record['passed'] = (record['binary_unchanged'] and record['harness_script_unchanged']
                                     and record['campaign_controller_unchanged']
+                                    and (helper_hash is None or record['build_verifier_unchanged'])
                                     and all(run['passed'] for run in record['runs']))
                 (directory / 'report.json').write_text(json.dumps(record, indent=2) + '\n')
                 row['captures'].append(dict(path=directory.name, passed=record['passed'],

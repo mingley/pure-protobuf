@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Compare paired N/2N endpoint captures and retain losses and missing metrics."""
 import argparse
+import hashlib
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +33,21 @@ def load(path, allow_failed=False):
         raise ValueError("capture did not pass all endpoint/accounting checks")
     if manifest.get("harness_script_sha256") is not None and manifest.get("harness_script_unchanged") is not True:
         raise ValueError("capture driver changed or lacks a final drift check")
+    verifier_fields = ("build_verifier_sha256", "build_verifier_file", "build_verifier_unchanged")
+    build = manifest.get("build_record")
+    new_build = isinstance(build, dict) and build.get("schema") == "pbrs.rpc-bench-build.v2"
+    if new_build or any(field in manifest for field in verifier_fields):
+        expected = manifest.get("build_verifier_sha256")
+        if (not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected)
+                or manifest.get("build_verifier_file") != "build-verifier.py"
+                or manifest.get("build_verifier_unchanged") is not True):
+            raise ValueError("invalid or changed build verifier evidence")
+        verifier = path / "build-verifier.py"
+        try:
+            if verifier.is_symlink() or hashlib.sha256(verifier.read_bytes()).hexdigest() != expected:
+                raise ValueError("retained build verifier differs from its digest")
+        except OSError as error:
+            raise ValueError("retained build verifier is missing or unreadable") from error
     n = manifest.get("rpc_count")
     if type(n) is not int or n <= 0:
         raise ValueError("a fixed positive RPC count is required")
@@ -112,7 +129,7 @@ def compare(small_path, large_path, allow_failed=False):
         raise ValueError("matched N/2N counts and workload/repeat coverage are required")
     for field in ["binary_sha256", "head", "dirty", "callgrind", "allocation_counts",
                   "context_switches", "strace", "strace_version", "harness_script_sha256",
-                  "host", "cpu_affinity"]:
+                  "build_verifier_sha256", "host", "cpu_affinity"]:
         if a.get(field) != b.get(field):
             raise ValueError(f"capture pin/settings mismatch: {field}")
     valid_owners = {t["id"] for path in ["docs/plan/tasks.json", "docs/plan/world-class/tasks.json"]

@@ -2347,26 +2347,127 @@ fn metric_value(m: &Metric) -> Option<f64> {
 
 fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
     assert_eq!(baseline.schema, current.schema, "schema mismatch");
-    let base: std::collections::HashMap<_, _> =
-        baseline.cells.iter().map(|c| (c.id.as_str(), c)).collect();
+    let mut base = std::collections::HashMap::new();
+    let mut current_ids = std::collections::HashSet::new();
+    let mut valid = true;
+    for cell in &baseline.cells {
+        if base.insert(cell.id.as_str(), cell).is_some() {
+            println!("{}: INCOMPARABLE duplicate baseline cell ID", cell.id);
+            valid = false;
+        }
+    }
+    for cell in &current.cells {
+        if !current_ids.insert(cell.id.as_str()) {
+            println!("{}: INCOMPARABLE duplicate current cell ID", cell.id);
+            valid = false;
+        }
+    }
+    for (side, report) in [("baseline", baseline), ("current", current)] {
+        for cell in &report.cells {
+            for (field, value) in [
+                ("id", cell.id.as_str()),
+                ("kind", cell.kind.as_str()),
+                ("codec", cell.codec.as_str()),
+            ] {
+                if value.trim().is_empty() {
+                    println!("{}: INCOMPARABLE invalid {side} {field}", cell.id);
+                    valid = false;
+                }
+            }
+            if (cell.id.starts_with("codec.adoption.")
+                || cell.id.starts_with("rpc.adoption.")
+                || cell.id.starts_with("rpc.tonic_transport."))
+                && cell
+                    .input_wire_fingerprint
+                    .as_deref()
+                    .is_some_and(|value| value.trim().is_empty())
+            {
+                println!(
+                    "{}: INCOMPARABLE blank {side} input fingerprint",
+                    cell.id
+                );
+                valid = false;
+            }
+            if cell.iters == 0 || cell.repeats == 0 {
+                println!(
+                    "{}: INCOMPARABLE invalid {side} sample counts iters={} repeats={}",
+                    cell.id, cell.iters, cell.repeats
+                );
+                valid = false;
+            }
+            for (name, metric) in [
+                ("instructions", &cell.instructions),
+                ("allocs", &cell.allocs),
+                ("alloc_bytes", &cell.alloc_bytes),
+                ("syscalls", &cell.syscalls),
+                ("locks", &cell.locks),
+                ("wall_ns", &cell.wall_ns),
+            ] {
+                if let Metric::Measured { value, .. } = metric
+                    && (!value.is_finite() || *value < 0.0)
+                {
+                    println!(
+                        "{} {name}: INCOMPARABLE invalid {side} value {value:e}",
+                        cell.id
+                    );
+                    valid = false;
+                }
+            }
+        }
+    }
+    if !valid {
+        return false;
+    }
+    if !current.cells.iter().any(|cell| base.contains_key(cell.id.as_str())) {
+        println!("INCOMPARABLE: no shared cells");
+        return false;
+    }
     let mut ok = true;
     for cell in &current.cells {
         let Some(old) = base.get(cell.id.as_str()) else {
             println!("{}: new cell, no baseline", cell.id);
             continue;
         };
+        let mut comparable_cell = true;
+        macro_rules! check_cell_field {
+            ($field:ident) => {
+                if old.$field != cell.$field {
+                    println!(
+                        "{}: INCOMPARABLE {} {:?} vs {:?}",
+                        cell.id,
+                        stringify!($field),
+                        old.$field,
+                        cell.$field
+                    );
+                    comparable_cell = false;
+                    ok = false;
+                }
+            };
+        }
+        check_cell_field!(kind);
+        check_cell_field!(codec);
+        check_cell_field!(iters);
+        check_cell_field!(repeats);
+        if !comparable_cell {
+            continue;
+        }
         if old.fresh_encode_profile.is_some() || cell.fresh_encode_profile.is_some() {
             require_fresh_encode_profile(&cell.id, old.fresh_encode_profile.as_deref());
             require_fresh_encode_profile(&cell.id, cell.fresh_encode_profile.as_deref());
         }
-        #[cfg(feature = "bridge")]
         if cell.id.starts_with("codec.adoption.bridge.") {
-            // New bridge reports require an actual-source identity even when
-            // both report fields are absent. Existing report behavior is intact.
-            pbrs_adoption_corpus::bridge::require_matching_input(
-                old.input_wire_fingerprint.as_deref(),
-                cell.input_wire_fingerprint.as_deref(),
-            );
+            // A bridge report can be loaded by a binary without the bridge
+            // feature, so validate its actual-source identity here as well.
+            let first = old.input_wire_fingerprint.as_deref();
+            let second = cell.input_wire_fingerprint.as_deref();
+            if !first.is_some_and(|value| !value.trim().is_empty())
+                || !second.is_some_and(|value| !value.trim().is_empty())
+                || first != second
+            {
+                println!("{}: INCOMPARABLE bridge input fingerprint", cell.id);
+                ok = false;
+                continue;
+            }
         }
         if old.input_wire_fingerprint.is_some() || cell.input_wire_fingerprint.is_some() {
             assert_adoption_input(
@@ -2378,17 +2479,60 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
         if old.input_wire_bytes.is_some() || cell.input_wire_bytes.is_some() {
             assert_rpc_input_bytes(&cell.id, old.input_wire_bytes, cell.input_wire_bytes);
         }
-        for (name, o, n, lower_better) in [
+        for (name, before, after, thresholded) in [
             ("instructions", &old.instructions, &cell.instructions, true),
             ("allocs", &old.allocs, &cell.allocs, true),
             ("alloc_bytes", &old.alloc_bytes, &cell.alloc_bytes, true),
             ("syscalls", &old.syscalls, &cell.syscalls, true),
             ("locks", &old.locks, &cell.locks, true),
+            ("wall_ns", &old.wall_ns, &cell.wall_ns, false),
         ] {
-            let (Some(o), Some(n)) = (metric_value(o), metric_value(n)) else {
+            let (
+                Metric::Measured {
+                    value: o,
+                    unit: old_unit,
+                },
+                Metric::Measured {
+                    value: n,
+                    unit: new_unit,
+                },
+            ) = (before, after) else {
+                // An unavailable metric remains skipped, rather than a pass.
                 continue;
             };
-            if o == 0.0 {
+            if old_unit.trim().is_empty() || new_unit.trim().is_empty() || old_unit != new_unit {
+                println!(
+                    "{} {name}: INCOMPARABLE units {old_unit:?} vs {new_unit:?}",
+                    cell.id
+                );
+                ok = false;
+                continue;
+            }
+            if name == "instructions"
+                && (old.instruction_method.trim().is_empty()
+                    || old.instruction_method == "not_run"
+                    || old.instruction_method != cell.instruction_method)
+            {
+                println!(
+                    "{} {name}: INCOMPARABLE instruction methods {:?} vs {:?}",
+                    cell.id, old.instruction_method, cell.instruction_method
+                );
+                ok = false;
+                continue;
+            }
+            // Wall time is retained as a secondary observation; it is not a
+            // thresholded relative comparison in this command.
+            if !thresholded {
+                continue;
+            }
+            if *o == 0.0 {
+                if *n > 0.0 {
+                    println!(
+                        "{} {name}: REGRESSED {o:e} -> {n:e} (zero baseline)",
+                        cell.id
+                    );
+                    ok = false;
+                }
                 continue;
             }
             let delta = (n - o) / o;
@@ -2397,16 +2541,8 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             } else {
                 0.01
             };
-            let improved = if lower_better {
-                delta < 0.0
-            } else {
-                delta > 0.0
-            };
-            let regressed = if lower_better {
-                delta > limit
-            } else {
-                delta < -limit
-            };
+            let improved = delta < 0.0;
+            let regressed = delta > limit;
             if regressed {
                 println!(
                     "{} {name}: REGRESSED {o:e} -> {n:e} ({:+.2}%, limit {:.0}%)",
@@ -2629,7 +2765,7 @@ fn cmd_compare(args: &[String]) {
 /// Unlike base-vs-head comparison, budgets set explicit ceilings for
 /// allocation counts and the process-wide futex syscall rate. The latter
 /// includes overhead and is not a count of blocking waits. Instructions
-/// and wall stay relative (see `baselines/README.md`). `not_run` skips.
+/// remain relative; wall is recorded for inspection. `not_run` skips.
 #[derive(Debug, serde::Deserialize)]
 struct BudgetFile {
     schema: String,
@@ -2799,6 +2935,17 @@ mod input_tests {
             report["cells"][0]["input_wire_fingerprint"] = value.into();
         }
         serde_json::from_value(report).unwrap()
+    }
+
+    #[test]
+    fn comparison_rejects_nonfinite_values_even_if_other_side_is_not_run() {
+        let missing = report(None);
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut invalid = missing.clone();
+            invalid.cells[0].locks = Metric::measured(value, "test");
+            assert!(!compare_reports(&invalid, &missing, false));
+            assert!(!compare_reports(&missing, &invalid, false));
+        }
     }
 
     #[test]

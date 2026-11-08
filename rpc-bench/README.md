@@ -29,16 +29,30 @@ It implements parts of the
 For a source-pinned release build, run from a clean checkout:
 
 ```sh
-python3 scripts/build-rpc-bench.py --source "$(git rev-parse HEAD)" --output work/rpc-build
-python3 scripts/grpc-load-smoke.py --binary work/rpc-build/rpc-bench \
-  --build-record work/rpc-build/build.json --allocation-counts \
-  --context-switches --rpc-count=20 --duration=60 --output work/rpc-matrix
+bench_output=$(mktemp -d)
+python3 scripts/build-rpc-bench.py --source "$(git rev-parse HEAD)" --output "$bench_output/build"
+python3 scripts/grpc-load-smoke.py --binary "$bench_output/build/rpc-bench" \
+  --build-record "$bench_output/build/build.json" --allocation-counts \
+  --context-switches --rpc-count=20 --duration=60 --output "$bench_output/results"
 ```
 
 The builder retains Cargo output and tool versions, checks the source and
 lockfiles before and after compilation, and copies the executable out of the
 build cache. The matrix checks that record before and after execution. A
 prebuilt binary without a matching record remains `source_verified=false`.
+The default build enables allocation counters. For CPU or latency diagnostics,
+use a separate build with `--no-allocation-counts` and omit the runner's
+`--allocation-counts` and `--context-switches` flags. The record checks the
+Cargo command and benchmark package's resolved artifact features; allocator
+snapshots require an instrumented build. The runner retains and hashes its
+verifier. Place outputs outside the checkout or under an ignored directory.
+
+The package feature list does not account for custom Rust flags, compiler
+wrappers or dependency feature unification. Inspect those inputs and the
+dependency graph before comparison; the record alone does not prove the
+executable has no allocation instrumentation. The no-counter builder must be
+present in the checkout being built. Older checkouts with the legacy builder
+can produce only instrumented records, which the current driver can validate.
 
 On 64-bit Linux, `--context-switches` records voluntary and involuntary
 switches with `getrusage(RUSAGE_SELF)` for each endpoint. Counts include all

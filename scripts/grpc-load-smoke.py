@@ -3,7 +3,6 @@
 
 import argparse
 import hashlib
-import importlib.util
 import itertools
 import json
 import math
@@ -14,6 +13,7 @@ import random
 import signal
 import subprocess
 import time
+import types
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = [("native", "pbrs"), ("native", "prost"), ("tonic", "pbrs"), ("tonic", "prost")]
@@ -21,11 +21,44 @@ PAIRS = [(*client, *server) for client, server in itertools.product(PROFILES, re
 SHAPES = ["unary", "server_stream", "client_stream", "bidi", "bidi_pipelined"]
 
 
-def verified_build(path, binary, source_checkout=None):
-    spec = importlib.util.spec_from_file_location("rpc_bench_build", (source_checkout or ROOT) / "scripts/build-rpc-bench.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.validate_record(path, binary)
+def file_matches(path, expected_sha256):
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest() == expected_sha256
+    except OSError:
+        return False
+
+
+def verified_build(path, binary, source_checkout=None, *, require_allocation_counts=True,
+                   verifier_sha256=None):
+    source = source_checkout or ROOT
+    helper_path = ROOT / "scripts/build-rpc-bench.py"
+    helper_bytes = helper_path.read_bytes()
+    helper_hash = hashlib.sha256(helper_bytes).hexdigest()
+    if verifier_sha256 is None:
+        verifier_sha256 = helper_hash
+    if helper_hash != verifier_sha256:
+        raise ValueError("driver build verifier changed before validation")
+
+    # Execute the exact hashed bytes, not an import cache. The source checkout
+    # may carry an older validator which does not inspect Cargo features.
+    driver = types.ModuleType("rpc_bench_build_driver")
+    driver.__file__ = str(helper_path)
+    exec(compile(helper_bytes, str(helper_path), "exec"), driver.__dict__)
+    source_helper_path = source / "scripts/build-rpc-bench.py"
+    source_helper_bytes = source_helper_path.read_bytes()
+    source_helper_hash = hashlib.sha256(source_helper_bytes).hexdigest()
+    module = types.ModuleType("rpc_bench_build")
+    module.__file__ = str(source_helper_path)
+    exec(compile(source_helper_bytes, str(source_helper_path), "exec"), module.__dict__)
+    record = module.validate_record(path, binary)
+    instrumented = driver.validate_feature_record(record, path, source)
+    if not file_matches(helper_path, verifier_sha256):
+        raise ValueError("driver build verifier changed during validation")
+    if not file_matches(source_helper_path, source_helper_hash):
+        raise ValueError("source build verifier changed during validation")
+    if require_allocation_counts and not instrumented:
+        raise ValueError("allocator snapshots require a build with allocation-counts")
+    return record
 
 
 def validate_metrics(metrics):
@@ -322,7 +355,15 @@ def main():
     if args.source_checkout is not None:
         args.source_checkout = args.source_checkout.resolve(strict=True)
     args.binary = args.binary.resolve(strict=True)
-    build = verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout) if args.build_record else None
+    helper_path = ROOT / "scripts/build-rpc-bench.py"
+    helper_bytes = helper_path.read_bytes() if args.build_record else None
+    helper_hash = hashlib.sha256(helper_bytes).hexdigest() if helper_bytes is not None else None
+    try:
+        build = (verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout,
+                                require_allocation_counts=args.allocation_counts, verifier_sha256=helper_hash)
+                 if args.build_record else None)
+    except ValueError as error:
+        parser.error(str(error))
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
@@ -339,6 +380,8 @@ def main():
               "harness_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "harness_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
               "source_verified": build is not None, "build_record": build,
+              "build_verifier_sha256": helper_hash,
+              "build_verifier_file": "build-verifier.py" if helper_bytes is not None else None,
               "host": platform.uname()._asdict(), "clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
               "duration_per_cell_seconds": args.duration, "cells": cells,
@@ -351,6 +394,7 @@ def main():
               "strace_version": subprocess.check_output([str(args.strace), "--version"], text=True).splitlines()[0] if args.strace else None,
               "qualification": {"qualified": False,
                   "limits": ["prebuilt binary digest is pinned; source-to-binary mapping must be checked against build records",
+                             "package artifact features record Cargo resolution, not custom Rust flags, wrappers or dependency feature unification",
                              "shared host, no verified CPU headroom or quota proof",
                              "repeats and concurrency are explicit; no claim-grade statistics",
                              "client CPU includes startup and handshake; server includes connection setup and cleanup",
@@ -361,6 +405,8 @@ def main():
               "runs": []}
     (args.output / "source.patch").write_bytes(subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT))
     (args.output / "harness.py").write_bytes(Path(__file__).read_bytes())
+    if helper_bytes is not None:
+        (args.output / "build-verifier.py").write_bytes(helper_bytes)
     (args.output / "manifest.json").write_text(json.dumps(report, indent=2) + "\n")
     for index, cell in enumerate(cells):
         run = run_cell(args, cell, args.output / f"cell-{index:03d}")
@@ -370,13 +416,17 @@ def main():
     report["source_unchanged"] = True
     if args.build_record:
         try:
-            verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout)
+            verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout,
+                           require_allocation_counts=args.allocation_counts, verifier_sha256=helper_hash)
         except (OSError, ValueError) as error:
             report["source_unchanged"] = False
             report["source_error"] = str(error)
     report["harness_script_unchanged"] = report["harness_script_sha256"] == hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    report["build_verifier_unchanged"] = (helper_hash is None
+        or (file_matches(helper_path, helper_hash)
+            and file_matches(args.output / "build-verifier.py", helper_hash)))
     report["passed"] = (report["binary_unchanged"] and report["source_unchanged"]
-                        and report["harness_script_unchanged"]
+                        and report["harness_script_unchanged"] and report["build_verifier_unchanged"]
                         and all(run["passed"] for run in report["runs"]))
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0 if report["passed"] else 1

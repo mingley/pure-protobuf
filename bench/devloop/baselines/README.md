@@ -41,9 +41,13 @@ the timed pick loop. The futex rate covers the whole process, including
 startup, warmup, teardown, wakes and unsuccessful waits; it is not an exact
 count of blocking waits in the picker and can vary between runs and hosts.
 Investigate a nonzero rate before attributing it to a picker. Instructions
-and wall remain relative (base-vs-head). `compare --budget` fails when a
-measured value exceeds its ceiling; `not_run` metrics skip, per policy. The
-perf lane passes this file on every run (see `.github/workflows/perf.yml`).
+remain relative (base-vs-head); wall is recorded for inspection without a
+comparison threshold. `compare --budget` fails when a
+measured value exceeds its ceiling; `not_run` metrics skip, per policy. Budget
+files do not encode units. When a metric definition changes, check and
+regenerate its ceilings as needed; base/head unit checks do not validate
+historical budget semantics. The perf lane passes this file on every run (see
+`.github/workflows/perf.yml`).
 
 ## Minimal example cell
 

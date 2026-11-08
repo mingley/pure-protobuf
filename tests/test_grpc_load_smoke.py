@@ -1,8 +1,13 @@
 """Reject incomplete or unsuccessful endpoint measurements."""
 
+import hashlib
 import importlib.util
+import io
+import json
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -126,6 +131,161 @@ class CaptureGuards(unittest.TestCase):
                 path.write_text(bad)
                 with self.assertRaises(ValueError):
                     SMOKE.callgrind_instructions(path)
+
+
+class BuildModeGuards(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.source = self.root / "checkout"
+        (self.source / "scripts").mkdir(parents=True)
+        # Model a frozen verifier using the legacy validate_record interface.
+        # It deliberately leaves feature inspection to the current driver.
+        (self.source / "scripts/build-rpc-bench.py").write_text(
+            "import json\n"
+            "def validate_record(path, binary):\n"
+            "    return json.loads(path.read_text())\n")
+        self.binary = self.root / "rpc-bench"
+        self.binary.write_bytes(b"binary")
+        self.record_path = self.root / "build.json"
+        self.entry = {"reason": "compiler-artifact", "executable": str(self.binary),
+                      "manifest_path": str(self.source / "rpc-bench/Cargo.toml"),
+                      "target": {"name": "rpc-bench", "kind": ["bin"]}}
+
+    def write_record(self, instrumented, legacy=False):
+        prefix = ["cargo", "build", "--locked", "--release", "--manifest-path",
+                  "rpc-bench/Cargo.toml"]
+        flags = ["--features", "allocation-counts"] if instrumented else ["--no-default-features"]
+        features = ["allocation-counts", "default"] if instrumented else []
+        self.entry["features"] = features
+        (self.root / "build.stdout.jsonl").write_text(json.dumps(self.entry) + "\n")
+        record = {"schema": "pbrs.rpc-bench-build.v1" if legacy else "pbrs.rpc-bench-build.v2",
+                  "command": [*prefix, *flags, "--message-format=json"]}
+        if not legacy:
+            record.update(allocation_counts=instrumented, artifact_features=features.copy())
+        self.record_path.write_text(json.dumps(record))
+        return record
+
+    def test_legacy_source_checkout_remains_usable_and_features_are_checked(self):
+        (self.source / "scripts/build-rpc-bench.py").write_text(
+            "import json\n"
+            "def validate_record(path, binary):\n"
+            "    record = json.loads(path.read_text())\n"
+            "    if record.get('schema') != 'pbrs.rpc-bench-build.v1':\n"
+            "        raise ValueError('expected legacy record')\n"
+            "    return record\n")
+        record = self.write_record(True, legacy=True)
+        self.assertEqual(SMOKE.verified_build(self.record_path, self.binary, self.source), record)
+        self.entry["features"] = ["default"]
+        (self.root / "build.stdout.jsonl").write_text(json.dumps(self.entry) + "\n")
+        with self.assertRaisesRegex(ValueError, "artifact features disagree"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source)
+
+    def test_current_source_verifier_rejects_a_downgraded_record(self):
+        self.write_record(True, legacy=True)
+        (self.source / "scripts/build-rpc-bench.py").write_bytes(
+            (SMOKE.ROOT / "scripts/build-rpc-bench.py").read_bytes())
+        with self.assertRaisesRegex(ValueError, "requires a v2 build record"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source)
+
+    def test_plain_build_requires_an_explicit_opt_out_of_counter_requirement(self):
+        record = self.write_record(False)
+        with self.assertRaisesRegex(ValueError, "allocator snapshots require"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source)
+        self.assertEqual(SMOKE.verified_build(self.record_path, self.binary, self.source,
+                                             require_allocation_counts=False), record)
+
+    def driver_checkout(self):
+        driver = self.root / "driver"
+        (driver / "scripts").mkdir(parents=True)
+        helper = driver / "scripts/build-rpc-bench.py"
+        helper.write_bytes((SMOKE.ROOT / "scripts/build-rpc-bench.py").read_bytes())
+        return driver, helper
+
+    def test_verifier_mutation_during_validation_is_rejected(self):
+        self.write_record(True, legacy=True)
+        driver, helper = self.driver_checkout()
+        expected = hashlib.sha256(helper.read_bytes()).hexdigest()
+        (self.source / "scripts/build-rpc-bench.py").write_text(
+            "import json\nfrom pathlib import Path\n"
+            "def validate_record(path, binary):\n"
+            f"    helper = Path({str(helper)!r})\n"
+            "    helper.write_bytes(helper.read_bytes() + b'\\n# mutated\\n')\n"
+            "    return json.loads(path.read_text())\n")
+        with patch.object(SMOKE, "ROOT", driver), \
+                self.assertRaisesRegex(ValueError, "driver build verifier changed during validation"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source, verifier_sha256=expected)
+
+    def test_source_checkout_verifier_mutation_during_validation_is_rejected(self):
+        self.write_record(True, legacy=True)
+        driver, _ = self.driver_checkout()
+        (self.source / "scripts/build-rpc-bench.py").write_text(
+            "import json\nfrom pathlib import Path\n"
+            "def validate_record(path, binary):\n"
+            "    helper = Path(__file__)\n"
+            "    helper.write_bytes(helper.read_bytes() + b'\\n# mutated\\n')\n"
+            "    return json.loads(path.read_text())\n")
+        with patch.object(SMOKE, "ROOT", driver), \
+                self.assertRaisesRegex(ValueError, "source build verifier changed during validation"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source)
+
+    def test_verifier_is_retained_and_mutation_fails_a_capture(self):
+        self.write_record(True, legacy=True)
+        driver, helper = self.driver_checkout()
+        original = helper.read_bytes()
+        expected = hashlib.sha256(original).hexdigest()
+
+        for mutation in ("none", "live", "retained"):
+            with self.subTest(mutation=mutation):
+                helper.write_bytes(original)
+                output = self.root / mutation
+                argv = ["grpc-load-smoke.py", "--binary", str(self.binary), "--output", str(output),
+                        "--build-record", str(self.record_path), "--source-checkout", str(self.source),
+                        "--allocation-counts", "--payloads=0"]
+
+                def run_cell(args, cell, directory):
+                    directory.mkdir()
+                    if mutation == "live":
+                        helper.write_bytes(original + b"\n# mutated\n")
+                    elif mutation == "retained":
+                        (output / "build-verifier.py").write_bytes(original + b"\n# mutated\n")
+                    return {"passed": True}
+
+                def git_output(command, **kwargs):
+                    if not kwargs.get("text"):
+                        return b""
+                    return "" if "status" in command else "a" * 40
+
+                with patch("sys.argv", argv), patch.object(SMOKE, "ROOT", driver), \
+                        patch.object(SMOKE.platform, "system", return_value="Linux"), \
+                        patch.object(SMOKE.subprocess, "check_output", side_effect=git_output), \
+                        patch.object(SMOKE, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
+                        patch.object(SMOKE, "SHAPES", ["unary"]), \
+                        patch.object(SMOKE, "run_cell", side_effect=run_cell):
+                    self.assertEqual(SMOKE.main(), 0 if mutation == "none" else 1)
+                report = json.loads((output / "report.json").read_text())
+                self.assertEqual(report["build_verifier_sha256"], expected)
+                saved = (output / report["build_verifier_file"]).read_bytes()
+                self.assertEqual(saved == original, mutation != "retained")
+                self.assertIs(report["build_verifier_unchanged"], mutation == "none")
+                self.assertIs(report["passed"], mutation == "none")
+                if mutation == "live":
+                    self.assertIn("driver build verifier changed", report["source_error"])
+
+    def test_plain_build_rejects_allocator_request_before_endpoint_startup(self):
+        self.write_record(False)
+        output = self.root / "results"
+        argv = ["grpc-load-smoke.py", "--binary", str(self.binary), "--output", str(output),
+                "--build-record", str(self.record_path), "--source-checkout", str(self.source),
+                "--allocation-counts"]
+        with patch("sys.argv", argv), patch.object(SMOKE.platform, "system", return_value="Linux"), \
+                patch.object(SMOKE.subprocess, "Popen") as spawn, patch("sys.stderr", new_callable=io.StringIO) as errors:
+            with self.assertRaises(SystemExit):
+                SMOKE.main()
+        self.assertIn("allocator snapshots require", errors.getvalue())
+        spawn.assert_not_called()
+        self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":

@@ -126,7 +126,7 @@ jobs:
       - name: gRPC campaign provenance and failure handling
         run: |
           python3 -B -m unittest -q \
-            tests.test_grpc_load_smoke tests.test_dominance_ledger \
+            tests.test_rpc_bench_build tests.test_grpc_load_smoke tests.test_dominance_ledger \
             tests.test_grpc_resource_campaign tests.test_counter_campaign \
             tests.test_counter_capsule tests.test_miri_grpc_kernels
       - name: Codegen cost harness contracts (no benchmark run)
@@ -373,7 +373,7 @@ jobs:
   # lockfile in CARGO_HOME (pbrs tests do not otherwise download pbrs-grpc deps).
   package-consumers:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -381,6 +381,19 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo fetch
       - run: cargo test --test package_consumer -- --nocapture
+      - name: Validate source-pinned RPC benchmark build modes
+        run: |
+          set -euo pipefail
+          # Build validation and CLI startup only; this is not a performance run.
+          # The builder uses cargo build --locked --release for both modes.
+          source_commit="$(git rev-parse HEAD)"
+          bench_validation_dir="$(mktemp -d "$RUNNER_TEMP/rpc-bench-build.XXXXXX")"
+          python3 -B scripts/build-rpc-bench.py --source "$source_commit" \
+            --output "$bench_validation_dir/instrumented"
+          "$bench_validation_dir/instrumented/rpc-bench" --help > "$bench_validation_dir/instrumented/help.txt"
+          python3 -B scripts/build-rpc-bench.py --source "$source_commit" \
+            --no-allocation-counts --output "$bench_validation_dir/plain"
+          "$bench_validation_dir/plain/rpc-bench" --help > "$bench_validation_dir/plain/help.txt"
 
   # QG-04: every shipping profile (core, native gRPC, tonic adapter,
   # Rust-only codegen) must resolve to pure-Rust crates with approved
