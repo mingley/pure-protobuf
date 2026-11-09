@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`6024ac88`](https://github.com/mingley/pure-protobuf/commit/6024ac884e6ccda3b14c77ca115732629e2217d7):
+These versions are declared at [`4a2d8e26`](https://github.com/mingley/pure-protobuf/commit/4a2d8e26134a41eaf71e449ab29f5f50890933c1):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -84,10 +84,11 @@ gates in the checklist remain in effect.
 Opt-in native unary hedging does not yet enforce A6 commitment when ordinary
 response headers arrive: another attempt can continue or win. It also ignores
 non-negative pushback delays and may leave a scheduled hedge waiting after a
-non-fatal response while another attempt is in flight. The pushback parser
-accepts redundant leading zeros, unlike the pinned A6 wire syntax. Client binary
-logs can include uncommitted retry or hedge attempts, omit an early rejection trailer, or
-report a peer `CANCELLED` status as a client cancellation. See [service-config](service-config.md) and the
+non-fatal response while another attempt is in flight. The receiver accepts
+redundant leading zeros; the pbrs-grpc server emits canonical decimal values.
+Client binary logs can include uncommitted retry or hedge attempts, omit an
+early rejection trailer, or report a peer `CANCELLED` status as a client
+cancellation. See [service-config](service-config.md) and the
 [A6/A16 coverage notes](grfc.md).
 
 Do not claim full A6 hedging or pushback conformance, or A16 binary-log

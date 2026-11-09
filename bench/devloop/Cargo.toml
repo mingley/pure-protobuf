@@ -13,6 +13,7 @@ default = []
 bridge = ["pbrs-adoption-corpus/bridge"]
 stream-burst-diagnostic = []
 mixed-ownership-diagnostic = []
+query-allocation-diagnostic = []
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
@@ -47,6 +48,11 @@ required-features = ["stream-burst-diagnostic"]
 name = "mixed-ownership"
 path = "src/mixed_ownership.rs"
 required-features = ["mixed-ownership-diagnostic"]
+
+[[bin]]
+name = "query-allocation"
+path = "src/query_alloc_probe.rs"
+required-features = ["query-allocation-diagnostic"]
 
 [profile.release]
 lto = "thin"

@@ -98,6 +98,8 @@ vary without changing the prepared message.
 
 For short and full server-stream bursts, use the [opt-in burst
 diagnostic](../../bench/devloop/README.md#opt-in-server-stream-burst-diagnostic).
+The [Query allocation diagnostic](../../bench/devloop/QUERY-ALLOC.md) separates
+request cloning, decoding, field reads and response encoding.
 
 Use a fresh inventory when collecting the standalone tonic transport matrix.
 The collector derives qualified and blocked counts from that inventory; an old

@@ -103,6 +103,12 @@ allocations fall ≥2% on targeted cells; no primary cell regresses
 thresholds from at least 30 usable measured runs; missing metrics and error
 placeholder reports are not successful measurements.
 
+## Opt-in Query allocation diagnostic
+
+The [Query allocation diagnostic](QUERY-ALLOC.md) separates request cloning,
+decoding, field reads and response encoding. It counts component allocation
+requests; it does not run an RPC or measure CPU time.
+
 ## Opt-in mixed-byte ownership diagnostic
 
 This separate binary compares construction and serialization of the same

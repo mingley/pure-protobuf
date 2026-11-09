@@ -267,8 +267,10 @@ parsed gRPC status block:
 | Negative integer, unparseable or non-ASCII value, value outside the signed 32-bit range, or repeated field values in that block | `DoNotRetry`: no further attempt is sent. The sequential retry path can record `pushback_refusals`; already-sent hedges may continue. |
 | Non-negative signed 32-bit integer `ms` | With `retryPolicy`, the next retry waits this long instead of the computed jittered backoff and a dispatched retry records `pushback_delays`. The hedging executor currently ignores this delay. |
 
-The integer parser accepts a leading plus sign and redundant leading zeros;
-the latter differs from the pinned A6 wire syntax. Pushback travels on the
+The pbrs-grpc server emits decimal values without redundant leading zeros.
+For compatibility with common gRPC clients, the receiver also accepts a leading
+plus sign and redundant zeros; signed zero, including `-0`, is a zero delay.
+Redundant zeros differ from the A6 wire format. Pushback travels on the
 `Status` itself, never in user metadata (`grpc-*` keys are kernel-owned).
 For `retryPolicy`, cancellation and overall-deadline expiry interrupt a
 pushback sleep like a backoff sleep.
