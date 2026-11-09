@@ -233,14 +233,12 @@ pub struct Connection<T, B: Buf = Bytes> {
 }
 
 /// A future of an HTTP response.
-#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct ResponseFuture {
     /// Stream handle. Moved into the response body when headers arrive, so
     /// the ready poll does not clone it and drop the leftover.
-    inner: std::mem::ManuallyDrop<proto::OpaqueStreamRef>,
+    inner: Option<proto::OpaqueStreamRef>,
     push_promise_consumed: bool,
-    taken: bool,
 }
 
 /// A future of a pushed HTTP response.
@@ -533,9 +531,8 @@ where
                 }
 
                 let response = ResponseFuture {
-                    inner: std::mem::ManuallyDrop::new(stream.clone_to_opaque()),
+                    inner: Some(stream.clone_to_opaque()),
                     push_promise_consumed: false,
-                    taken: false,
                 };
 
                 let stream = SendStream::new(stream);
@@ -685,9 +682,8 @@ impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
         this.waiter = None;
         Poll::Ready(Ok((
             ResponseFuture {
-                inner: std::mem::ManuallyDrop::new(response),
+                inner: Some(response),
                 push_promise_consumed: false,
-                taken: false,
             },
             SendStream::new(stream),
         )))
@@ -1582,48 +1578,77 @@ where
 
 // ===== impl ResponseFuture =====
 
-#[allow(
-    unsafe_code,
-    reason = "move the stream handle into the response body once headers are ready"
-)]
+impl fmt::Debug for ResponseFuture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = f.debug_struct("ResponseFuture");
+        if let Some(inner) = &self.inner {
+            debug.field("inner", inner);
+        } else {
+            debug.field("inner", &"<moved>");
+        }
+        debug
+            .field("push_promise_consumed", &self.push_promise_consumed)
+            .field("taken", &self.inner.is_none())
+            .finish()
+    }
+}
+
+#[cold]
+#[inline(never)]
+#[allow(clippy::panic, reason = "a completed response future must reject further access")]
+fn response_future_completed() -> ! {
+    panic!("response future already completed");
+}
+
 impl Future for ResponseFuture {
     type Output = Result<Response<RecvStream>, crate::h2_backend::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let (parts, _) = ready!(self.inner.poll_response(cx))?.into_parts();
-        // Headers are ready. The body owns the only remaining handle, so
-        // move it instead of cloning under the connection lock.
-        self.taken = true;
-        // SAFETY: `taken` stops Drop from releasing this handle. `poll`
-        // after `Ready` is not required, and this future holds no other copy.
-        let inner = unsafe { std::mem::ManuallyDrop::take(&mut self.inner) };
+        let (parts, _) = ready!(self.inner_mut().poll_response(cx))?.into_parts();
+        // Move the handle into the body without cloning or leaving a moved
+        // value in the future. A second poll finds `None` and panics safely.
+        let Some(inner) = self.inner.take() else {
+            response_future_completed();
+        };
         let body = RecvStream::new(FlowControl::new(inner));
 
         Poll::Ready(Ok(Response::from_parts(parts, body)))
     }
 }
 
-#[allow(
-    unsafe_code,
-    reason = "drop the stream handle unless poll already moved it into the body"
-)]
-impl Drop for ResponseFuture {
-    fn drop(&mut self) {
-        if !self.taken {
-            // SAFETY: the handle has not been moved into a response body.
-            unsafe { std::mem::ManuallyDrop::drop(&mut self.inner) };
+impl ResponseFuture {
+    #[inline]
+    fn inner(&self) -> &proto::OpaqueStreamRef {
+        match &self.inner {
+            Some(inner) => inner,
+            None => response_future_completed(),
         }
     }
-}
 
-impl ResponseFuture {
+    #[inline]
+    fn inner_mut(&mut self) -> &mut proto::OpaqueStreamRef {
+        match &mut self.inner {
+            Some(inner) => inner,
+            None => response_future_completed(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_test_stream(inner: proto::OpaqueStreamRef) -> Self {
+        Self {
+            inner: Some(inner),
+            push_promise_consumed: false,
+        }
+    }
+
     /// Returns the stream ID of the response stream.
     ///
     /// # Panics
     ///
-    /// If the lock on the stream store has been poisoned.
+    /// If the lock on the stream store has been poisoned or this future has
+    /// already returned a response.
     pub fn stream_id(&self) -> crate::h2_backend::StreamId {
-        crate::h2_backend::StreamId::from_internal(self.inner.stream_id())
+        crate::h2_backend::StreamId::from_internal(self.inner().stream_id())
     }
 
     /// Polls for informational responses (1xx status codes).
@@ -1634,26 +1659,33 @@ impl ResponseFuture {
     /// Returns `Poll::Ready(Some(response))` if an informational response is available,
     /// `Poll::Ready(None)` if no more informational responses are expected,
     /// or `Poll::Pending` if no informational response is currently available.
+    ///
+    /// # Panics
+    ///
+    /// If this future has already returned a response.
     pub fn poll_informational(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Response<()>, crate::h2_backend::Error>>> {
-        self.inner.poll_informational(cx).map_err(Into::into)
+        self.inner_mut().poll_informational(cx).map_err(Into::into)
     }
 
     /// Returns a stream of PushPromises
     ///
     /// # Panics
     ///
-    /// If this method has been called before
-    /// or the stream was itself was pushed
+    /// If this method has been called before, the stream was itself pushed,
+    /// or this future has already returned a response.
     pub fn push_promises(&mut self) -> PushPromises {
+        let Some(inner) = &self.inner else {
+            response_future_completed();
+        };
         if self.push_promise_consumed {
             panic!("Reference to push promises stream taken!");
         }
         self.push_promise_consumed = true;
         PushPromises {
-            inner: proto::OpaqueStreamRef::clone(&self.inner),
+            inner: proto::OpaqueStreamRef::clone(inner),
         }
     }
 }
@@ -1675,9 +1707,8 @@ impl PushPromises {
             Poll::Ready(Some(Ok((request, response)))) => {
                 let response = PushedResponseFuture {
                     inner: ResponseFuture {
-                        inner: std::mem::ManuallyDrop::new(response),
+                        inner: Some(response),
                         push_promise_consumed: false,
-                        taken: false,
                     },
                 };
                 Poll::Ready(Some(Ok(PushPromise { request, response })))
@@ -1729,11 +1760,19 @@ impl Future for PushedResponseFuture {
 }
 
 impl PushedResponseFuture {
+    #[cfg(test)]
+    pub(crate) fn from_test_stream(inner: proto::OpaqueStreamRef) -> Self {
+        Self {
+            inner: ResponseFuture::from_test_stream(inner),
+        }
+    }
+
     /// Returns the stream ID of the response stream.
     ///
     /// # Panics
     ///
-    /// If the lock on the stream store has been poisoned.
+    /// If the lock on the stream store has been poisoned or the pushed
+    /// response has already been returned.
     pub fn stream_id(&self) -> crate::h2_backend::StreamId {
         self.inner.stream_id()
     }

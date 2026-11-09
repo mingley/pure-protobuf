@@ -398,6 +398,129 @@ fn rejected_terminal_data_after_headers_drops_payload_after_both_guards() {
     rejected_terminal_data_case(false);
 }
 
+fn expect_completed_future_panic(f: impl FnOnce()) {
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
+        .expect_err("completed response future must reject inner access");
+    let message = panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str));
+    assert_eq!(message, Some("response future already completed"));
+}
+
+fn assert_completed_response_future(future: &mut client::ResponseFuture) {
+    let debug = format!("{future:?}");
+    assert!(debug.contains("taken: true"));
+    assert!(debug.contains("<moved>"));
+    expect_completed_future_panic(|| {
+        let _stream_id = future.stream_id();
+    });
+    expect_completed_future_panic(|| {
+        let mut cx = Context::from_waker(Waker::noop());
+        let _result = future.poll_informational(&mut cx);
+    });
+    expect_completed_future_panic(|| {
+        let _promises = future.push_promises();
+    });
+    expect_completed_future_panic(|| {
+        let mut cx = Context::from_waker(Waker::noop());
+        let _result = std::future::Future::poll(Pin::new(&mut *future), &mut cx);
+    });
+}
+
+fn queued_response_for_future(streams: &mut Streams<Body, client::Peer>) {
+    let mut head = frame::Headers::new(
+        StreamId::from(1),
+        frame::Pseudo::response(http::StatusCode::OK),
+        HeaderMap::new(),
+    );
+    head.set_end_stream();
+    streams.recv_headers(Box::new(head)).unwrap();
+}
+
+#[test]
+fn response_future_after_ready_rejects_access_without_reading_moved_handle() {
+    let (mut streams, send, _, mut codec, _) = setup(65_535);
+    complete(&mut streams, &mut codec).unwrap();
+    let mut future = client::ResponseFuture::from_test_stream(send.clone_to_opaque());
+    assert_eq!(future.stream_id().as_u32(), 1);
+    assert!(!format!("{future:?}").contains("<moved>"));
+    let mut cx = Context::from_waker(Waker::noop());
+    assert!(matches!(future.poll_informational(&mut cx), Poll::Pending));
+    assert!(matches!(
+        std::future::Future::poll(Pin::new(&mut future), &mut cx),
+        Poll::Pending
+    ));
+    queued_response_for_future(&mut streams);
+    let response = match std::future::Future::poll(Pin::new(&mut future), &mut cx) {
+        Poll::Ready(Ok(response)) => response,
+        other => panic!("expected response: {other:?}"),
+    };
+    assert_completed_response_future(&mut future);
+    streams.recv_eof(true).unwrap();
+    drop(send);
+    drop(response);
+    drop(codec);
+    drop(streams);
+    // At this point the moved body and all engine owners are gone.
+    let mut future = std::hint::black_box(future);
+    assert_completed_response_future(&mut future);
+}
+
+#[test]
+fn pushed_response_future_after_ready_rejects_access_without_reading_moved_handle() {
+    let (mut streams, send, _, mut codec, _) = setup(65_535);
+    complete(&mut streams, &mut codec).unwrap();
+    let mut future = client::PushedResponseFuture::from_test_stream(send.clone_to_opaque());
+    assert_eq!(future.stream_id().as_u32(), 1);
+    assert!(!format!("{future:?}").contains("<moved>"));
+    queued_response_for_future(&mut streams);
+    let mut cx = Context::from_waker(Waker::noop());
+    let response = match std::future::Future::poll(Pin::new(&mut future), &mut cx) {
+        Poll::Ready(Ok(response)) => response,
+        other => panic!("expected pushed response wrapper: {other:?}"),
+    };
+    let check = |future: &mut client::PushedResponseFuture| {
+        let debug = format!("{future:?}");
+        assert!(debug.contains("taken: true"));
+        assert!(debug.contains("<moved>"));
+        expect_completed_future_panic(|| {
+            let _stream_id = future.stream_id();
+        });
+        expect_completed_future_panic(|| {
+            let mut cx = Context::from_waker(Waker::noop());
+            let _result = std::future::Future::poll(Pin::new(&mut *future), &mut cx);
+        });
+    };
+    check(&mut future);
+    streams.recv_eof(true).unwrap();
+    drop(send);
+    drop(response);
+    drop(codec);
+    drop(streams);
+    let mut future = std::hint::black_box(future);
+    check(&mut future);
+}
+
+#[test]
+fn response_future_error_keeps_its_owned_handle() {
+    let (mut streams, send, _, mut codec, _) = setup(65_535);
+    complete(&mut streams, &mut codec).unwrap();
+    let mut future = client::ResponseFuture::from_test_stream(send.clone_to_opaque());
+    streams.recv_eof(true).unwrap();
+    let mut cx = Context::from_waker(Waker::noop());
+    assert!(matches!(
+        std::future::Future::poll(Pin::new(&mut future), &mut cx),
+        Poll::Ready(Err(_))
+    ));
+    assert!(!format!("{future:?}").contains("<moved>"));
+    assert_eq!(future.stream_id().as_u32(), 1);
+    drop(send);
+    drop(future);
+    drop(codec);
+    drop(streams);
+}
+
 #[test]
 fn padded_received_data_keeps_payload_and_releases_padding_credit() {
     let (mut streams, mut send, _, mut codec, _) = setup(65_535);
