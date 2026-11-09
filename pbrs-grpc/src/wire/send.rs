@@ -161,8 +161,27 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         return Ok(bare_ok_trailer_map());
     }
     let mut map = HeaderMap::with_capacity(6);
-    let code = HeaderValue::from_str(&status.code().to_i32().to_string())
-        .map_err(|e| Status::internal(e.to_string()))?;
+    // The gRPC wire codes are fixed decimal strings. Constructing a static
+    // value avoids allocating and copying a formatted integer on this path.
+    let code = match status.code() {
+        Code::Ok => const { HeaderValue::from_static("0") },
+        Code::Cancelled => const { HeaderValue::from_static("1") },
+        Code::Unknown => const { HeaderValue::from_static("2") },
+        Code::InvalidArgument => const { HeaderValue::from_static("3") },
+        Code::DeadlineExceeded => const { HeaderValue::from_static("4") },
+        Code::NotFound => const { HeaderValue::from_static("5") },
+        Code::AlreadyExists => const { HeaderValue::from_static("6") },
+        Code::PermissionDenied => const { HeaderValue::from_static("7") },
+        Code::ResourceExhausted => const { HeaderValue::from_static("8") },
+        Code::FailedPrecondition => const { HeaderValue::from_static("9") },
+        Code::Aborted => const { HeaderValue::from_static("10") },
+        Code::OutOfRange => const { HeaderValue::from_static("11") },
+        Code::Unimplemented => const { HeaderValue::from_static("12") },
+        Code::Internal => const { HeaderValue::from_static("13") },
+        Code::Unavailable => const { HeaderValue::from_static("14") },
+        Code::DataLoss => const { HeaderValue::from_static("15") },
+        Code::Unauthenticated => const { HeaderValue::from_static("16") },
+    };
     map.insert(GRPC_STATUS, code);
     if !status.message().is_empty() {
         let encoded = percent_encode(status.message());

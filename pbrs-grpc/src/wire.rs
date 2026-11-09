@@ -425,6 +425,135 @@ mod tests {
     }
 
     #[test]
+    fn grpc_trailers_encode_every_status_code() {
+        use super::{grpc_trailers, status_from};
+        use crate::status::{Pushback, Status};
+        use http::HeaderMap;
+
+        // Pairs are the protocol's assigned numbers, including the two-digit
+        // codes. The detailed status forces the non-bare path for OK as well.
+        let cases = [
+            (Code::Ok, "0"),
+            (Code::Cancelled, "1"),
+            (Code::Unknown, "2"),
+            (Code::InvalidArgument, "3"),
+            (Code::DeadlineExceeded, "4"),
+            (Code::NotFound, "5"),
+            (Code::AlreadyExists, "6"),
+            (Code::PermissionDenied, "7"),
+            (Code::ResourceExhausted, "8"),
+            (Code::FailedPrecondition, "9"),
+            (Code::Aborted, "10"),
+            (Code::OutOfRange, "11"),
+            (Code::Unimplemented, "12"),
+            (Code::Internal, "13"),
+            (Code::Unavailable, "14"),
+            (Code::DataLoss, "15"),
+            (Code::Unauthenticated, "16"),
+        ];
+
+        for (code, expected) in cases {
+            let plain = grpc_trailers(&Status::from_code(code)).expect("plain trailers");
+            assert_eq!(plain.len(), 1, "plain {code:?}");
+            assert_eq!(
+                plain.get("grpc-status").and_then(|v| v.to_str().ok()),
+                Some(expected),
+                "plain {code:?}"
+            );
+            assert_eq!(status_from(&HeaderMap::new(), Some(&plain)).code(), code);
+
+            let mut status =
+                Status::new(code, "bad %\t\u{00e9}").with_retry_pushback(Pushback::DoNotRetry);
+            status.set_details(vec![0x08, 0x07]);
+            status.metadata_mut().insert("x-tag", "one").expect("tag");
+            status.metadata_mut().insert("x-tag", "two").expect("tag");
+            status
+                .metadata_mut()
+                .insert_bin("x-opaque-bin", [0_u8, 255])
+                .expect("binary metadata");
+            let trailers = grpc_trailers(&status).expect("detailed trailers");
+            assert_eq!(
+                trailers.get("grpc-status").and_then(|v| v.to_str().ok()),
+                Some(expected),
+                "detailed {code:?}"
+            );
+            assert_eq!(
+                trailers.get("grpc-message").and_then(|v| v.to_str().ok()),
+                Some("bad %25%09%C3%A9"),
+                "message {code:?}"
+            );
+            assert_eq!(
+                trailers
+                    .get("grpc-status-details-bin")
+                    .and_then(|v| v.to_str().ok()),
+                Some("CAc"),
+                "details {code:?}"
+            );
+            assert_eq!(
+                trailers
+                    .get("grpc-retry-pushback-ms")
+                    .and_then(|v| v.to_str().ok()),
+                Some("-1"),
+                "pushback {code:?}"
+            );
+            assert_eq!(
+                trailers
+                    .get_all("x-tag")
+                    .iter()
+                    .map(|v| v.to_str().expect("ASCII tag"))
+                    .collect::<Vec<_>>(),
+                ["one", "two"],
+                "metadata {code:?}"
+            );
+            assert_eq!(
+                trailers.get("x-opaque-bin").and_then(|v| v.to_str().ok()),
+                Some("AP8"),
+                "binary metadata {code:?}"
+            );
+
+            let restored = status_from(&HeaderMap::new(), Some(&trailers));
+            assert_eq!(restored.code(), code);
+            assert_eq!(restored.message(), "bad %\t\u{00e9}");
+            assert_eq!(restored.details(), &[0x08, 0x07]);
+            assert_eq!(restored.retry_pushback(), Some(Pushback::DoNotRetry));
+            // OK response metadata is handled separately by the response
+            // reader; status_from retains custom metadata only for errors.
+            if code != Code::Ok {
+                assert_eq!(
+                    restored.metadata().get_all("x-tag").collect::<Vec<_>>(),
+                    ["one", "two"]
+                );
+                assert_eq!(
+                    restored.metadata().get_bin("x-opaque-bin").as_deref(),
+                    Some(&[0_u8, 255][..])
+                );
+            }
+        }
+
+        // Successful calls carrying only user trailers must use the non-bare
+        // path and preserve those trailers alongside grpc-status.
+        let mut ok_with_metadata = Status::ok();
+        ok_with_metadata
+            .metadata_mut()
+            .insert("x-result", "ok")
+            .expect("metadata");
+        let trailers = grpc_trailers(&ok_with_metadata).expect("OK metadata trailers");
+        assert_eq!(trailers.len(), 2);
+        assert_eq!(
+            trailers.get("grpc-status").and_then(|v| v.to_str().ok()),
+            Some("0")
+        );
+        assert_eq!(
+            trailers.get("x-result").and_then(|v| v.to_str().ok()),
+            Some("ok")
+        );
+        assert_eq!(
+            status_from(&HeaderMap::new(), Some(&trailers)).code(),
+            Code::Ok
+        );
+    }
+
+    #[test]
     fn status_details_round_trip_on_the_wire() {
         use super::{grpc_trailers, status_from};
         use crate::status::Status;
