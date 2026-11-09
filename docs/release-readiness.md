@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`da75f352`](https://github.com/mingley/pure-protobuf/commit/da75f352056167b213eb2642cb485d23895819c5):
+These versions are declared at [`6024ac88`](https://github.com/mingley/pure-protobuf/commit/6024ac884e6ccda3b14c77ca115732629e2217d7):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -19,6 +19,8 @@ Both adapters require `pbrs 0.2.1` at runtime and build time. Recheck the
 manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
+The [implementation status](status.md) links the latest recorded CI, Miri and
+package rehearsal; final release evidence must match the release source.
 
 ## Release checklist
 
