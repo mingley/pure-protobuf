@@ -12,6 +12,7 @@ exclude = ["adoption"]
 default = []
 bridge = ["pbrs-adoption-corpus/bridge"]
 stream-burst-diagnostic = []
+mixed-ownership-diagnostic = []
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
@@ -41,6 +42,11 @@ path = "src/main.rs"
 name = "stream-burst"
 path = "src/stream_burst.rs"
 required-features = ["stream-burst-diagnostic"]
+
+[[bin]]
+name = "mixed-ownership"
+path = "src/mixed_ownership.rs"
+required-features = ["mixed-ownership-diagnostic"]
 
 [profile.release]
 lto = "thin"

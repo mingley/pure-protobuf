@@ -11,7 +11,7 @@ Metrics:
 | Metric | Source | Role |
 |---|---|---|
 | Retired instructions | Linux `perf`, else valgrind/callgrind, else `not_run`; reported as `(2N - N) / N` | Primary when available |
-| Heap allocations and bytes | Counting `GlobalAlloc` | Exact allocation signal |
+| Heap allocation requests and bytes | Counting `GlobalAlloc` | Process-wide diagnostic |
 | Syscalls per RPC | `strace -c`, else `not_run` | Linux diagnostic |
 | Wall time | Built-in timing | Secondary signal |
 
@@ -29,7 +29,7 @@ scripts/devloop.sh --baseline /tmp/before.json --out /tmp/now.json
 ```
 
 Each cell runs in a child process (`devloop run-cell <id>`), which reports
-exact allocations plus wall time. The parent wraps repeats in the available
+allocation requests plus wall time. The parent wraps repeats in the available
 tools and aggregates medians into versioned JSON (`schema: "devloop/1"`).
 Instruction counts are loop-only differential counts: the parent runs the
 same cell at N and 2N measured-loop iterations with identical preparation and
@@ -102,6 +102,41 @@ allocations fall ≥2% on targeted cells; no primary cell regresses
 >1% (2% for RPC cells). The CI lane is advisory. SB-20 must calibrate blocking
 thresholds from at least 30 usable measured runs; missing metrics and error
 placeholder reports are not successful measurements.
+
+## Opt-in mixed-byte ownership diagnostic
+
+This separate binary compares construction and serialization of the same
+`BlobMixed` message: eight 4 KiB byte fields and an integer ID. For both
+pbrs and Prost, it measures a copied borrowed slice and a moved vector, each
+with exact or spare source capacity. Payload construction, serialization and
+drop are inside the counted window. This includes allocation of the source
+vector; it does not model a pre-existing borrowed slice. A moved
+spare-capacity vector can retain its extra allocation; use the exact and spare
+rows separately.
+
+```sh
+cargo test --locked --release --manifest-path bench/devloop/Cargo.toml \
+  --features mixed-ownership-diagnostic --bin mixed-ownership
+
+cargo run --locked --release --manifest-path bench/devloop/Cargo.toml \
+  --features mixed-ownership-diagnostic --bin mixed-ownership -- \
+  --iterations 1000 --warmup 100
+```
+
+Before counting, the binary checks the complete wire bytes, both decoders,
+all payload bytes, ID boundaries and owned-buffer pointer transfer through
+cloning and the repeated-field setter. A separately armed allocation control
+checks the counter, and zero-allocation rows are rejected. During each
+operation the complete encoded slice passes through `black_box`.
+
+The JSON reports process-wide allocation requests through a wrapped System
+allocator. Its relaxed atomic counters can include allocations by other
+threads. Reallocations count as allocations and report the full new size;
+requested bytes are not live or peak memory, retained capacity or RSS. The
+loop's ID is its iteration index, so output lengths can change at varint
+boundaries. The devloop dependency graph enables pbrs copy-count hooks. The
+diagnostic does not measure CPU time, latency or RPC performance. These new
+rows do not replace or change the existing `devloop/1` cell IDs.
 
 ## Opt-in server-stream burst diagnostic
 

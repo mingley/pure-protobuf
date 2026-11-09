@@ -108,6 +108,10 @@ for the detecting failure and repair scope.
 
 ## Message codecs
 
+For owned and borrowed byte buffers, the [mixed-byte ownership diagnostic](../../bench/devloop/README.md#opt-in-mixed-byte-ownership-diagnostic)
+compares construction and serialization allocations for pbrs and Prost.
+Its measured scope includes the source buffers and message drop.
+
 Use the [codec survey](../../tonic-bench/README.md) for encode, decode and
 field-access comparisons. Keep parse-only, parse-and-read, owned messages and
 borrowed views separate. Include first encode and unchanged repeated encode;
