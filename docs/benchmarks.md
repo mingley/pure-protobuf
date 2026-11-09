@@ -5,12 +5,15 @@
 
 | Read | Scope |
 |---|---|
+| [Buffered gRPC-Web text encoder holdout](benchmarks/web-text-encoder-buffered-20261109.md) | Unmerged candidate gains and short-fragment losses, November 9 |
 | [gRPC-Web text encoder screen](benchmarks/web-text-encoder-20261109.md) | Unmerged candidates and CPU controls, November 9 |
 | [Query and mixed-byte allocations](evidence/query-mixed-allocations-20261109.md) | Component allocation counts, November 9 |
+| [Entity allocation sites](evidence/entity-allocation-sites-20261109.md) | Instrumented construction, assignment and packed-cache scopes, November 9 |
 | [Packed setter experiment](benchmarks/packed-setter-20261109.md) | Rejected setter candidate and measured losses, November 9 |
 | [Status trailer allocations](benchmarks/status-trailers-20261109.md) | Standalone trailer construction, November 9 |
 | [Stream-batch capacity diagnostic](benchmarks/stream-batch-capacity-20261108.md) | Historical 16 KiB candidate with paired allocation tradeoffs, November 8 |
-| [Latest full hosted comparison](evidence/hosted-devloop-10d94697-20261106/README.md) | All 1,634 cells at `10d94697`, with selected wins, remaining Prost losses and instrumentation limits, November 6 |
+| [1,634-cell hosted run](https://github.com/mingley/pure-protobuf/actions/runs/42685722680) | `4a2d8e26`; advisory comparison exited 1 and instruction counts were unavailable, November 9 |
+| [November 6 hosted comparison](evidence/hosted-devloop-10d94697-20261106/README.md) | All 1,634 cells at `10d94697`, with selected wins, remaining Prost losses and instrumentation limits |
 | [Earlier full hosted comparison](evidence/hosted-devloop-20261106/README.md) | All 1,634 cells and repaired fresh lifecycle at `05a3cca5`, November 6 |
 | [Balanced authority storage](evidence/balanced-authority-storage-20261106/README.md) | Dev/test layout and constructor allocations for the routing fix; remaining costs included, November 6 |
 | [Rejected medium-string validator](evidence/rejected-medium-core-utf8-20261106/README.md) | An 80-byte name gain with Unicode and boundary losses; all 756 CPU processes, November 6 |

@@ -1,0 +1,1719 @@
+{
+  "schema": "pbrs-entity-site-reader/1",
+  "provenance": {
+    "description": "Reconstructed from the successful validated reader job log; these are compact row records, not the original ZIP or all raw repeats.",
+    "reader": "https://github.com/mingley/pure-protobuf/actions/runs/42701123723/job/129445795661",
+    "producer": "https://github.com/mingley/pure-protobuf/actions/runs/42690801702",
+    "producer_artifact": "https://github.com/mingley/pure-protobuf/actions/runs/42690801702/artifacts/13707877217",
+    "producer_artifact_sha256": "63bc0cf5b5af76e4b6d1386d7b63fd9cf00cb8f1146b11e6d10a3bdb8e41e9a7",
+    "producer_conclusion": "failure: formatting gate; capture, Clippy and negative controls passed",
+    "formatted_source_rerun": "https://github.com/mingley/pure-protobuf/actions/runs/42699205724",
+    "formatted_source_rerun_conclusion": "success"
+  },
+  "metadata": {
+    "aggregate_witnesses": [
+      {
+        "entities": 10,
+        "semantic_oracle": "prost full decoded equality",
+        "wire_bytes": 5626,
+        "wire_fnv1a64": "03549cdb3a70de54"
+      },
+      {
+        "entities": 100,
+        "semantic_oracle": "prost full decoded equality",
+        "wire_bytes": 56398,
+        "wire_fnv1a64": "be31c4b2b323ee0e"
+      },
+      {
+        "entities": 1000,
+        "semantic_oracle": "prost full decoded equality",
+        "wire_bytes": 564598,
+        "wire_fnv1a64": "3a59891465b626d2"
+      }
+    ],
+    "artifact": 13707877217,
+    "clippy_outcome": "success",
+    "controls": {
+      "positive": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 37
+      },
+      "zero": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      }
+    },
+    "format_outcome": "failure",
+    "head": "451fda3906adee88fabcea12ef3716aa95141ebc",
+    "layout_bytes": {
+      "native_edge": 72,
+      "native_entity": 32,
+      "native_payload": 32,
+      "native_repeated_edge": 8,
+      "prost_edge": 72,
+      "prost_entity": 128,
+      "prost_payload": 80,
+      "prost_vec_edge": 24
+    },
+    "overall": "failure",
+    "requested_bytes": "sum of request sizes, full new size for realloc; not retained or peak memory",
+    "run": 42690801702,
+    "scope": "separate synchronous instrumented component scopes; do not sum as RPC totals",
+    "sha256": "sha256:63bc0cf5b5af76e4b6d1386d7b63fd9cf00cb8f1146b11e6d10a3bdb8e41e9a7",
+    "witnesses": [
+      {
+        "description": "absent",
+        "edge_wire_bytes": 74,
+        "entity_wire_bytes": 428,
+        "entity_wire_fnv1a64": "9942286ce92e2c66",
+        "payload_wire_bytes": 256,
+        "semantic_oracle": "prost full decoded equality; empty and clone controls passed",
+        "sequence": 0
+      },
+      {
+        "description": "present_empty",
+        "edge_wire_bytes": 74,
+        "entity_wire_bytes": 494,
+        "entity_wire_fnv1a64": "d062395f20f1b817",
+        "payload_wire_bytes": 320,
+        "semantic_oracle": "prost full decoded equality; empty and clone controls passed",
+        "sequence": 1
+      },
+      {
+        "description": "present_nonempty",
+        "edge_wire_bytes": 74,
+        "entity_wire_bytes": 566,
+        "entity_wire_fnv1a64": "8ae773754bbe9869",
+        "payload_wire_bytes": 384,
+        "semantic_oracle": "prost full decoded equality; empty and clone controls passed",
+        "sequence": 2
+      }
+    ]
+  },
+  "records": [
+    {
+      "at_2n": {
+        "allocations": 1184,
+        "reallocations": 224,
+        "requested_bytes": 64640
+      },
+      "at_n": {
+        "allocations": 592,
+        "reallocations": 112,
+        "requested_bytes": 32320
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 37,
+        "reallocations": 7,
+        "requested_bytes": 2020
+      },
+      "scope": "native_entity_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 864,
+        "reallocations": 224,
+        "requested_bytes": 36736
+      },
+      "at_n": {
+        "allocations": 432,
+        "reallocations": 112,
+        "requested_bytes": 18368
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 27,
+        "reallocations": 7,
+        "requested_bytes": 1148
+      },
+      "scope": "prost_entity_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 64,
+        "requested_bytes": 8000
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 32,
+        "requested_bytes": 4000
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 2,
+        "requested_bytes": 250
+      },
+      "scope": "native_edge_leaf_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 64,
+        "requested_bytes": 3648
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 32,
+        "requested_bytes": 1824
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 2,
+        "requested_bytes": 114
+      },
+      "scope": "prost_edge_leaf_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 512,
+        "reallocations": 128,
+        "requested_bytes": 19072
+      },
+      "at_n": {
+        "allocations": 256,
+        "reallocations": 64,
+        "requested_bytes": 9536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 16,
+        "reallocations": 4,
+        "requested_bytes": 596
+      },
+      "scope": "native_edge_nested_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 416,
+        "reallocations": 128,
+        "requested_bytes": 9600
+      },
+      "at_n": {
+        "allocations": 208,
+        "reallocations": 64,
+        "requested_bytes": 4800
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 13,
+        "reallocations": 4,
+        "requested_bytes": 300
+      },
+      "scope": "prost_edge_nested_factory",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 0,
+        "requested_bytes": 15168
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 7584
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 0,
+        "requested_bytes": 474
+      },
+      "scope": "native_payload_build",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 8768
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 0,
+        "requested_bytes": 4384
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 0,
+        "requested_bytes": 274
+      },
+      "scope": "prost_payload_build",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 0,
+        "requested_bytes": 23360
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 0,
+        "requested_bytes": 11680
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 0,
+        "requested_bytes": 730
+      },
+      "scope": "native_payload_build_encode",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 128,
+        "reallocations": 0,
+        "requested_bytes": 16960
+      },
+      "at_n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 8480
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 4,
+        "reallocations": 0,
+        "requested_bytes": 530
+      },
+      "scope": "prost_payload_build_encode",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_empty",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_empty",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_nonempty",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_nonempty",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 768
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 384
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 24
+      },
+      "scope": "native_edges_prebuilt_vec",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_edges_prebuilt_vec",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5376
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2688
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 168
+      },
+      "scope": "native_edges_array",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 4608
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 2304
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 144
+      },
+      "scope": "prost_edges_vec",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5888
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2944
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 184
+      },
+      "scope": "native_targets_push",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 3072
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 1536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 96
+      },
+      "scope": "prost_targets_push",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_first_length",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_warm_length",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_mutated_length",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 64,
+        "requested_bytes": 2240
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 32,
+        "requested_bytes": 1120
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 2,
+        "requested_bytes": 70
+      },
+      "scope": "packed_long_length",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_empty_length",
+      "sequence": 0
+    },
+    {
+      "at_2n": {
+        "allocations": 1216,
+        "reallocations": 224,
+        "requested_bytes": 69952
+      },
+      "at_n": {
+        "allocations": 608,
+        "reallocations": 112,
+        "requested_bytes": 34976
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 38,
+        "reallocations": 7,
+        "requested_bytes": 2186
+      },
+      "scope": "native_entity_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 864,
+        "reallocations": 224,
+        "requested_bytes": 40768
+      },
+      "at_n": {
+        "allocations": 432,
+        "reallocations": 112,
+        "requested_bytes": 20384
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 27,
+        "reallocations": 7,
+        "requested_bytes": 1274
+      },
+      "scope": "prost_entity_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 64,
+        "requested_bytes": 8000
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 32,
+        "requested_bytes": 4000
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 2,
+        "requested_bytes": 250
+      },
+      "scope": "native_edge_leaf_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 64,
+        "requested_bytes": 3648
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 32,
+        "requested_bytes": 1824
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 2,
+        "requested_bytes": 114
+      },
+      "scope": "prost_edge_leaf_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 512,
+        "reallocations": 128,
+        "requested_bytes": 19072
+      },
+      "at_n": {
+        "allocations": 256,
+        "reallocations": 64,
+        "requested_bytes": 9536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 16,
+        "reallocations": 4,
+        "requested_bytes": 596
+      },
+      "scope": "native_edge_nested_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 416,
+        "reallocations": 128,
+        "requested_bytes": 9600
+      },
+      "at_n": {
+        "allocations": 208,
+        "reallocations": 64,
+        "requested_bytes": 4800
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 13,
+        "reallocations": 4,
+        "requested_bytes": 300
+      },
+      "scope": "prost_edge_nested_factory",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 0,
+        "requested_bytes": 17152
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 8576
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 0,
+        "requested_bytes": 536
+      },
+      "scope": "native_payload_build",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 10752
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 0,
+        "requested_bytes": 5376
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 0,
+        "requested_bytes": 336
+      },
+      "scope": "prost_payload_build",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 0,
+        "requested_bytes": 27392
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 0,
+        "requested_bytes": 13696
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 0,
+        "requested_bytes": 856
+      },
+      "scope": "native_payload_build_encode",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 128,
+        "reallocations": 0,
+        "requested_bytes": 20992
+      },
+      "at_n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 10496
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 4,
+        "reallocations": 0,
+        "requested_bytes": 656
+      },
+      "scope": "prost_payload_build_encode",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_empty",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_empty",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_nonempty",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_nonempty",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 768
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 384
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 24
+      },
+      "scope": "native_edges_prebuilt_vec",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_edges_prebuilt_vec",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5376
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2688
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 168
+      },
+      "scope": "native_edges_array",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 4608
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 2304
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 144
+      },
+      "scope": "prost_edges_vec",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5888
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2944
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 184
+      },
+      "scope": "native_targets_push",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 3072
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 1536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 96
+      },
+      "scope": "prost_targets_push",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_first_length",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_warm_length",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_mutated_length",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 64,
+        "requested_bytes": 2240
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 32,
+        "requested_bytes": 1120
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 2,
+        "requested_bytes": 70
+      },
+      "scope": "packed_long_length",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_empty_length",
+      "sequence": 1
+    },
+    {
+      "at_2n": {
+        "allocations": 1248,
+        "reallocations": 224,
+        "requested_bytes": 74496
+      },
+      "at_n": {
+        "allocations": 624,
+        "reallocations": 112,
+        "requested_bytes": 37248
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 39,
+        "reallocations": 7,
+        "requested_bytes": 2328
+      },
+      "scope": "native_entity_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 896,
+        "reallocations": 224,
+        "requested_bytes": 45312
+      },
+      "at_n": {
+        "allocations": 448,
+        "reallocations": 112,
+        "requested_bytes": 22656
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 28,
+        "reallocations": 7,
+        "requested_bytes": 1416
+      },
+      "scope": "prost_entity_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 64,
+        "requested_bytes": 8000
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 32,
+        "requested_bytes": 4000
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 2,
+        "requested_bytes": 250
+      },
+      "scope": "native_edge_leaf_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 64,
+        "requested_bytes": 3648
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 32,
+        "requested_bytes": 1824
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 2,
+        "requested_bytes": 114
+      },
+      "scope": "prost_edge_leaf_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 512,
+        "reallocations": 128,
+        "requested_bytes": 19072
+      },
+      "at_n": {
+        "allocations": 256,
+        "reallocations": 64,
+        "requested_bytes": 9536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 16,
+        "reallocations": 4,
+        "requested_bytes": 596
+      },
+      "scope": "native_edge_nested_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 416,
+        "reallocations": 128,
+        "requested_bytes": 9600
+      },
+      "at_n": {
+        "allocations": 208,
+        "reallocations": 64,
+        "requested_bytes": 4800
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 13,
+        "reallocations": 4,
+        "requested_bytes": 300
+      },
+      "scope": "prost_edge_nested_factory",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 192,
+        "reallocations": 0,
+        "requested_bytes": 19200
+      },
+      "at_n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 9600
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 6,
+        "reallocations": 0,
+        "requested_bytes": 600
+      },
+      "scope": "native_payload_build",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 0,
+        "requested_bytes": 12800
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 0,
+        "requested_bytes": 6400
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 0,
+        "requested_bytes": 400
+      },
+      "scope": "prost_payload_build",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 224,
+        "reallocations": 0,
+        "requested_bytes": 31488
+      },
+      "at_n": {
+        "allocations": 112,
+        "reallocations": 0,
+        "requested_bytes": 15744
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 7,
+        "reallocations": 0,
+        "requested_bytes": 984
+      },
+      "scope": "native_payload_build_encode",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 128,
+        "reallocations": 0,
+        "requested_bytes": 25088
+      },
+      "at_n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 12544
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 4,
+        "reallocations": 0,
+        "requested_bytes": 784
+      },
+      "scope": "prost_payload_build_encode",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_empty",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_empty",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 1280
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 640
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 40
+      },
+      "scope": "native_description_nonempty",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_description_nonempty",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 768
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 384
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 24
+      },
+      "scope": "native_edges_prebuilt_vec",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "prost_edges_prebuilt_vec",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5376
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2688
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 168
+      },
+      "scope": "native_edges_array",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 4608
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 2304
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 144
+      },
+      "scope": "prost_edges_vec",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 64,
+        "reallocations": 0,
+        "requested_bytes": 5888
+      },
+      "at_n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 2944
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 2,
+        "reallocations": 0,
+        "requested_bytes": 184
+      },
+      "scope": "native_targets_push",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 3072
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 1536
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 96
+      },
+      "scope": "prost_targets_push",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_first_length",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_warm_length",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 32,
+        "reallocations": 0,
+        "requested_bytes": 256
+      },
+      "at_n": {
+        "allocations": 16,
+        "reallocations": 0,
+        "requested_bytes": 128
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 1,
+        "reallocations": 0,
+        "requested_bytes": 8
+      },
+      "scope": "packed_mutated_length",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 96,
+        "reallocations": 64,
+        "requested_bytes": 2240
+      },
+      "at_n": {
+        "allocations": 48,
+        "reallocations": 32,
+        "requested_bytes": 1120
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 3,
+        "reallocations": 2,
+        "requested_bytes": 70
+      },
+      "scope": "packed_long_length",
+      "sequence": 2
+    },
+    {
+      "at_2n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "at_n": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "n": 16,
+      "per_added_operation": {
+        "allocations": 0,
+        "reallocations": 0,
+        "requested_bytes": 0
+      },
+      "scope": "packed_empty_length",
+      "sequence": 2
+    }
+  ],
+  "aggregates": [
+    {
+      "at_2n": {
+        "allocations": 1524,
+        "reallocations": 280,
+        "requested_bytes": 93472
+      },
+      "at_n": {
+        "allocations": 762,
+        "reallocations": 140,
+        "requested_bytes": 46736
+      },
+      "codec": "native",
+      "entities": 10,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 381,
+        "reallocations": 70,
+        "requested_bytes": 23368
+      }
+    },
+    {
+      "at_2n": {
+        "allocations": 1096,
+        "reallocations": 280,
+        "requested_bytes": 61376
+      },
+      "at_n": {
+        "allocations": 548,
+        "reallocations": 140,
+        "requested_bytes": 30688
+      },
+      "codec": "prost",
+      "entities": 10,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 274,
+        "reallocations": 70,
+        "requested_bytes": 15344
+      }
+    },
+    {
+      "at_2n": {
+        "allocations": 15204,
+        "reallocations": 2800,
+        "requested_bytes": 934560
+      },
+      "at_n": {
+        "allocations": 7602,
+        "reallocations": 1400,
+        "requested_bytes": 467280
+      },
+      "codec": "native",
+      "entities": 100,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 3801,
+        "reallocations": 700,
+        "requested_bytes": 233640
+      }
+    },
+    {
+      "at_2n": {
+        "allocations": 10936,
+        "reallocations": 2800,
+        "requested_bytes": 613504
+      },
+      "at_n": {
+        "allocations": 5468,
+        "reallocations": 1400,
+        "requested_bytes": 306752
+      },
+      "codec": "prost",
+      "entities": 100,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 2734,
+        "reallocations": 700,
+        "requested_bytes": 153376
+      }
+    },
+    {
+      "at_2n": {
+        "allocations": 152004,
+        "reallocations": 28000,
+        "requested_bytes": 9338272
+      },
+      "at_n": {
+        "allocations": 76002,
+        "reallocations": 14000,
+        "requested_bytes": 4669136
+      },
+      "codec": "native",
+      "entities": 1000,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 38001,
+        "reallocations": 7000,
+        "requested_bytes": 2334568
+      }
+    },
+    {
+      "at_2n": {
+        "allocations": 109336,
+        "reallocations": 28000,
+        "requested_bytes": 6127616
+      },
+      "at_n": {
+        "allocations": 54668,
+        "reallocations": 14000,
+        "requested_bytes": 3063808
+      },
+      "codec": "prost",
+      "entities": 1000,
+      "n": 2,
+      "per_added_operation": {
+        "allocations": 27334,
+        "reallocations": 7000,
+        "requested_bytes": 1531904
+      }
+    }
+  ]
+}

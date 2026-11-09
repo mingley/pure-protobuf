@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`4a2d8e26`](https://github.com/mingley/pure-protobuf/commit/4a2d8e26134a41eaf71e449ab29f5f50890933c1):
+These versions are declared at [`4037304c`](https://github.com/mingley/pure-protobuf/commit/4037304c7730588e0e3c12a25ee77a4f7c84c0a1):
 
 | Crate | Candidate | Scope |
 |---|---|---|
