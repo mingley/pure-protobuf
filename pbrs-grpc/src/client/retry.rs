@@ -523,6 +523,34 @@ async fn cancel_fired(cancel_rx: crate::rpc_cancel::RpcCancel) {
     cancel_rx.wait().await;
 }
 
+/// Update the next hedge after one non-fatal response. A true return value
+/// dispatches one attempt before the next response is processed.
+fn schedule_nonfatal_hedge(
+    pushback: Option<crate::status::Pushback>,
+    stop_sending: &mut bool,
+    hedge_at: &mut Option<tokio::time::Instant>,
+    now: tokio::time::Instant,
+) -> bool {
+    if *stop_sending {
+        return false;
+    }
+    match pushback {
+        Some(crate::status::Pushback::DoNotRetry) => {
+            *stop_sending = true;
+            *hedge_at = None;
+            false
+        }
+        Some(crate::status::Pushback::Delay(delay)) if !delay.is_zero() => {
+            *hedge_at = Some(now + delay);
+            false
+        }
+        None | Some(crate::status::Pushback::Delay(_)) => {
+            *hedge_at = None;
+            true
+        }
+    }
+}
+
 impl super::Channel {
     /// Run a unary call under an A6 hedging policy.
     ///
@@ -531,11 +559,10 @@ impl super::Channel {
     /// `maxAttempts`; an unset delay fans all attempts out at once. Sends past
     /// the first need a throttling token and stop on a `DoNotRetry` pushback.
     /// The first `OK` wins; a non-OK status outside `nonFatalStatusCodes`
-    /// commits immediately; non-fatal statuses keep waiting, and when nothing
-    /// is outstanding the next hedge goes out at once instead of waiting for
-    /// the timer. When attempts are exhausted the last non-fatal error fails
-    /// the call. Every attempt transparent-redials once on a raced connection
-    /// death, exactly like [`Self::unary`].
+    /// commits immediately. A non-fatal status advances the next send, unless
+    /// pushback specifies a delay or stops future sends. When attempts are
+    /// exhausted the last non-fatal error fails the call. Every attempt may
+    /// transparently redial once on a safe pre-commit transport failure.
     #[allow(
         clippy::too_many_lines,
         reason = "one select loop over cancel, deadline, hedge timer, and completions"
@@ -577,7 +604,7 @@ impl super::Channel {
             }
         }
         loop {
-            tokio::select! {
+            let send_now = tokio::select! {
                 biased;
                 () = cancel_fired(req.cancel_rx.clone()) => {
                     abort_hedges(&handles);
@@ -596,23 +623,6 @@ impl super::Channel {
                     self.note_call_outcome(false).await;
                     self.local.retry_stats.record_committed(false);
                     return Err(status);
-                }
-                () = sleep_until_or_pending(hedge_at),
-                    if hedge_at.is_some() && sent < max && !stop_sending =>
-                {
-                    hedge_at = None;
-                    if self.retry_allowed().await {
-                        sent += 1;
-                        self.local.retry_stats.record_hedged_send();
-                        handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
-                        outstanding += 1;
-                        if let Some(delay) = req.policy.hedging_delay {
-                            hedge_at = Some(tokio::time::Instant::now() + delay);
-                        }
-                    } else {
-                        self.local.retry_stats.record_throttled();
-                        stop_sending = true;
-                    }
                 }
                 outcome = rx.recv() => {
                     let Some((_attempt, result)) = outcome else {
@@ -648,12 +658,6 @@ impl super::Channel {
                             return final_result;
                         }
                         Err(status) => {
-                            if matches!(
-                                status.retry_pushback(),
-                                Some(crate::status::Pushback::DoNotRetry)
-                            ) {
-                                stop_sending = true;
-                            }
                             let fatal = !req
                                 .policy
                                 .non_fatal_status_codes
@@ -665,37 +669,132 @@ impl super::Channel {
                                 self.local.retry_stats.record_committed(false);
                                 return Err(status);
                             }
+                            let send_now = schedule_nonfatal_hedge(
+                                status.retry_pushback(),
+                                &mut stop_sending,
+                                &mut hedge_at,
+                                tokio::time::Instant::now(),
+                            ) && sent < max;
                             last_err = Some(status);
-                            if outstanding == 0 {
-                                if !stop_sending && sent < max && self.retry_allowed().await {
-                                    sent += 1;
-                                    self.local.retry_stats.record_hedged_send();
-                                    handles.push(spawn_hedge_attempt(
-                                        self.clone(),
-                                        &req,
-                                        sent,
-                                        tx.clone(),
-                                    ));
-                                    outstanding += 1;
-                                    if let Some(delay) = req.policy.hedging_delay {
-                                        hedge_at = Some(tokio::time::Instant::now() + delay);
-                                    }
-                                } else {
-                                    if !stop_sending && sent < max {
-                                        self.local.retry_stats.record_throttled();
-                                    }
-                                    if let Some(status) = last_err.take() {
-                                        req.call_guard.finish(&status);
-                                        self.note_call_outcome(false).await;
-                                        self.local.retry_stats.record_committed(false);
-                                        return Err(status);
-                                    }
-                                }
-                            }
+                            send_now
                         }
                     }
                 }
+                () = sleep_until_or_pending(hedge_at),
+                    if hedge_at.is_some() && sent < max && !stop_sending =>
+                {
+                    hedge_at = None;
+                    true
+                }
+            };
+            if send_now {
+                // Complete this response's immediate dispatch before processing
+                // another response, but let cancellation or deadline win while
+                // the throttling decision waits for its lock.
+                let allowed = tokio::select! {
+                    biased;
+                    () = cancel_fired(req.cancel_rx.clone()) => {
+                        abort_hedges(&handles);
+                        req.call_guard.cancel(CancellationReason::CallerCancelled);
+                        let status = Status::cancelled();
+                        req.call_guard.finish(&status);
+                        self.note_call_outcome(false).await;
+                        self.local.retry_stats.record_committed(false);
+                        return Err(status);
+                    }
+                    () = sleep_until_or_pending(req.deadline) => {
+                        abort_hedges(&handles);
+                        req.call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        let status = Status::deadline_exceeded();
+                        req.call_guard.finish(&status);
+                        self.note_call_outcome(false).await;
+                        self.local.retry_stats.record_committed(false);
+                        return Err(status);
+                    }
+                    allowed = self.retry_allowed() => allowed,
+                };
+                if allowed {
+                    sent += 1;
+                    self.local.retry_stats.record_hedged_send();
+                    handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
+                    outstanding += 1;
+                    hedge_at = req
+                        .policy
+                        .hedging_delay
+                        .map(|delay| tokio::time::Instant::now() + delay);
+                } else {
+                    self.local.retry_stats.record_throttled();
+                    stop_sending = true;
+                }
+            }
+            if outstanding == 0 && (stop_sending || sent >= max) {
+                let status = last_err
+                    .take()
+                    .unwrap_or_else(|| Status::unknown("hedging ended without an outcome"));
+                req.call_guard.finish(&status);
+                self.note_call_outcome(false).await;
+                self.local.retry_stats.record_committed(false);
+                return Err(status);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod hedge_schedule_tests {
+    use super::schedule_nonfatal_hedge;
+    use crate::status::Pushback;
+    use std::time::Duration;
+
+    #[test]
+    fn queued_nonfatal_responses_each_advance_then_pushback_takes_effect() {
+        let now = tokio::time::Instant::now();
+        let mut stopped = false;
+        let mut timer = Some(now + Duration::from_secs(10));
+
+        // The caller dispatches before reading another outcome. Both queued
+        // nonfatal outcomes therefore have an independent immediate action.
+        assert!(schedule_nonfatal_hedge(None, &mut stopped, &mut timer, now));
+        assert_eq!(timer, None);
+        assert!(schedule_nonfatal_hedge(None, &mut stopped, &mut timer, now));
+        assert_eq!(timer, None);
+        assert!(!schedule_nonfatal_hedge(
+            Some(Pushback::Delay(Duration::from_secs(3))),
+            &mut stopped,
+            &mut timer,
+            now,
+        ));
+        assert_eq!(timer, Some(now + Duration::from_secs(3)));
+
+        assert!(!schedule_nonfatal_hedge(
+            Some(Pushback::DoNotRetry),
+            &mut stopped,
+            &mut timer,
+            now,
+        ));
+        assert!(stopped);
+        assert_eq!(timer, None);
+        assert!(!schedule_nonfatal_hedge(
+            None,
+            &mut stopped,
+            &mut timer,
+            now
+        ));
+        assert_eq!(timer, None);
+    }
+
+    #[test]
+    fn zero_pushback_advances_immediately() {
+        let now = tokio::time::Instant::now();
+        let mut stopped = false;
+        let mut timer = Some(now + Duration::from_secs(10));
+        assert!(schedule_nonfatal_hedge(
+            Some(Pushback::Delay(Duration::ZERO)),
+            &mut stopped,
+            &mut timer,
+            now,
+        ));
+        assert_eq!(timer, None);
+        assert!(!stopped);
     }
 }

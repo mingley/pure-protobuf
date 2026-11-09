@@ -793,6 +793,7 @@ enum Step {
     Fail(Code),
     FailPushback(Code, Pushback),
     SleepOk(Duration, &'static str),
+    SleepFail(Duration, Code),
 }
 
 /// One scripted server-streaming outcome.
@@ -859,6 +860,10 @@ impl Scripted {
                 let mut reply = HelloReply::new();
                 reply.set_message(message);
                 Ok(Response::new(reply))
+            }
+            Step::SleepFail(delay, code) => {
+                tokio::time::sleep(delay).await;
+                Err(Status::new(code, "scripted"))
             }
         }
     }
@@ -1709,6 +1714,303 @@ async fn throttling_refills_on_success() {
     let reply = say_hello(&channel).await.unwrap();
     assert_eq!(name_of(reply.get_ref()), "fine");
     assert_eq!(service.calls(), 5);
+}
+
+fn observe_attempts(channel: Channel) -> (Channel, Arc<tokio::sync::Notify>) {
+    let ended = Arc::new(tokio::sync::Notify::new());
+    let channel = channel.observer(AttemptObserver {
+        ended: ended.clone(),
+        ready: AtomicUsize::new(0),
+        cancel_on_retry_ready: None,
+    });
+    (channel, ended)
+}
+
+async fn first_attempt_end(ended: &tokio::sync::Notify) {
+    tokio::time::timeout(Duration::from_secs(10), ended.notified())
+        .await
+        .expect("an attempt must finish");
+}
+
+#[tokio::test]
+async fn hedge_nonfatal_advances_with_another_attempt_in_flight() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":3,"hedgingDelay":"4s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepOk(Duration::from_secs(30), "slow"),
+            Step::Fail(Code::Unavailable),
+            Step::Ok("third"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    let response = tokio::time::timeout(Duration::from_secs(2), &mut task)
+        .await
+        .expect("nonfatal outcome must advance the scheduled hedge")
+        .expect("join")
+        .expect("third attempt");
+    assert_eq!(name_of(response.get_ref()), "third");
+    assert_eq!(service.calls(), 3);
+}
+
+#[tokio::test]
+async fn hedge_multiple_nonfatal_completions_advance_multiple_attempts() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":5,"hedgingDelay":"2s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepFail(Duration::from_secs(5), Code::Unavailable),
+            Step::SleepFail(Duration::from_secs(3), Code::Unavailable),
+            Step::SleepOk(Duration::from_secs(30), "slow third"),
+            Step::SleepOk(Duration::from_secs(30), "slow fourth"),
+            Step::Ok("fifth"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    let response = tokio::time::timeout(Duration::from_millis(1500), &mut task)
+        .await
+        .expect("both nonfatal outcomes must advance separate hedges")
+        .expect("join")
+        .expect("fifth attempt");
+    assert_eq!(name_of(response.get_ref()), "fifth");
+    assert_eq!(service.calls(), 5);
+}
+
+#[tokio::test]
+async fn hedge_zero_pushback_advances_with_another_attempt_in_flight() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":3,"hedgingDelay":"4s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepOk(Duration::from_secs(30), "slow"),
+            Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::ZERO)),
+            Step::Ok("third"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    let response = tokio::time::timeout(Duration::from_secs(2), &mut task)
+        .await
+        .expect("zero pushback must advance the scheduled hedge")
+        .expect("join")
+        .expect("third attempt");
+    assert_eq!(name_of(response.get_ref()), "third");
+    assert_eq!(service.calls(), 3);
+}
+
+#[tokio::test]
+async fn hedge_pushback_delays_when_no_attempt_is_in_flight() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":2,"hedgingDelay":"5s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(2))),
+            Step::Ok("second"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(750), &mut task)
+            .await
+            .is_err(),
+        "pushback must delay the next hedge"
+    );
+    assert_eq!(service.calls(), 1);
+    let response = tokio::time::timeout(Duration::from_secs(5), task)
+        .await
+        .expect("delayed hedge")
+        .expect("join")
+        .expect("second attempt");
+    assert_eq!(name_of(response.get_ref()), "second");
+    assert_eq!(service.calls(), 2);
+}
+
+#[tokio::test]
+async fn hedge_pushback_replaces_the_timer_with_another_attempt_in_flight() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":3,"hedgingDelay":"0.2s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepOk(Duration::from_secs(30), "slow"),
+            Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(2))),
+            Step::Ok("third"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(750), &mut task)
+            .await
+            .is_err(),
+        "pushback must replace the scheduled timer"
+    );
+    assert_eq!(service.calls(), 2);
+    let response = tokio::time::timeout(Duration::from_secs(5), task)
+        .await
+        .expect("delayed hedge")
+        .expect("join")
+        .expect("third attempt");
+    assert_eq!(name_of(response.get_ref()), "third");
+    assert_eq!(service.calls(), 3);
+}
+
+#[tokio::test]
+async fn hedge_do_not_retry_stays_sticky_across_later_nonfatal_results() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":3,"hedgingDelay":"0.1s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepFail(Duration::from_secs(1), Code::Unavailable),
+            Step::FailPushback(Code::Unavailable, Pushback::DoNotRetry),
+            Step::Ok("must not run"),
+        ]),
+        json,
+    )
+    .await;
+    let status = say_hello(&channel).await.expect_err("both attempts fail");
+    assert_eq!(status.code(), Code::Unavailable);
+    assert_eq!(service.calls(), 2);
+}
+
+#[tokio::test]
+async fn hedge_delayed_send_returns_last_error_when_throttled() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":2,"hedgingDelay":"5s","nonFatalStatusCodes":["UNAVAILABLE"]}}],
+        "retryThrottling":{"maxTokens":2,"tokenRatio":1}}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(2))),
+            Step::FailPushback(Code::Unavailable, Pushback::DoNotRetry),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let first_channel = channel.clone();
+    let task = tokio::spawn(async move { say_hello(&first_channel).await });
+    first_attempt_end(&ended).await;
+    let second = say_hello(&channel).await.expect_err("drain throttle");
+    assert_eq!(second.code(), Code::Unavailable);
+    let first = tokio::time::timeout(Duration::from_secs(5), task)
+        .await
+        .expect("throttled hedge must not hang")
+        .expect("join")
+        .expect_err("throttled hedge returns the last error");
+    assert_eq!(first.code(), Code::Unavailable);
+    assert_eq!(service.calls(), 2);
+    assert_eq!(channel.retry_stats().throttled, 1);
+}
+
+#[tokio::test]
+async fn hedge_pushback_wait_observes_cancel_and_deadline() {
+    for cancel in [true, false] {
+        let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+            "maxAttempts":2,"hedgingDelay":"10s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+        let (service, channel, _guard) = channel_with(
+            Scripted::new(vec![
+                Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(5))),
+                Step::Ok("must not run"),
+            ]),
+            json,
+        )
+        .await;
+        let (channel, ended) = observe_attempts(channel);
+        let mut request = Request::new(req("cancel or deadline"));
+        request.set_timeout(Duration::from_secs(2));
+        let (handle, task) = begin_single_request(&channel, request, false);
+        first_attempt_end(&ended).await;
+        if cancel {
+            handle.cancel();
+        }
+        let status = tokio::time::timeout(Duration::from_secs(5), task)
+            .await
+            .expect("cancel or deadline completes")
+            .expect("join")
+            .expect_err("call must fail");
+        assert_eq!(
+            status.code(),
+            if cancel {
+                Code::Cancelled
+            } else {
+                Code::DeadlineExceeded
+            }
+        );
+        assert_eq!(service.calls(), 1);
+    }
+}
+
+#[tokio::test]
+async fn hedge_normal_delay_resumes_after_pushback_send() {
+    let json = r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{
+        "maxAttempts":3,"hedgingDelay":"1s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(1))),
+            Step::SleepOk(Duration::from_secs(30), "slow"),
+            Step::Ok("third"),
+        ]),
+        json,
+    )
+    .await;
+    let (channel, ended) = observe_attempts(channel);
+    let mut task = tokio::spawn(async move { say_hello(&channel).await });
+    first_attempt_end(&ended).await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while service.calls() < 2 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("delayed second attempt");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(350), &mut task)
+            .await
+            .is_err(),
+        "normal delay must apply before the third attempt"
+    );
+    assert_eq!(service.calls(), 2);
+    let response = tokio::time::timeout(Duration::from_secs(3), task)
+        .await
+        .expect("third attempt")
+        .expect("join")
+        .expect("successful third");
+    assert_eq!(name_of(response.get_ref()), "third");
+    assert_eq!(service.calls(), 3);
+}
+
+#[tokio::test]
+async fn hedge_zero_and_unset_delay_exhaust_attempts() {
+    for delay in ["", r#","hedgingDelay":"0s""#] {
+        let json = format!(
+            r#"{{"methodConfig":[{{"name":[{{}}],"hedgingPolicy":{{"maxAttempts":3{delay},"nonFatalStatusCodes":["UNAVAILABLE"]}}}}]}}"#
+        );
+        let (service, channel, _guard) =
+            channel_with(Scripted::new(vec![Step::Fail(Code::Unavailable)]), &json).await;
+        let status = tokio::time::timeout(Duration::from_secs(5), say_hello(&channel))
+            .await
+            .expect("attempts complete")
+            .expect_err("all attempts fail");
+        assert_eq!(status.code(), Code::Unavailable);
+        assert_eq!(service.calls(), 3);
+    }
 }
 
 #[tokio::test]

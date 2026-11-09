@@ -114,7 +114,7 @@ the [implementation contract](../xds-contract.md).
 |---|---|---|
 | **Transparent Retries** | Each attempt has at most one automatic retry, with proof the server did not process the request and before response commitment. | Whole-race hedge commitment remains partial; see the [retry contract](../retry-contract.md). |
 | **Service-Config Retries** | **Opt-in**: `retryPolicy` via `Channel::service_config` or resolver service config, with attempts, backoff, throttling, per-attempt timeout, pushback, and retry stats. | Bounded to configured policies; calls without a policy stay at call sites using `Code::is_retryable`. |
-| **Hedging** | **Opt-in unary**: `hedgingPolicy` caps attempts; no streaming hedging. | Ordinary response headers do not stop competing attempts; pushback and non-fatal scheduling are incomplete. See the [retry contract](../retry-contract.md). |
+| **Hedging** | **Opt-in unary**: `hedgingPolicy` caps attempts; no streaming hedging. | Ordinary response headers do not stop competing attempts. See the [retry contract](../retry-contract.md). |
 | **xDS Protocol** | Planned; no native xDS implementation. | Use an external control plane or proxy until the XD qualification work completes. |
 | **Channelz & Binary Logging** | **Opt-in**: mount `ChannelzService` or attach `BinaryLogger`; optional OTel observers require the `otel` feature. | Binary log caps are optional; full payloads may be logged. Attempt logging is partial; see [gRFC coverage](../grfc.md). |
 | **Dynamic Config Reload** | Resolver endpoints and service config can update; authorization has a reloadable provider. | Listener/TLS builder configuration is replaced by constructing new instances. |

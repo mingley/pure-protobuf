@@ -82,9 +82,9 @@ gates in the checklist remain in effect.
 ## Retry and binary-log claims
 
 Opt-in native unary hedging does not yet enforce A6 commitment when ordinary
-response headers arrive: another attempt can continue or win. It also ignores
-non-negative pushback delays and may leave a scheduled hedge waiting after a
-non-fatal response while another attempt is in flight. The receiver accepts
+response headers arrive: another attempt can continue or win. An outcome,
+including pushback, queued while a send waits on throttling can be processed
+after that send. The receiver accepts
 redundant leading zeros; the pbrs-grpc server emits canonical decimal values.
 Client binary logs can include uncommitted retry or hedge attempts, omit an
 early rejection trailer, or report a peer `CANCELLED` status as a client

@@ -5,6 +5,7 @@
 
 | Read | Scope |
 |---|---|
+| [gRPC-Web text encoder repeat](benchmarks/web-text-encoder-repeat-20261109.md) | Unmerged variants, allocation gains and aligned CPU losses, November 9 |
 | [Buffered gRPC-Web text encoder holdout](benchmarks/web-text-encoder-buffered-20261109.md) | Unmerged candidate gains and short-fragment losses, November 9 |
 | [gRPC-Web text encoder screen](benchmarks/web-text-encoder-20261109.md) | Unmerged candidates and CPU controls, November 9 |
 | [Query and mixed-byte allocations](evidence/query-mixed-allocations-20261109.md) | Component allocation counts, November 9 |

@@ -1,0 +1,3547 @@
+{
+  "schema": "pbrs-web-text-encoder-repeat/1",
+  "source_commit": "25fabced4f44ef3386d301d999f3928f6c188efb",
+  "scratch_commit": "cd82e06149493408d5fa1d8c97d8297c65c1fafa",
+  "run_id": 42708113781,
+  "job_id": 129470201701,
+  "artifact": {
+    "id": 13715114424,
+    "sha256": "293fdc6d8edfc3017a2908fec8d37a0e16950870793c513cd9627cb7eecf66aa",
+    "expires_at": "2026-11-23T22:24:54Z"
+  },
+  "provenance": "Compact comparison records reconstructed from the validated Actions job log. Raw samples and build artifacts are retained separately.",
+  "records": {
+    "allocation": {
+      "binary_sha256": {
+        "baseline": "8aaf62dcce1b8df892134e3aeebfb6a9b71305092f4961f50cbd461dd0de266f",
+        "fast": "e1213a50645af858cbe4acf8442fc6f5d075142f414224a8e342389a5b8c8054",
+        "nocut": "d5177fe1a173449e81dcbe736eb60828f635b319e9d3858a0d30a740c1188204",
+        "stack": "be75f184defab0a7ed8afe7b6733ceda802a0f6269d020179f44848472971801"
+      },
+      "cases": {
+        "empty_between": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 5,
+              "reallocations": 0,
+              "requested_bytes": 68
+            },
+            "fast": {
+              "allocation_calls": 5,
+              "reallocations": 0,
+              "requested_bytes": 68
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 12
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 4
+            }
+          },
+          "valid": true
+        },
+        "empty_flush1": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "fast": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 12
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 4
+            }
+          },
+          "valid": true
+        },
+        "empty_flush2": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "fast": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 12
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 4
+            }
+          },
+          "valid": true
+        },
+        "large_carry0": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 5,
+              "reallocations": 1,
+              "requested_bytes": 1398172
+            },
+            "fast": {
+              "allocation_calls": 5,
+              "reallocations": 1,
+              "requested_bytes": 1398172
+            },
+            "nocut": {
+              "allocation_calls": 4,
+              "reallocations": 0,
+              "requested_bytes": 1398148
+            },
+            "stack": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 1398140
+            }
+          },
+          "valid": true
+        },
+        "large_carry1": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 7,
+              "reallocations": 2,
+              "requested_bytes": 2446758
+            },
+            "fast": {
+              "allocation_calls": 6,
+              "reallocations": 1,
+              "requested_bytes": 1398181
+            },
+            "nocut": {
+              "allocation_calls": 4,
+              "reallocations": 0,
+              "requested_bytes": 1398148
+            },
+            "stack": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 1398140
+            }
+          },
+          "valid": true
+        },
+        "large_carry2": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 5,
+              "reallocations": 1,
+              "requested_bytes": 2446726
+            },
+            "fast": {
+              "allocation_calls": 4,
+              "reallocations": 0,
+              "requested_bytes": 1398148
+            },
+            "nocut": {
+              "allocation_calls": 4,
+              "reallocations": 0,
+              "requested_bytes": 1398148
+            },
+            "stack": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 1398140
+            }
+          },
+          "valid": true
+        },
+        "short_carry1": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "fast": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 36
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 12
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 4
+            }
+          },
+          "valid": true
+        },
+        "short_carry2": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 40
+            },
+            "fast": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 40
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 16
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 8
+            }
+          },
+          "valid": true
+        },
+        "short_incomplete": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 7,
+              "reallocations": 0,
+              "requested_bytes": 100
+            },
+            "fast": {
+              "allocation_calls": 7,
+              "reallocations": 0,
+              "requested_bytes": 100
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 12
+            },
+            "stack": {
+              "allocation_calls": 1,
+              "reallocations": 0,
+              "requested_bytes": 4
+            }
+          },
+          "valid": true
+        },
+        "small_carry0": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 428
+            },
+            "fast": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 428
+            },
+            "nocut": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 428
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 428
+            }
+          },
+          "valid": true
+        },
+        "small_carry1": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 4,
+              "reallocations": 1,
+              "requested_bytes": 460
+            },
+            "fast": {
+              "allocation_calls": 4,
+              "reallocations": 1,
+              "requested_bytes": 460
+            },
+            "nocut": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 436
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 428
+            }
+          },
+          "valid": true
+        },
+        "small_carry2": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 4,
+              "reallocations": 1,
+              "requested_bytes": 465
+            },
+            "fast": {
+              "allocation_calls": 4,
+              "reallocations": 1,
+              "requested_bytes": 465
+            },
+            "nocut": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 440
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 432
+            }
+          },
+          "valid": true
+        },
+        "stream_aligned": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 65,
+              "reallocations": 0,
+              "requested_bytes": 87840
+            },
+            "fast": {
+              "allocation_calls": 65,
+              "reallocations": 0,
+              "requested_bytes": 87840
+            },
+            "nocut": {
+              "allocation_calls": 65,
+              "reallocations": 0,
+              "requested_bytes": 87840
+            },
+            "stack": {
+              "allocation_calls": 65,
+              "reallocations": 0,
+              "requested_bytes": 87840
+            }
+          },
+          "valid": true
+        },
+        "stream_carry": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 151,
+              "reallocations": 43,
+              "requested_bytes": 131615
+            },
+            "fast": {
+              "allocation_calls": 109,
+              "reallocations": 1,
+              "requested_bytes": 88292
+            },
+            "nocut": {
+              "allocation_calls": 66,
+              "reallocations": 0,
+              "requested_bytes": 87932
+            },
+            "stack": {
+              "allocation_calls": 65,
+              "reallocations": 0,
+              "requested_bytes": 87924
+            }
+          },
+          "valid": true
+        },
+        "threshold_above": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 6,
+              "reallocations": 2,
+              "requested_bytes": 150
+            },
+            "fast": {
+              "allocation_calls": 5,
+              "reallocations": 1,
+              "requested_bytes": 116
+            },
+            "nocut": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 84
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 76
+            }
+          },
+          "valid": true
+        },
+        "threshold_at": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 4,
+              "reallocations": 1,
+              "requested_bytes": 117
+            },
+            "fast": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 84
+            },
+            "nocut": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 84
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 76
+            }
+          },
+          "valid": true
+        },
+        "threshold_below": {
+          "per_sequence": {
+            "baseline": {
+              "allocation_calls": 6,
+              "reallocations": 2,
+              "requested_bytes": 149
+            },
+            "fast": {
+              "allocation_calls": 6,
+              "reallocations": 2,
+              "requested_bytes": 149
+            },
+            "nocut": {
+              "allocation_calls": 3,
+              "reallocations": 0,
+              "requested_bytes": 84
+            },
+            "stack": {
+              "allocation_calls": 2,
+              "reallocations": 0,
+              "requested_bytes": 76
+            }
+          },
+          "valid": true
+        }
+      },
+      "limits": "process CPU includes other threads in the test process; wall is secondary; inputs are prebuilt and cloned; results are dropped immediately; CPU affinity does not control host load or frequency; twelve-pair ranges are descriptive; black_box is best effort; source and build pins are verified externally",
+      "mode": "alloc",
+      "schema": "text-encoder-paired/1",
+      "scope": "isolated synchronous TextEncoder allocation or process-CPU screen; no HTTP/2, RPC, TLS or retained-output measurement",
+      "selected_cpu": 0
+    },
+    "cpu": {
+      "binary_sha256": {
+        "baseline": "a08c93e2a8b8ee0e69fc338f74d8da94dd67d8f509f384e9fbe876aed5675b02",
+        "fast": "f8bca00d22b3bc3aba389e93a459d2c02ac5ea4dfd1ec3d4c7e62a046a1038b7",
+        "nocut": "3abe5815177389bd5042bb592706964920d11288f0bb794cdf47e62cc949903e",
+        "stack": "bd0b0787bdd8d51ced8833610f49a34e49f14c814191f6278d22b78d73dae8ad"
+      },
+      "cases": {
+        "empty_between": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.0511361573146594,
+              "median": 1.008776689144463,
+              "minimum": 0.9907870997006367,
+              "paired_ratios": [
+                0.9986972502817599,
+                1.0339039913704868,
+                0.9907870997006367,
+                1.0085051328349786,
+                1.0511361573146594,
+                1.0059946868260583,
+                1.0070663273062894,
+                1.010549147988829,
+                1.0090482454539476,
+                1.0105692162853948,
+                1.0054800165648217,
+                1.0119160181874165
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 0.7081594641539442,
+              "median": 0.6811342405482423,
+              "minimum": 0.6713871777873515,
+              "paired_ratios": [
+                0.681332075305832,
+                0.6943939712836886,
+                0.6713871777873515,
+                0.6804022587464041,
+                0.6930063079452797,
+                0.6727440222153858,
+                0.6809364057906528,
+                0.6797225885408497,
+                0.6801951486646245,
+                0.6831299508616888,
+                0.7081594641539442,
+                0.6862679315924987
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.6410997371228357,
+              "median": 0.6303715252674325,
+              "minimum": 0.5806438134112254,
+              "paired_ratios": [
+                0.6329299223853935,
+                0.6410997371228357,
+                0.6189312174084414,
+                0.627945358136119,
+                0.6380543344401054,
+                0.6203772138306539,
+                0.5806438134112254,
+                0.6287726038344685,
+                0.6220364134191294,
+                0.6322962006190934,
+                0.6319704467003965,
+                0.637142819522596
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              55580131,
+              54391944,
+              56455186,
+              55448987,
+              54829423,
+              56042961,
+              55547243,
+              55523157,
+              55643937,
+              55163882,
+              55220636,
+              55137462
+            ],
+            "fast": [
+              55507724,
+              56236048,
+              55935070,
+              55920588,
+              57633189,
+              56378921,
+              55939758,
+              56108879,
+              56147417,
+              55746921,
+              55523246,
+              55794481
+            ],
+            "nocut": [
+              37868526,
+              37769438,
+              37903288,
+              37727616,
+              37997136,
+              37702567,
+              37824140,
+              37740344,
+              37848736,
+              37684100,
+              39105016,
+              37839072
+            ],
+            "stack": [
+              35178328,
+              34870661,
+              34941877,
+              34818934,
+              34984151,
+              34767776,
+              32253163,
+              34911440,
+              34612555,
+              34879913,
+              34897810,
+              35130438
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              138.9503275,
+              135.97986,
+              141.137965,
+              138.6224675,
+              137.0735575,
+              140.1074025,
+              138.8681075,
+              138.8078925,
+              139.1098425,
+              137.909705,
+              138.05159,
+              137.843655
+            ],
+            "fast": [
+              138.76931,
+              140.59012,
+              139.837675,
+              139.80147,
+              144.0829725,
+              140.9473025,
+              139.849395,
+              140.2721975,
+              140.3685425,
+              139.3673025,
+              138.808115,
+              139.4862025
+            ],
+            "nocut": [
+              94.671315,
+              94.423595,
+              94.75822,
+              94.31904,
+              94.99284,
+              94.2564175,
+              94.56035,
+              94.35086,
+              94.62184,
+              94.21025,
+              97.76254,
+              94.59768
+            ],
+            "stack": [
+              87.94582,
+              87.1766525,
+              87.3546925,
+              87.047335,
+              87.4603775,
+              86.91944,
+              80.6329075,
+              87.2786,
+              86.5313875,
+              87.1997825,
+              87.244525,
+              87.826095
+            ]
+          },
+          "valid": true
+        },
+        "empty_flush1": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.0530830470366797,
+              "median": 1.008545783909708,
+              "minimum": 0.9688226926205237,
+              "paired_ratios": [
+                0.9688226926205237,
+                0.9856212652072799,
+                1.0530830470366797,
+                1.0332864826702477,
+                0.993987407254131,
+                1.0111081555975299,
+                1.007768010068675,
+                0.9866443402738959,
+                0.9781244602240836,
+                1.0150524743739995,
+                1.034152882308375,
+                1.0093235577507411
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.0228499298608504,
+              "median": 0.9641986045902995,
+              "minimum": 0.8603201758025,
+              "paired_ratios": [
+                0.8902874910685191,
+                0.9917692183184509,
+                0.9458789680124431,
+                0.8603201758025,
+                0.9470235947623227,
+                0.9944801370823834,
+                0.994714574954171,
+                1.0228499298608504,
+                0.9804462136853774,
+                0.9725417508914229,
+                0.9558554582891761,
+                0.950719284256187
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 0.9369514567821239,
+              "median": 0.7193418912917217,
+              "minimum": 0.6979220852379481,
+              "paired_ratios": [
+                0.6979220852379481,
+                0.6989283383998405,
+                0.9369514567821239,
+                0.7368553104175102,
+                0.713438241837034,
+                0.7312930930291173,
+                0.7240033379846234,
+                0.7088286245082532,
+                0.7147209162169138,
+                0.7617666916038761,
+                0.7150716121527344,
+                0.7236121704307089
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              38201952,
+              37699214,
+              36162374,
+              36217915,
+              37042755,
+              36256154,
+              36549000,
+              37335782,
+              37307148,
+              36617302,
+              36816307,
+              36670551
+            ],
+            "fast": [
+              37010918,
+              37157147,
+              38081983,
+              37423482,
+              36820032,
+              36658893,
+              36832913,
+              36837138,
+              36491034,
+              37168483,
+              38073690,
+              37012451
+            ],
+            "nocut": [
+              34010720,
+              37388920,
+              34205229,
+              31159003,
+              35080363,
+              36056025,
+              36355823,
+              38188902,
+              36577652,
+              35611855,
+              35191068,
+              34863400
+            ],
+            "stack": [
+              26661986,
+              26349049,
+              33882389,
+              26687363,
+              26427718,
+              26513875,
+              26461598,
+              26464671,
+              26664199,
+              27893841,
+              26326296,
+              26535257
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              95.50488,
+              94.248035,
+              90.405935,
+              90.5447875,
+              92.6068875,
+              90.640385,
+              91.3725,
+              93.339455,
+              93.26787,
+              91.543255,
+              92.0407675,
+              91.6763775
+            ],
+            "fast": [
+              92.527295,
+              92.8928675,
+              95.2049575,
+              93.558705,
+              92.05008,
+              91.6472325,
+              92.0822825,
+              92.092845,
+              91.227585,
+              92.9212075,
+              95.184225,
+              92.5311275
+            ],
+            "nocut": [
+              85.0268,
+              93.4723,
+              85.5130725,
+              77.8975075,
+              87.7009075,
+              90.1400625,
+              90.8895575,
+              95.472255,
+              91.44413,
+              89.0296375,
+              87.97767,
+              87.1585
+            ],
+            "stack": [
+              66.654965,
+              65.8726225,
+              84.7059725,
+              66.7184075,
+              66.069295,
+              66.2846875,
+              66.153995,
+              66.1616775,
+              66.6604975,
+              69.7346025,
+              65.81574,
+              66.3381425
+            ]
+          },
+          "valid": true
+        },
+        "empty_flush2": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.2495779552588462,
+              "median": 0.9955216848261148,
+              "minimum": 0.9327800197909135,
+              "paired_ratios": [
+                1.0287802566013817,
+                1.2495779552588462,
+                1.0027100907510715,
+                0.9951594965267149,
+                0.9951016235173836,
+                0.987760869277329,
+                0.9327800197909135,
+                1.005769821320649,
+                0.9843453344155146,
+                0.9958838731255146,
+                1.0064490806226913,
+                0.984044644168273
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 0.9633154954120507,
+              "median": 0.9413564003405377,
+              "minimum": 0.8712818235786048,
+              "paired_ratios": [
+                0.9396084635836678,
+                0.9232418947173165,
+                0.9633154954120507,
+                0.9091475041025371,
+                0.9071139671358519,
+                0.9458159453923344,
+                0.8712818235786048,
+                0.9582249758252174,
+                0.9500060361573958,
+                0.9291319343540685,
+                0.9431043370974075,
+                0.9445400790118857
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.8915125389608037,
+              "median": 0.7270476437242344,
+              "minimum": 0.6950226780619463,
+              "paired_ratios": [
+                0.7533851563902676,
+                0.7584105400242773,
+                0.7005202959347743,
+                0.7201669002391073,
+                0.7080573222618988,
+                0.6950226780619463,
+                0.6971848446651883,
+                0.7611112687992964,
+                0.8915125389608037,
+                0.7255927218139732,
+                0.7285025656344956,
+                0.7649039548840642
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              36776809,
+              36271036,
+              36828656,
+              37423793,
+              38171627,
+              37378635,
+              39565632,
+              36605293,
+              37515589,
+              37284565,
+              37077378,
+              37018228
+            ],
+            "fast": [
+              37835255,
+              45323487,
+              36928465,
+              37242643,
+              37984648,
+              36921153,
+              36906031,
+              36816499,
+              36928295,
+              37131097,
+              37316493,
+              36427589
+            ],
+            "nocut": [
+              34555801,
+              33486940,
+              35477615,
+              34023748,
+              34626016,
+              35353309,
+              34472816,
+              35076106,
+              35640036,
+              34642280,
+              34967836,
+              34965200
+            ],
+            "stack": [
+              27707102,
+              27508336,
+              25799221,
+              26951377,
+              27027700,
+              25978999,
+              27584559,
+              27860701,
+              33445618,
+              27053409,
+              27010965,
+              28315389
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              91.9420225,
+              90.67759,
+              92.07164,
+              93.5594825,
+              95.4290675,
+              93.4465875,
+              98.91408,
+              91.5132325,
+              93.7889725,
+              93.2114125,
+              92.693445,
+              92.54557
+            ],
+            "fast": [
+              94.5881375,
+              113.3087175,
+              92.3211625,
+              93.1066075,
+              94.96162,
+              92.3028825,
+              92.2650775,
+              92.0412475,
+              92.3207375,
+              92.8277425,
+              93.2912325,
+              91.0689725
+            ],
+            "nocut": [
+              86.3895025,
+              83.71735,
+              88.6940375,
+              85.05937,
+              86.56504,
+              88.3832725,
+              86.18204,
+              87.690265,
+              89.10009,
+              86.6057,
+              87.41959,
+              87.413
+            ],
+            "stack": [
+              69.267755,
+              68.77084,
+              64.4980525,
+              67.3784425,
+              67.56925,
+              64.9474975,
+              68.9613975,
+              69.6517525,
+              83.614045,
+              67.6335225,
+              67.5274125,
+              70.7884725
+            ]
+          },
+          "valid": true
+        },
+        "large_carry0": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.0705644530497247,
+              "median": 1.048257377632075,
+              "minimum": 1.0096133261988176,
+              "paired_ratios": [
+                1.0428353644055819,
+                1.0325590993214804,
+                1.0384631280624939,
+                1.0705644530497247,
+                1.0646084160500466,
+                1.0526376057269375,
+                1.0586633489652,
+                1.0311826692526866,
+                1.0532174329313757,
+                1.0096133261988176,
+                1.0438771495372126,
+                1.0647923107482777
+              ],
+              "status": "all observed ratios above one"
+            },
+            "nocut": {
+              "maximum": 1.5329962317585795,
+              "median": 1.0468987947397064,
+              "minimum": 1.002316173296388,
+              "paired_ratios": [
+                1.065107002900627,
+                1.0457558502038673,
+                1.0387918972344499,
+                1.064008200538255,
+                1.0425073916665106,
+                1.0538532543028485,
+                1.059753325828578,
+                1.0455204386199786,
+                1.0342193191372067,
+                1.002316173296388,
+                1.5329962317585795,
+                1.0480417392755454
+              ],
+              "status": "all observed ratios above one"
+            },
+            "stack": {
+              "maximum": 1.0690626989365055,
+              "median": 1.0443658477799462,
+              "minimum": 1.0087181090878614,
+              "paired_ratios": [
+                1.0498939479940013,
+                1.0428667979911377,
+                1.0425752753584276,
+                1.068173800719396,
+                1.0337763508715836,
+                1.044750683370517,
+                1.046971284683096,
+                1.0411671190262466,
+                1.0439810121893753,
+                1.0087181090878614,
+                1.0690626989365055,
+                1.0555214647054125
+              ],
+              "status": "all observed ratios above one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              62740916,
+              63454028,
+              63175023,
+              62037879,
+              62838671,
+              62527939,
+              62681147,
+              62919341,
+              63378555,
+              65243391,
+              62563932,
+              62608849
+            ],
+            "fast": [
+              65428446,
+              65520034,
+              65604932,
+              66415548,
+              66898578,
+              65819260,
+              66358233,
+              64881334,
+              66751399,
+              65870597,
+              65309059,
+              66665421
+            ],
+            "nocut": [
+              66825789,
+              66357421,
+              65625702,
+              66008812,
+              65509779,
+              65895272,
+              66426554,
+              65783457,
+              65547326,
+              65394506,
+              95910272,
+              65616687
+            ],
+            "stack": [
+              65871308,
+              66174099,
+              65864717,
+              66267237,
+              64961132,
+              65326107,
+              65625361,
+              65509549,
+              66166008,
+              65812190,
+              66884766,
+              66084984
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              490163.40625,
+              495734.59375,
+              493554.8671875,
+              484670.9296875,
+              490927.1171875,
+              488499.5234375,
+              489696.4609375,
+              491557.3515625,
+              495144.9609375,
+              509713.9921875,
+              488780.71875,
+              489131.6328125
+            ],
+            "fast": [
+              511159.734375,
+              511875.265625,
+              512538.53125,
+              518871.46875,
+              522645.140625,
+              514212.96875,
+              518423.6953125,
+              506885.421875,
+              521495.3046875,
+              514614.0390625,
+              510227.0234375,
+              520823.6015625
+            ],
+            "nocut": [
+              522076.4765625,
+              518417.3515625,
+              512700.796875,
+              515693.84375,
+              511795.1484375,
+              514806.8125,
+              518957.453125,
+              513933.2578125,
+              512088.484375,
+              510894.578125,
+              749299,
+              512630.3671875
+            ],
+            "stack": [
+              514619.59375,
+              516985.1484375,
+              514568.1015625,
+              517712.7890625,
+              507508.84375,
+              510360.2109375,
+              512698.1328125,
+              511793.3515625,
+              516921.9375,
+              514157.734375,
+              522537.234375,
+              516288.9375
+            ]
+          },
+          "valid": true
+        },
+        "large_carry1": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 0.9692097122771921,
+              "median": 0.9071287652039084,
+              "minimum": 0.8769692783415821,
+              "paired_ratios": [
+                0.9082193888475292,
+                0.8769692783415821,
+                0.9692097122771921,
+                0.9064436837197721,
+                0.8942024013680745,
+                0.8983199175262716,
+                0.9078138466880448,
+                0.9182883564832367,
+                0.9210406152608062,
+                0.9062951421418367,
+                0.9121834565005859,
+                0.9025670921077327
+              ],
+              "status": "all observed ratios below one"
+            },
+            "nocut": {
+              "maximum": 0.9704444816115907,
+              "median": 0.9088026075561808,
+              "minimum": 0.8845726066672299,
+              "paired_ratios": [
+                0.9089495880813426,
+                0.89382632885897,
+                0.9704444816115907,
+                0.9050556749768657,
+                0.88531417265919,
+                0.908655627031019,
+                0.9217249502358512,
+                0.8845726066672299,
+                0.9121975610499226,
+                0.8977924039748771,
+                0.9141825106679555,
+                0.9102810261338236
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.9721268877646373,
+              "median": 0.904575571724539,
+              "minimum": 0.896643238967361,
+              "paired_ratios": [
+                0.9042839467549999,
+                0.9159497361390633,
+                0.9721268877646373,
+                0.9000037709857678,
+                0.8979360439881334,
+                0.896643238967361,
+                0.9081239217895186,
+                0.90057048750287,
+                0.9343180379975221,
+                0.8974740899502824,
+                0.9143533642708624,
+                0.9048671966940779
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              65917626,
+              65918056,
+              61105340,
+              65738779,
+              66318613,
+              65865338,
+              65403510,
+              65742895,
+              64362039,
+              65881483,
+              65658551,
+              65659623
+            ],
+            "fast": [
+              59867666,
+              57808110,
+              59223889,
+              59588501,
+              59302263,
+              59168145,
+              59374212,
+              60370935,
+              59280052,
+              59708068,
+              59892644,
+              59262215
+            ],
+            "nocut": [
+              59915799,
+              58919294,
+              59299340,
+              59497255,
+              58712808,
+              59848910,
+              60284047,
+              58154364,
+              58710895,
+              59147895,
+              60023899,
+              59768709
+            ],
+            "stack": [
+              59608251,
+              60377626,
+              59402144,
+              59165149,
+              59549873,
+              59057710,
+              59394492,
+              59206111,
+              60134614,
+              59126924,
+              60035117,
+              59413239
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              514981.453125,
+              514984.8125,
+              477385.46875,
+              513584.2109375,
+              518114.1640625,
+              514572.953125,
+              510964.921875,
+              513616.3671875,
+              502828.4296875,
+              514699.0859375,
+              512957.4296875,
+              512965.8046875
+            ],
+            "fast": [
+              467716.140625,
+              451625.859375,
+              462686.6328125,
+              465535.1640625,
+              463298.9296875,
+              462251.1328125,
+              463861.03125,
+              471647.9296875,
+              463125.40625,
+              466469.28125,
+              467911.28125,
+              462986.0546875
+            ],
+            "nocut": [
+              468092.1796875,
+              460306.984375,
+              463276.09375,
+              464822.3046875,
+              458693.8125,
+              467569.609375,
+              470969.1171875,
+              454330.96875,
+              458678.8671875,
+              462092.9296875,
+              468936.7109375,
+              466943.0390625
+            ],
+            "stack": [
+              465689.4609375,
+              471700.203125,
+              464079.25,
+              462227.7265625,
+              465233.3828125,
+              461388.359375,
+              464019.46875,
+              462547.7421875,
+              469801.671875,
+              461929.09375,
+              469024.3515625,
+              464165.9296875
+            ]
+          },
+          "valid": true
+        },
+        "large_carry2": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 0.9370981133599907,
+              "median": 0.9142921564309616,
+              "minimum": 0.9020160219458521,
+              "paired_ratios": [
+                0.9024726147987211,
+                0.9125158147396768,
+                0.9116967317832452,
+                0.9020160219458521,
+                0.9164662489906494,
+                0.916274825178569,
+                0.9184807248711727,
+                0.9370981133599907,
+                0.9160684981222463,
+                0.9224623876258647,
+                0.9022572849611121,
+                0.905365707531419
+              ],
+              "status": "all observed ratios below one"
+            },
+            "nocut": {
+              "maximum": 0.9283277818637333,
+              "median": 0.9114827388543619,
+              "minimum": 0.9003913966354825,
+              "paired_ratios": [
+                0.9040605039005035,
+                0.9003913966354825,
+                0.9123069118538442,
+                0.9106585658548797,
+                0.9180624963736765,
+                0.9017325730969675,
+                0.9175111784098062,
+                0.9283277818637333,
+                0.9225455855001724,
+                0.9011143212440945,
+                0.9164253876162413,
+                0.9016570058986018
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.938427603662914,
+              "median": 0.909510775978449,
+              "minimum": 0.8888509674884099,
+              "paired_ratios": [
+                0.9084590047125434,
+                0.9031502708747485,
+                0.8888509674884099,
+                0.9030196092077781,
+                0.9166348085312684,
+                0.9025689612628415,
+                0.9176518609756782,
+                0.938427603662914,
+                0.9187054537123175,
+                0.9170103109711506,
+                0.9105625472443546,
+                0.906229041032954
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              65624860,
+              65693462,
+              65354478,
+              65951415,
+              65407155,
+              65749376,
+              65850377,
+              64211826,
+              65749306,
+              65163794,
+              65577941,
+              65576049
+            ],
+            "fast": [
+              59224639,
+              59946323,
+              59583464,
+              59489233,
+              59943450,
+              60244498,
+              60482302,
+              60172781,
+              60230868,
+              60111149,
+              59168175,
+              59370306
+            ],
+            "nocut": [
+              59328844,
+              59149828,
+              59623342,
+              60059221,
+              60047856,
+              59288354,
+              60418457,
+              59609622,
+              60656732,
+              58720028,
+              60097290,
+              59127104
+            ],
+            "stack": [
+              59617495,
+              59331068,
+              58090391,
+              59555421,
+              59954475,
+              59343346,
+              60427721,
+              60258150,
+              60404246,
+              59755871,
+              59712817,
+              59426920
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              512694.21875,
+              513230.171875,
+              510581.859375,
+              515245.4296875,
+              510993.3984375,
+              513667,
+              514456.0703125,
+              501654.890625,
+              513666.453125,
+              509092.140625,
+              512327.6640625,
+              512312.8828125
+            ],
+            "fast": [
+              462692.4921875,
+              468330.6484375,
+              465495.8125,
+              464759.6328125,
+              468308.203125,
+              470660.140625,
+              472517.984375,
+              470099.8515625,
+              470553.65625,
+              469618.3515625,
+              462251.3671875,
+              463830.515625
+            ],
+            "nocut": [
+              463506.59375,
+              462108.03125,
+              465807.359375,
+              469212.6640625,
+              469123.875,
+              463190.265625,
+              472019.1953125,
+              465700.171875,
+              473880.71875,
+              458750.21875,
+              469510.078125,
+              461930.5
+            ],
+            "stack": [
+              465761.6796875,
+              463523.96875,
+              453831.1796875,
+              465276.7265625,
+              468394.3359375,
+              463619.890625,
+              472091.5703125,
+              470766.796875,
+              471908.171875,
+              466842.7421875,
+              466506.3828125,
+              464272.8125
+            ]
+          },
+          "valid": true
+        },
+        "short_carry1": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.8061991550014262,
+              "median": 0.999678291695264,
+              "minimum": 0.9683165035358501,
+              "paired_ratios": [
+                0.9780321663313553,
+                0.992821349197967,
+                0.9796067235875251,
+                0.9831026975375932,
+                0.9985950378410816,
+                1.0226436007217905,
+                1.0007615455494465,
+                1.0101929893221673,
+                1.8061991550014262,
+                1.0096758413617972,
+                0.9683165035358501,
+                1.0096868429782975
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.8462971583812007,
+              "median": 0.8710067833649668,
+              "minimum": 0.83257947883571,
+              "paired_ratios": [
+                0.8689823520548701,
+                0.8736494524310899,
+                0.8367680251910938,
+                0.8841954570964996,
+                0.8730312146750635,
+                0.8514991379138064,
+                0.8758590461533469,
+                0.8517795067339291,
+                1.8462971583812007,
+                0.8452681724082741,
+                0.83257947883571,
+                0.8926597596261627
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 1.3407062973365933,
+              "median": 0.7264665709688787,
+              "minimum": 0.7082882020526952,
+              "paired_ratios": [
+                0.7132808442218845,
+                0.7257529721170829,
+                0.7367777185178527,
+                0.71431231605048,
+                0.7237784771349445,
+                0.7271801698206745,
+                0.7131135498941897,
+                0.7289865277438986,
+                1.3407062973365933,
+                0.7579890160360342,
+                0.7082882020526952,
+                0.7352195785356589
+              ],
+              "status": "inconclusive"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              75096845,
+              75348142,
+              75113531,
+              74049867,
+              75137255,
+              76608929,
+              74867485,
+              74582831,
+              41860189,
+              74919583,
+              76824949,
+              74130447
+            ],
+            "fast": [
+              73447130,
+              74807244,
+              73581720,
+              72798624,
+              75031690,
+              78343631,
+              74924500,
+              75343053,
+              75607838,
+              75644493,
+              74390866,
+              74848537
+            ],
+            "nocut": [
+              65257833,
+              65827863,
+              62852601,
+              65474556,
+              65597169,
+              65232437,
+              65573364,
+              63528127,
+              77286348,
+              63327139,
+              63962876,
+              66173267
+            ],
+            "stack": [
+              53565141,
+              54684138,
+              55341976,
+              52894732,
+              54382728,
+              55708494,
+              53389018,
+              54369879,
+              56122219,
+              56788221,
+              54414205,
+              54502156
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              93.87105625,
+              94.1851775,
+              93.89191375,
+              92.56233375,
+              93.92156875,
+              95.76116125,
+              93.58435625,
+              93.22853875,
+              52.32523625,
+              93.64947875,
+              96.03118625,
+              92.66305875
+            ],
+            "fast": [
+              91.8089125,
+              93.509055,
+              91.97715,
+              90.99828,
+              93.7896125,
+              97.92953875,
+              93.655625,
+              94.17881625,
+              94.5097975,
+              94.55561625,
+              92.9885825,
+              93.56067125
+            ],
+            "nocut": [
+              81.57229125,
+              82.28482875,
+              78.56575125,
+              81.843195,
+              81.99646125,
+              81.54054625,
+              81.966705,
+              79.41015875,
+              96.607935,
+              79.15892375,
+              79.953595,
+              82.71658375
+            ],
+            "stack": [
+              66.95642625,
+              68.3551725,
+              69.17747,
+              66.118415,
+              67.97841,
+              69.6356175,
+              66.7362725,
+              67.96234875,
+              70.15277375,
+              70.98527625,
+              68.01775625,
+              68.127695
+            ]
+          },
+          "valid": true
+        },
+        "short_carry2": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.1690940157966896,
+              "median": 1.0073646916913197,
+              "minimum": 0.9792344392247817,
+              "paired_ratios": [
+                0.9804856044348383,
+                0.9949168794891544,
+                0.9847075912286801,
+                1.1690940157966896,
+                1.0130052107690322,
+                1.0017241726136072,
+                0.9792344392247817,
+                1.016080030630314,
+                1.0209501421001834,
+                0.9810133979117527,
+                1.0208330615896264,
+                1.0138874960872923
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.0289606034887058,
+              "median": 0.8946998655363243,
+              "minimum": 0.8443519331184127,
+              "paired_ratios": [
+                0.8683076890743487,
+                1.0146980152322689,
+                0.8443519331184127,
+                0.858886015211626,
+                0.8695587735840199,
+                0.9127266265170201,
+                0.9094889774885496,
+                0.9072934390236308,
+                0.8821062920490179,
+                1.0289606034887058,
+                0.8809756308052109,
+                0.9093480802243621
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 0.7492041874572064,
+              "median": 0.7185609068313945,
+              "minimum": 0.618220074519845,
+              "paired_ratios": [
+                0.7024178982600452,
+                0.7256272328992249,
+                0.7145085974471002,
+                0.717015997792156,
+                0.6975499005635813,
+                0.7201058158706332,
+                0.7230244603724695,
+                0.618220074519845,
+                0.7221582475622099,
+                0.7133978306554034,
+                0.7298057867913338,
+                0.7492041874572064
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              78033060,
+              75997608,
+              76069965,
+              76791659,
+              76156705,
+              76456962,
+              76239068,
+              75770689,
+              74831712,
+              77684569,
+              75132068,
+              75257987
+            ],
+            "fast": [
+              76510292,
+              75611303,
+              74906672,
+              89776669,
+              77147139,
+              76588787,
+              74655921,
+              76989084,
+              76399447,
+              76209603,
+              76697299,
+              76303132
+            ],
+            "nocut": [
+              67756706,
+              77114622,
+              64229822,
+              65955282,
+              66222731,
+              69784305,
+              69338592,
+              68746249,
+              66009524,
+              79934361,
+              66189521,
+              68435706
+            ],
+            "stack": [
+              54811818,
+              55145934,
+              54352644,
+              55060848,
+              53123102,
+              55057103,
+              55122711,
+              46842961,
+              54040338,
+              55420003,
+              54831818,
+              56383599
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              97.541325,
+              94.99701,
+              95.08745625,
+              95.98957375,
+              95.19588125,
+              95.5712025,
+              95.298835,
+              94.71336125,
+              93.53964,
+              97.10571125,
+              93.915085,
+              94.07248375
+            ],
+            "fast": [
+              95.637865,
+              94.51412875,
+              93.63334,
+              112.22083625,
+              96.43392375,
+              95.73598375,
+              93.31990125,
+              96.236355,
+              95.49930875,
+              95.26200375,
+              95.87162375,
+              95.378915
+            ],
+            "nocut": [
+              84.6958825,
+              96.3932775,
+              80.2872775,
+              82.4441025,
+              82.77841375,
+              87.23038125,
+              86.67324,
+              85.93281125,
+              82.511905,
+              99.91795125,
+              82.73690125,
+              85.5446325
+            ],
+            "stack": [
+              68.5147725,
+              68.9324175,
+              67.940805,
+              68.82606,
+              66.4038775,
+              68.82137875,
+              68.90338875,
+              58.55370125,
+              67.5504225,
+              69.27500375,
+              68.5397725,
+              70.47949875
+            ]
+          },
+          "valid": true
+        },
+        "short_incomplete": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.1695033292591173,
+              "median": 1.0076824148616463,
+              "minimum": 0.9560610180396502,
+              "paired_ratios": [
+                1.0108292896702058,
+                1.1695033292591173,
+                0.9569144251121738,
+                1.0400345530373547,
+                1.0061500148229672,
+                1.008644029028638,
+                1.0872509592266173,
+                0.9560610180396502,
+                1.0090616747877268,
+                1.0062191883085188,
+                1.0045142230448736,
+                1.0067208006946546
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 0.6947373905343532,
+              "median": 0.6346824700767395,
+              "minimum": 0.5647052524112857,
+              "paired_ratios": [
+                0.6667136163439609,
+                0.6641956376300424,
+                0.6309295051332346,
+                0.6322757424266736,
+                0.5647052524112857,
+                0.6259135143529739,
+                0.6947373905343532,
+                0.6128062966975402,
+                0.6363871305541325,
+                0.6329778095993466,
+                0.6388638030676032,
+                0.6672191927076421
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.6395455048974427,
+              "median": 0.5979282668130654,
+              "minimum": 0.5340524602632408,
+              "paired_ratios": [
+                0.5963083218972679,
+                0.6284731916420508,
+                0.5975617440763744,
+                0.6062330514064432,
+                0.5340524602632408,
+                0.5942132778839753,
+                0.6395455048974427,
+                0.6025193730589851,
+                0.5984684897776131,
+                0.5950546147239475,
+                0.5982947895497563,
+                0.5959184836983106
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              73667528,
+              70051922,
+              73729340,
+              72611851,
+              82584679,
+              73947114,
+              68463488,
+              73367221,
+              73546228,
+              73878612,
+              73482191,
+              73843880
+            ],
+            "fast": [
+              74465295,
+              81925956,
+              70552669,
+              75518834,
+              83092576,
+              74586315,
+              74436993,
+              70143540,
+              74212680,
+              74338077,
+              73813906,
+              74340170
+            ],
+            "nocut": [
+              49115144,
+              46528181,
+              46518016,
+              45910712,
+              46636002,
+              46284498,
+              47564145,
+              44959895,
+              46803873,
+              46763522,
+              46945112,
+              49270054
+            ],
+            "stack": [
+              43928560,
+              44025755,
+              44057833,
+              44019704,
+              44104551,
+              43940357,
+              43785516,
+              44205172,
+              44015100,
+              43961809,
+              43964012,
+              44004933
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              184.16882,
+              175.129805,
+              184.32335,
+              181.5296275,
+              206.4616975,
+              184.867785,
+              171.15872,
+              183.4180525,
+              183.86557,
+              184.69653,
+              183.7054775,
+              184.6097
+            ],
+            "fast": [
+              186.1632375,
+              204.81489,
+              176.3816725,
+              188.797085,
+              207.73144,
+              186.4657875,
+              186.0924825,
+              175.35885,
+              185.5317,
+              185.8451925,
+              184.534765,
+              185.850425
+            ],
+            "nocut": [
+              122.78786,
+              116.3204525,
+              116.29504,
+              114.77678,
+              116.590005,
+              115.711245,
+              118.9103625,
+              112.3997375,
+              117.0096825,
+              116.908805,
+              117.36278,
+              123.175135
+            ],
+            "stack": [
+              109.8214,
+              110.0643875,
+              110.1445825,
+              110.04926,
+              110.2613775,
+              109.8508925,
+              109.46379,
+              110.51293,
+              110.03775,
+              109.9045225,
+              109.91003,
+              110.0123325
+            ]
+          },
+          "valid": true
+        },
+        "small_carry0": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.020836442883859,
+              "median": 1.002006939730617,
+              "minimum": 0.9907281473574362,
+              "paired_ratios": [
+                1.0019942692600465,
+                0.9982629806145289,
+                0.9943208084414928,
+                0.9926112119618422,
+                1.020836442883859,
+                1.002313873430834,
+                1.0192219026899303,
+                0.9907281473574362,
+                1.0020196102011876,
+                1.0025786629586304,
+                1.00055953969124,
+                1.0113295189755656
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.177609203445444,
+              "median": 1.0094011096092808,
+              "minimum": 0.9883112401171287,
+              "paired_ratios": [
+                1.0197355041960967,
+                1.007521994780333,
+                1.0198932285674913,
+                0.9883112401171287,
+                1.0112802244382282,
+                1.177609203445444,
+                1.0128655626976273,
+                1.003211546476143,
+                1.0072495772843775,
+                0.9961578666079314,
+                1.0137523581383798,
+                0.9982042878907633
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 1.0019535240026634,
+              "median": 0.9919802489436403,
+              "minimum": 0.8774069783451005,
+              "paired_ratios": [
+                0.9001143020479028,
+                0.9847127026408417,
+                0.9925183014117155,
+                0.9850610941130086,
+                0.9969635441334495,
+                0.9921534527512443,
+                0.9992529898311101,
+                0.8774069783451005,
+                0.9900787325802769,
+                0.9971883014119762,
+                1.0019535240026634,
+                0.9918070451360363
+              ],
+              "status": "inconclusive"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              54100518,
+              54363239,
+              54271633,
+              54565241,
+              54087399,
+              54241947,
+              53897526,
+              54787001,
+              54473383,
+              54154809,
+              53854982,
+              54449708
+            ],
+            "fast": [
+              54208409,
+              54268809,
+              53963414,
+              54162070,
+              55214388,
+              54367456,
+              54933539,
+              54279024,
+              54583398,
+              54294456,
+              53885116,
+              55066597
+            ],
+            "nocut": [
+              55168219,
+              54772159,
+              55351271,
+              53927441,
+              54697517,
+              63875816,
+              54590948,
+              54962952,
+              54868292,
+              53946739,
+              54595615,
+              54351932
+            ],
+            "stack": [
+              48696650,
+              53532172,
+              53865589,
+              53750096,
+              53923165,
+              53816335,
+              53857264,
+              48070497,
+              53932938,
+              54002542,
+              53960189,
+              54003604
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              270.50259,
+              271.816195,
+              271.358165,
+              272.826205,
+              270.436995,
+              271.209735,
+              269.48763,
+              273.935005,
+              272.366915,
+              270.774045,
+              269.27491,
+              272.24854
+            ],
+            "fast": [
+              271.042045,
+              271.344045,
+              269.81707,
+              270.81035,
+              276.07194,
+              271.83728,
+              274.667695,
+              271.39512,
+              272.91699,
+              271.47228,
+              269.42558,
+              275.332985
+            ],
+            "nocut": [
+              275.841095,
+              273.860795,
+              276.756355,
+              269.637205,
+              273.487585,
+              319.37908,
+              272.95474,
+              274.81476,
+              274.34146,
+              269.733695,
+              272.978075,
+              271.75966
+            ],
+            "stack": [
+              243.48325,
+              267.66086,
+              269.327945,
+              268.75048,
+              269.615825,
+              269.081675,
+              269.28632,
+              240.352485,
+              269.66469,
+              270.01271,
+              269.800945,
+              270.01802
+            ]
+          },
+          "valid": true
+        },
+        "small_carry1": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.1364998754216695,
+              "median": 0.9932799915502664,
+              "minimum": 0.8847113322082153,
+              "paired_ratios": [
+                1.0149901371788574,
+                0.948441242055693,
+                1.0008837145261082,
+                0.9977943075071529,
+                0.9731690873255068,
+                0.9889351624466393,
+                1.1364998754216695,
+                0.8847113322082153,
+                1.0634979051901523,
+                0.9868480232081672,
+                0.9966662723429747,
+                0.9898937107575579
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.00143085085628,
+              "median": 0.9473605968501226,
+              "minimum": 0.813991065900392,
+              "paired_ratios": [
+                0.9582438751355883,
+                0.9569636992029958,
+                0.9442125231731553,
+                0.95050867052709,
+                0.9612360879484817,
+                0.9342390608033765,
+                0.9569521134164435,
+                0.8419373804832045,
+                1.00143085085628,
+                0.940881960719752,
+                0.9410135940946531,
+                0.813991065900392
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 1.094043756215171,
+              "median": 0.8983414660419705,
+              "minimum": 0.7931805411924258,
+              "paired_ratios": [
+                0.8962244730609871,
+                0.8976498040297345,
+                0.9035733633049012,
+                0.900218354327953,
+                0.8990331280542065,
+                0.8056267093497337,
+                0.9008827276394333,
+                0.7931805411924258,
+                0.9593374416509761,
+                0.8915904428417795,
+                1.094043756215171,
+                0.8769076084490695
+              ],
+              "status": "inconclusive"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              60401582,
+              61082736,
+              60469754,
+              60679356,
+              60482363,
+              61168363,
+              60303425,
+              68266033,
+              57202328,
+              60996458,
+              60956689,
+              61779253
+            ],
+            "fast": [
+              61307010,
+              57933386,
+              60523192,
+              60545516,
+              58859566,
+              60491545,
+              68534835,
+              60395733,
+              60834556,
+              60194234,
+              60753476,
+              61154894
+            ],
+            "nocut": [
+              57879446,
+              58453961,
+              57096299,
+              57676254,
+              58137830,
+              57145874,
+              57707490,
+              57475725,
+              57284176,
+              57390467,
+              57361073,
+              50287760
+            ],
+            "stack": [
+              54133376,
+              54830906,
+              54638859,
+              54624670,
+              54375648,
+              49278867,
+              54326314,
+              54147289,
+              54876335,
+              54383859,
+              66689285,
+              54174697
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              302.00791,
+              305.41368,
+              302.34877,
+              303.39678,
+              302.411815,
+              305.841815,
+              301.517125,
+              341.330165,
+              286.01164,
+              304.98229,
+              304.783445,
+              308.896265
+            ],
+            "fast": [
+              306.53505,
+              289.66693,
+              302.61596,
+              302.72758,
+              294.29783,
+              302.457725,
+              342.674175,
+              301.978665,
+              304.17278,
+              300.97117,
+              303.76738,
+              305.77447
+            ],
+            "nocut": [
+              289.39723,
+              292.269805,
+              285.481495,
+              288.38127,
+              290.68915,
+              285.72937,
+              288.53745,
+              287.378625,
+              286.42088,
+              286.952335,
+              286.805365,
+              251.4388
+            ],
+            "stack": [
+              270.66688,
+              274.15453,
+              273.194295,
+              273.12335,
+              271.87824,
+              246.394335,
+              271.63157,
+              270.736445,
+              274.381675,
+              271.919295,
+              333.446425,
+              270.873485
+            ]
+          },
+          "valid": true
+        },
+        "small_carry2": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.1500050255944452,
+              "median": 1.0039732023251924,
+              "minimum": 0.9844912533262455,
+              "paired_ratios": [
+                1.0092346962898933,
+                0.9992491798176875,
+                1.0067524437151005,
+                1.1500050255944452,
+                1.002933761275743,
+                1.0258206816864814,
+                1.0022276590532868,
+                1.0014586341290568,
+                1.005012643374642,
+                0.9844912533262455,
+                1.0625275832675751,
+                0.9954309359010275
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.026687268596672,
+              "median": 0.9134102555206303,
+              "minimum": 0.8974935415803901,
+              "paired_ratios": [
+                0.9163710436703962,
+                0.9143847872111888,
+                0.9124357238300719,
+                1.026687268596672,
+                0.9097549800600013,
+                0.918195775022218,
+                0.9045773800441589,
+                0.9065225225664477,
+                0.9359981938328984,
+                0.8979763723241436,
+                0.9587741983881112,
+                0.8974935415803901
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 1.1056187285502967,
+              "median": 0.8715367651305341,
+              "minimum": 0.8448436180679965,
+              "paired_ratios": [
+                0.8813202029250683,
+                0.8555636404548757,
+                0.8722327829063017,
+                0.9746464155553487,
+                0.8713043401230548,
+                0.8717691901380134,
+                0.859424063445035,
+                1.1056187285502967,
+                0.8806788877941545,
+                0.8448436180679965,
+                0.8492169420381893,
+                0.8528260285697276
+              ],
+              "status": "inconclusive"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              63026220,
+              64065939,
+              63409192,
+              56530626,
+              63667757,
+              62797490,
+              64477102,
+              63990687,
+              63435991,
+              65065477,
+              60374011,
+              64349721
+            ],
+            "fast": [
+              63608248,
+              64017837,
+              63837359,
+              65010504,
+              63854543,
+              64418964,
+              64620735,
+              64084026,
+              63753973,
+              64056393,
+              64149052,
+              64055703
+            ],
+            "nocut": [
+              57755403,
+              58580920,
+              57856812,
+              58039274,
+              57922059,
+              57660390,
+              58324528,
+              58008999,
+              59375973,
+              58427261,
+              57885044,
+              57753459
+            ],
+            "stack": [
+              55546281,
+              54812488,
+              55307576,
+              55097372,
+              55473993,
+              54744917,
+              55413173,
+              70749302,
+              55866738,
+              54970153,
+              51270633,
+              54879117
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              315.1311,
+              320.329695,
+              317.04596,
+              282.65313,
+              318.338785,
+              313.98745,
+              322.38551,
+              319.953435,
+              317.179955,
+              325.327385,
+              301.870055,
+              321.748605
+            ],
+            "fast": [
+              318.04124,
+              320.089185,
+              319.186795,
+              325.05252,
+              319.272715,
+              322.09482,
+              323.103675,
+              320.42013,
+              318.769865,
+              320.281965,
+              320.74526,
+              320.278515
+            ],
+            "nocut": [
+              288.777015,
+              292.9046,
+              289.28406,
+              290.19637,
+              289.610295,
+              288.30195,
+              291.62264,
+              290.044995,
+              296.879865,
+              292.136305,
+              289.42522,
+              288.767295
+            ],
+            "stack": [
+              277.731405,
+              274.06244,
+              276.53788,
+              275.48686,
+              277.369965,
+              273.724585,
+              277.065865,
+              353.74651,
+              279.33369,
+              274.850765,
+              256.353165,
+              274.395585
+            ]
+          },
+          "valid": true
+        },
+        "stream_aligned": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.108491921801644,
+              "median": 1.0350695446721834,
+              "minimum": 1.021622149126632,
+              "paired_ratios": [
+                1.0330713347951352,
+                1.0368197619684654,
+                1.0510552937097966,
+                1.038477367542643,
+                1.0407077113272503,
+                1.035581011889265,
+                1.0334004280555544,
+                1.021622149126632,
+                1.108491921801644,
+                1.0302290450823957,
+                1.0309513550182663,
+                1.0345580774551018
+              ],
+              "status": "all observed ratios above one"
+            },
+            "nocut": {
+              "maximum": 1.0512785303363377,
+              "median": 1.0376727118310551,
+              "minimum": 1.0136134430864967,
+              "paired_ratios": [
+                1.0382885561567,
+                1.0441268239432666,
+                1.0512785303363377,
+                1.044100626179633,
+                1.0136134430864967,
+                1.04237832145521,
+                1.0347548545669447,
+                1.0364196526492386,
+                1.0402939957172856,
+                1.0325400838240837,
+                1.0370568675054106,
+                1.0271459261015827
+              ],
+              "status": "all observed ratios above one"
+            },
+            "stack": {
+              "maximum": 1.0700676720311844,
+              "median": 1.0365282255218746,
+              "minimum": 1.0267608700433077,
+              "paired_ratios": [
+                1.0361797034825588,
+                1.0340860427258065,
+                1.0456838486051714,
+                1.0374923917581835,
+                1.0368767475611906,
+                1.0412978871905065,
+                1.0326730534783009,
+                1.0267608700433077,
+                1.0335653078000373,
+                1.0290779179318486,
+                1.0700676720311844,
+                1.0372425916759336
+              ],
+              "status": "all observed ratios above one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              70888309,
+              70423106,
+              69809333,
+              70318480,
+              70405260,
+              70186593,
+              70592239,
+              71207214,
+              70662662,
+              71148526,
+              70706759,
+              70937974
+            ],
+            "fast": [
+              73232680,
+              73016068,
+              73373469,
+              73024150,
+              73271297,
+              72683903,
+              72950050,
+              72746867,
+              78328990,
+              73299278,
+              72895229,
+              73389454
+            ],
+            "nocut": [
+              73602520,
+              73530654,
+              73389053,
+              73419569,
+              71363718,
+              73160983,
+              73045662,
+              73800556,
+              73509943,
+              73463705,
+              73326930,
+              72863651
+            ],
+            "stack": [
+              73453027,
+              72823551,
+              72998492,
+              72954888,
+              73001577,
+              73085151,
+              72898703,
+              73112781,
+              73034476,
+              73217377,
+              75661017,
+              73579888
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              34613.43212890625,
+              34386.2822265625,
+              34086.58837890625,
+              34335.1953125,
+              34377.568359375,
+              34270.79736328125,
+              34468.86669921875,
+              34769.1474609375,
+              34503.2529296875,
+              34740.4912109375,
+              34524.78466796875,
+              34637.6826171875
+            ],
+            "fast": [
+              35758.14453125,
+              35652.376953125,
+              35826.88916015625,
+              35656.3232421875,
+              35777.00048828125,
+              35490.18701171875,
+              35620.1416015625,
+              35520.93115234375,
+              38246.5771484375,
+              35790.6630859375,
+              35593.37353515625,
+              35834.6943359375
+            ],
+            "nocut": [
+              35938.73046875,
+              35903.6396484375,
+              35834.49853515625,
+              35849.39892578125,
+              34845.5654296875,
+              35723.13623046875,
+              35666.8271484375,
+              36035.427734375,
+              35893.52685546875,
+              35870.94970703125,
+              35804.1650390625,
+              35577.95458984375
+            ],
+            "stack": [
+              35865.73583984375,
+              35558.37451171875,
+              35643.794921875,
+              35622.50390625,
+              35645.30126953125,
+              35686.10888671875,
+              35595.06982421875,
+              35699.60009765625,
+              35661.365234375,
+              35750.67236328125,
+              36943.85595703125,
+              35927.6796875
+            ]
+          },
+          "valid": true
+        },
+        "stream_carry": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.0943733842930632,
+              "median": 0.9174527224645797,
+              "minimum": 0.9030915246902187,
+              "paired_ratios": [
+                0.9147677856518827,
+                0.9079786171278958,
+                0.9220025394426977,
+                0.9091292213214854,
+                0.9127027431096247,
+                0.9201376592772768,
+                1.0943733842930632,
+                0.9264161263957391,
+                0.9133367235868325,
+                0.9292795741461826,
+                0.9030915246902187,
+                0.928870705882049
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 0.9255175046236017,
+              "median": 0.8983085443741429,
+              "minimum": 0.8632978927873631,
+              "paired_ratios": [
+                0.8984804289350817,
+                0.8806947273612887,
+                0.898136659813204,
+                0.8996715747378575,
+                0.8893871701836175,
+                0.8976128807412379,
+                0.9255175046236017,
+                0.9027070197525506,
+                0.8851276102787187,
+                0.9014411802075535,
+                0.8632978927873631,
+                0.9049047823755715
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.9290723665052534,
+              "median": 0.9131309761338582,
+              "minimum": 0.8791151270067833,
+              "paired_ratios": [
+                0.9165627163889412,
+                0.8949989313721729,
+                0.9097876293042547,
+                0.9195771262140666,
+                0.9164743229634617,
+                0.9287539506051218,
+                0.8791151270067833,
+                0.9087961136090104,
+                0.9082497141130312,
+                0.9290723665052534,
+                0.8911882489960351,
+                0.9261892112335437
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              76567857,
+              77552725,
+              76325408,
+              76206379,
+              76960322,
+              76192758,
+              76556659,
+              76017879,
+              77337383,
+              75981754,
+              78563500,
+              75861796
+            ],
+            "fast": [
+              70041809,
+              70416216,
+              70372220,
+              69281446,
+              70241897,
+              70107826,
+              83781570,
+              70424189,
+              70635072,
+              70608292,
+              70950031,
+              70465800
+            ],
+            "nocut": [
+              68794721,
+              68300276,
+              68550647,
+              68560713,
+              68447523,
+              68391601,
+              70854528,
+              68621873,
+              68453453,
+              68493082,
+              67823704,
+              68647702
+            ],
+            "stack": [
+              70179243,
+              69409606,
+              69439912,
+              70077643,
+              70532159,
+              70764325,
+              67302117,
+              69084753,
+              70241656,
+              70592548,
+              70014868,
+              70262377
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              37386.64892578125,
+              37867.54150390625,
+              37268.265625,
+              37210.14599609375,
+              37578.2822265625,
+              37203.4951171875,
+              37381.18115234375,
+              37118.10498046875,
+              37762.39404296875,
+              37100.4658203125,
+              38361.083984375,
+              37041.892578125
+            ],
+            "fast": [
+              34200.10205078125,
+              34382.91796875,
+              34361.435546875,
+              33828.8310546875,
+              34297.80126953125,
+              34232.3369140625,
+              40908.9697265625,
+              34386.81103515625,
+              34489.78125,
+              34476.705078125,
+              34643.56982421875,
+              34407.12890625
+            ],
+            "nocut": [
+              33591.17236328125,
+              33349.744140625,
+              33471.99560546875,
+              33476.91064453125,
+              33421.64208984375,
+              33394.33642578125,
+              34596.9375,
+              33506.77392578125,
+              33424.53759765625,
+              33443.8876953125,
+              33117.04296875,
+              33519.3857421875
+            ],
+            "stack": [
+              34267.20849609375,
+              33891.4091796875,
+              33906.20703125,
+              34217.59912109375,
+              34439.53076171875,
+              34552.89306640625,
+              32862.36181640625,
+              33732.78955078125,
+              34297.68359375,
+              34469.017578125,
+              34186.947265625,
+              34307.80126953125
+            ]
+          },
+          "valid": true
+        },
+        "threshold_above": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 0.97132040365923,
+              "median": 0.8192982153342742,
+              "minimum": 0.7873730772760351,
+              "paired_ratios": [
+                0.8084693020094267,
+                0.7873730772760351,
+                0.8234511342919556,
+                0.8185506386877806,
+                0.8167244546287764,
+                0.97132040365923,
+                0.8200457919807678,
+                0.804750300623074,
+                0.822112771188447,
+                0.804525484568519,
+                0.8227047375956318,
+                0.8245474375018935
+              ],
+              "status": "all observed ratios below one"
+            },
+            "nocut": {
+              "maximum": 0.7086304884436256,
+              "median": 0.6951895457930322,
+              "minimum": 0.6749244418915169,
+              "paired_ratios": [
+                0.6960483134057961,
+                0.6749244418915169,
+                0.6943307781802681,
+                0.6977267896406062,
+                0.6905538899806526,
+                0.6753830592556892,
+                0.6925811771825741,
+                0.7086304884436256,
+                0.7009817777197618,
+                0.6847357031298438,
+                0.6979704461463571,
+                0.7025985474021718
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.6596873444781033,
+              "median": 0.6508146450034352,
+              "minimum": 0.6105864684943955,
+              "paired_ratios": [
+                0.6500926492300563,
+                0.6105864684943955,
+                0.6562063424668512,
+                0.6596873444781033,
+                0.6468049653660998,
+                0.6409608717056497,
+                0.6500321656013397,
+                0.6560303729048953,
+                0.6567641254662538,
+                0.6404688765698048,
+                0.6515366407768142,
+                0.6568911532421396
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              89789737,
+              92460295,
+              88987363,
+              89354379,
+              89770138,
+              91277784,
+              89628357,
+              89353587,
+              89377563,
+              91210785,
+              89341310,
+              88989256
+            ],
+            "fast": [
+              72592246,
+              72800747,
+              73276745,
+              73141084,
+              73317467,
+              88659974,
+              73499357,
+              71907326,
+              73478436,
+              73381401,
+              73501519,
+              73375863
+            ],
+            "nocut": [
+              62497995,
+              62403713,
+              61786665,
+              62344944,
+              61991118,
+              61647469,
+              62074913,
+              63318676,
+              62652043,
+              62455281,
+              62357594,
+              62523722
+            ],
+            "stack": [
+              58371648,
+              56455005,
+              58394072,
+              58945953,
+              58063771,
+              58505488,
+              58261315,
+              58618667,
+              58699977,
+              58417669,
+              58209137,
+              58456255
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              224.4743425,
+              231.1507375,
+              222.4684075,
+              223.3859475,
+              224.425345,
+              228.19446,
+              224.0708925,
+              223.3839675,
+              223.4439075,
+              228.0269625,
+              223.353275,
+              222.47314
+            ],
+            "fast": [
+              181.480615,
+              182.0018675,
+              183.1918625,
+              182.85271,
+              183.2936675,
+              221.649935,
+              183.7483925,
+              179.768315,
+              183.69609,
+              183.4535025,
+              183.7537975,
+              183.4396575
+            ],
+            "nocut": [
+              156.2449875,
+              156.0092825,
+              154.4666625,
+              155.86236,
+              154.977795,
+              154.1186725,
+              155.1872825,
+              158.29669,
+              156.6301075,
+              156.1382025,
+              155.893985,
+              156.309305
+            ],
+            "stack": [
+              145.92912,
+              141.1375125,
+              145.98518,
+              147.3648825,
+              145.1594275,
+              146.26372,
+              145.6532875,
+              146.5466675,
+              146.7499425,
+              146.0441725,
+              145.5228425,
+              146.1406375
+            ]
+          },
+          "valid": true
+        },
+        "threshold_at": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.01084325170225,
+              "median": 0.8208141458506149,
+              "minimum": 0.7236771419199243,
+              "paired_ratios": [
+                0.8235565496428783,
+                0.8239358564902175,
+                0.8457674085049589,
+                0.7299180769049798,
+                0.8080681561247397,
+                0.7236771419199243,
+                0.8180717420583513,
+                0.7545018911892107,
+                0.830479197268231,
+                0.9373014029889735,
+                1.01084325170225,
+                0.8177210625922998
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 1.0853548461103992,
+              "median": 0.8625215209523186,
+              "minimum": 0.7566190489191211,
+              "paired_ratios": [
+                0.8807643025330627,
+                0.7580080335173163,
+                0.8391640716918679,
+                0.7566190489191211,
+                0.8642380240628059,
+                0.873073863116425,
+                0.8597762370577909,
+                0.8469061159126424,
+                0.8902126542858988,
+                0.9791646048998289,
+                1.0853548461103992,
+                0.8608050178418313
+              ],
+              "status": "inconclusive"
+            },
+            "stack": {
+              "maximum": 1.1997265433280306,
+              "median": 0.784265744074131,
+              "minimum": 0.6619964182803435,
+              "paired_ratios": [
+                0.797580179571987,
+                0.7854619189884792,
+                0.7784257949104194,
+                0.6775583855788009,
+                0.7818724707928955,
+                0.8370183434133684,
+                0.7830695691597829,
+                0.787020057939559,
+                0.6619964182803435,
+                0.8838659866347616,
+                1.1997265433280306,
+                0.772692916778785
+              ],
+              "status": "inconclusive"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              71447781,
+              72663813,
+              72984010,
+              83438498,
+              72652957,
+              72375243,
+              72571266,
+              72066824,
+              72804693,
+              64336001,
+              59453660,
+              73315344
+            ],
+            "fast": [
+              58841288,
+              59870321,
+              61727497,
+              60903268,
+              58708541,
+              52376309,
+              59368502,
+              54374555,
+              60462783,
+              60302224,
+              60098331,
+              59951501
+            ],
+            "nocut": [
+              62928655,
+              55079754,
+              61245559,
+              63131157,
+              62789448,
+              63188933,
+              62395050,
+              61033834,
+              64811659,
+              62995535,
+              64528318,
+              63110216
+            ],
+            "stack": [
+              56985334,
+              57074658,
+              56812636,
+              56534454,
+              56805347,
+              60579406,
+              56828350,
+              56718036,
+              48196446,
+              56864403,
+              71328134,
+              56650247
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              178.6194525,
+              181.6595325,
+              182.460025,
+              208.596245,
+              181.6323925,
+              180.9381075,
+              181.428165,
+              180.16706,
+              182.0117325,
+              160.8400025,
+              148.63415,
+              183.28836
+            ],
+            "fast": [
+              147.10322,
+              149.6758025,
+              154.3187425,
+              152.25817,
+              146.7713525,
+              130.9407725,
+              148.421255,
+              135.9363875,
+              151.1569575,
+              150.75556,
+              150.2458275,
+              149.8787525
+            ],
+            "nocut": [
+              157.3216375,
+              137.699385,
+              153.1138975,
+              157.8278925,
+              156.97362,
+              157.9723325,
+              155.987625,
+              152.584585,
+              162.0291475,
+              157.4888375,
+              161.320795,
+              157.77554
+            ],
+            "stack": [
+              142.463335,
+              142.686645,
+              142.03159,
+              141.336135,
+              142.0133675,
+              151.448515,
+              142.070875,
+              141.79509,
+              120.491115,
+              142.1610075,
+              178.320335,
+              141.6256175
+            ]
+          },
+          "valid": true
+        },
+        "threshold_below": {
+          "candidate_over_baseline": {
+            "fast": {
+              "maximum": 1.3556378199130552,
+              "median": 1.001077564532479,
+              "minimum": 0.9124248228083345,
+              "paired_ratios": [
+                1.0008239485371306,
+                1.0840449991806709,
+                0.9124248228083345,
+                1.0050917946572209,
+                1.0000608468395356,
+                1.0184370842342265,
+                1.2539251595296665,
+                0.9919797158235852,
+                0.9775612381354629,
+                1.3556378199130552,
+                0.9946015040809553,
+                1.001331180527827
+              ],
+              "status": "inconclusive"
+            },
+            "nocut": {
+              "maximum": 0.6947145076689337,
+              "median": 0.674513356385868,
+              "minimum": 0.6266299518564997,
+              "paired_ratios": [
+                0.6735815211504809,
+                0.6947145076689337,
+                0.6406380160805939,
+                0.6881652228793159,
+                0.6709183912827096,
+                0.6750995677981471,
+                0.6744125522773599,
+                0.6288564159680246,
+                0.6755599013874715,
+                0.6746141604943761,
+                0.6266299518564997,
+                0.6774891161302778
+              ],
+              "status": "all observed ratios below one"
+            },
+            "stack": {
+              "maximum": 0.690687657439561,
+              "median": 0.6343864443843992,
+              "minimum": 0.5993010118101967,
+              "paired_ratios": [
+                0.6301687617770981,
+                0.6637502081637873,
+                0.5993010118101967,
+                0.6382694877780244,
+                0.6364820081555664,
+                0.690687657439561,
+                0.6458260761660568,
+                0.6322908806132319,
+                0.6309406284760471,
+                0.623888712178923,
+                0.629354893410433,
+                0.6774823671704953
+              ],
+              "status": "all observed ratios below one"
+            }
+          },
+          "cpu_delta_ns": {
+            "baseline": [
+              92704819,
+              90049284,
+              97632837,
+              92354667,
+              91870014,
+              92134959,
+              92698589,
+              92550960,
+              92913549,
+              93011795,
+              92921993,
+              91717838
+            ],
+            "fast": [
+              92781203,
+              97617476,
+              89082624,
+              92824918,
+              91875604,
+              93833659,
+              116237093,
+              91808675,
+              90828684,
+              126090307,
+              92420354,
+              91839931
+            ],
+            "nocut": [
+              62444253,
+              62558544,
+              62547307,
+              63555270,
+              61637282,
+              62200271,
+              62517092,
+              58201265,
+              62768668,
+              62747074,
+              58227704,
+              62137837
+            ],
+            "stack": [
+              58419681,
+              59770231,
+              58511458,
+              58947166,
+              58473611,
+              63636479,
+              59867166,
+              58519128,
+              58622933,
+              58029009,
+              58480911,
+              62137218
+            ]
+          },
+          "per_sequence_cpu_ns": {
+            "baseline": [
+              231.7620475,
+              225.12321,
+              244.0820925,
+              230.8866675,
+              229.675035,
+              230.3373975,
+              231.7464725,
+              231.3774,
+              232.2838725,
+              232.5294875,
+              232.3049825,
+              229.294595
+            ],
+            "fast": [
+              231.9530075,
+              244.04369,
+              222.70656,
+              232.062295,
+              229.68901,
+              234.5841475,
+              290.5927325,
+              229.5216875,
+              227.07171,
+              315.2257675,
+              231.050885,
+              229.5998275
+            ],
+            "nocut": [
+              156.1106325,
+              156.39636,
+              156.3682675,
+              158.888175,
+              154.093205,
+              155.5006775,
+              156.29273,
+              145.5031625,
+              156.92167,
+              156.867685,
+              145.56926,
+              155.3445925
+            ],
+            "stack": [
+              146.0492025,
+              149.4255775,
+              146.278645,
+              147.367915,
+              146.1840275,
+              159.0911975,
+              149.667915,
+              146.29782,
+              146.5573325,
+              145.0725225,
+              146.2022775,
+              155.343045
+            ]
+          },
+          "valid": true
+        }
+      },
+      "limits": "process CPU includes other threads in the test process; wall is secondary; inputs are prebuilt and cloned; results are dropped immediately; CPU affinity does not control host load or frequency; twelve-pair ranges are descriptive; black_box is best effort; source and build pins are verified externally",
+      "mode": "cpu",
+      "schema": "text-encoder-paired/1",
+      "scope": "isolated synchronous TextEncoder allocation or process-CPU screen; no HTTP/2, RPC, TLS or retained-output measurement",
+      "selected_cpu": 0
+    }
+  }
+}

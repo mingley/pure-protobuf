@@ -58,10 +58,16 @@ method entry, then apply the configured policy:
   or fatal status wins, and an exhausted race fails with the last non-fatal
   error. Ordinary response headers do not yet commit the hedge race: another
   attempt can continue or win afterward. When attempts remain and throttling
-  permits, a non-fatal response advances the next send immediately only when
-  no other attempt is outstanding; otherwise the existing hedge timer stays in
-  place. Non-negative pushback delays are ignored by this path; a parsed
-  `DoNotRetry` pushback stops further hedge sends.
+  permits, each non-fatal response without pushback advances the next send
+  immediately. Non-negative pushback schedules the next send after that delay;
+  a later in-flight response can replace the schedule. Once processed,
+  `DoNotRetry` stops new policy hedges; already-started attempts can complete
+  or transparently redial under the existing limits. Cancellation and the
+  overall deadline interrupt the wait. If another outcome, including
+  pushback, is queued while a send waits for the throttling check, the new
+  hedge can be sent before that outcome is processed. With an unset hedge delay, initial fanout checks
+  throttling before the event loop; cancellation and deadline expiry can wait
+  for that check.
 - `retryThrottling` debits every failed unary call and credits every success.
   Retries and hedged sends past the first need more than half the bucket.
 - Transparent retry runs first, is at most once per attempt, requires proof
