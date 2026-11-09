@@ -1357,6 +1357,7 @@ fn test_protobuf_snippet_syntax_validator_detects_errors() {
 pub const CLAIM_DOCS: &[&str] = &[
     "README.md",
     "docs/benchmarks.md",
+    "docs/benchmarks-history.md",
     "docs/status.md",
     "docs/grpc.md",
     "docs/architecture.md",

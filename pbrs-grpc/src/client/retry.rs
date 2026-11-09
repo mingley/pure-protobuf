@@ -14,7 +14,8 @@ use http::HeaderValue;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tokio::sync::{OwnedSemaphorePermit, mpsc};
+use tokio::sync::OwnedSemaphorePermit;
+use tokio::task::JoinSet;
 
 /// Retry statistics for one [`Channel`](super::Channel), A45-style.
 ///
@@ -340,15 +341,47 @@ pub(crate) struct HedgeUnary {
 /// A finished hedged attempt: its 1-based index plus the outcome.
 type HedgeOutcome<Resp> = (u32, Result<Response<Resp>, Status>);
 
+// A started stream is a separate channelz event even when a task is aborted
+// or unwinds before run_unary_frame returns. A transparent redial creates
+// a new guard for the replacement stream.
+struct HedgeStreamAccounting {
+    socket: Option<crate::channelz::SocketId>,
+}
+
+impl HedgeStreamAccounting {
+    fn start(socket: Option<crate::channelz::SocketId>) -> Self {
+        if let Some(socket) = socket {
+            crate::channelz::Registry::global().note_stream_started(socket, true);
+        }
+        Self { socket }
+    }
+
+    fn finish(&mut self, ok: bool) {
+        if let Some(socket) = self.socket.take() {
+            let registry = crate::channelz::Registry::global();
+            registry.note_stream_end(socket, ok);
+            if ok {
+                registry.note_messages(socket, true, 1);
+                registry.note_messages(socket, false, 1);
+            }
+        }
+    }
+}
+
+impl Drop for HedgeStreamAccounting {
+    fn drop(&mut self) {
+        self.finish(false);
+    }
+}
+
 /// Run one hedged attempt: grab, send, transparent-redial once on a raced
 /// connection death, then report exactly one outcome.
 fn spawn_hedge_attempt<Resp>(
+    handles: &mut JoinSet<HedgeOutcome<Resp>>,
     channel: Channel,
     req: &HedgeUnary,
     attempt: u32,
-    tx: mpsc::Sender<HedgeOutcome<Resp>>,
-) -> tokio::task::JoinHandle<()>
-where
+) where
     Resp: CodecMessage + Send + 'static,
 {
     let path = req.path;
@@ -364,7 +397,7 @@ where
     let observer = req.observer.clone();
     let owned_labels = req.owned_labels.clone();
     let tap = req.binlog.clone();
-    tokio::spawn(async move {
+    drop(handles.spawn(async move {
         let mut attempt_guard = AttemptGuard::new(
             observer.clone(),
             owned_labels.clone(),
@@ -405,9 +438,7 @@ where
             }
             // Channelz: the hedged attempt's stream starts here
             // (past setup rejects, so every start pairs with an end).
-            if let Some(socket) = live_socket {
-                crate::channelz::Registry::global().note_stream_started(socket, true);
-            }
+            let mut stream_accounting = HedgeStreamAccounting::start(live_socket);
             let routing = channel.local.for_attempt(route.authority());
             match run_unary_frame(
                 live.send,
@@ -436,9 +467,7 @@ where
                 {
                     redialed = true;
                     channel.local.retry_stats.record_transparent_retry();
-                    if let Some(socket) = live_socket {
-                        crate::channelz::Registry::global().note_stream_end(socket, false);
-                    }
+                    stream_accounting.finish(false);
                     channel
                         .inner
                         .discard_conn(slot, r#gen, route.resolved_address())
@@ -448,14 +477,7 @@ where
                     let result = result.map_err(|failure| failure.status);
                     // Channelz: the hedged attempt's stream ends here
                     // (completed unaries claim one message each way).
-                    if let Some(socket) = live_socket {
-                        let global = crate::channelz::Registry::global();
-                        global.note_stream_end(socket, result.is_ok());
-                        if result.is_ok() {
-                            global.note_messages(socket, true, 1);
-                            global.note_messages(socket, false, 1);
-                        }
-                    }
+                    stream_accounting.finish(result.is_ok());
                     // A58 per-call ORCA: every hedged attempt's trailers
                     // feed weights, including failed attempts.
                     let trailers = match &result {
@@ -498,16 +520,19 @@ where
             Ok(_) => attempt_guard.finish(&Status::ok()),
             Err(status) => attempt_guard.finish(status),
         }
-        drop(tx.send((attempt, outcome)).await);
-    })
+        // On a current-thread test runtime this synchronous notification is
+        // immediately followed by task completion, before the waiting test
+        // can resume and release its held throttle lock.
+        #[cfg(test)]
+        super::hedge_contention_tests::record_enqueue(attempt);
+        (attempt, outcome)
+    }));
 }
 
 /// Abort every outstanding hedged attempt. Aborted attempts report
 /// cancellation through their guard's `Drop`, matching a dropped [`Call`].
-fn abort_hedges(handles: &[tokio::task::JoinHandle<()>]) {
-    for handle in handles {
-        handle.abort();
-    }
+fn abort_hedges<Resp: 'static>(handles: &mut JoinSet<HedgeOutcome<Resp>>) {
+    handles.abort_all();
 }
 
 /// Sleep until `at`, or forever when there is no deadline.
@@ -523,31 +548,112 @@ async fn cancel_fired(cancel_rx: crate::rpc_cancel::RpcCancel) {
     cancel_rx.wait().await;
 }
 
-/// Update the next hedge after one non-fatal response. A true return value
-/// dispatches one attempt before the next response is processed.
-fn schedule_nonfatal_hedge(
-    pushback: Option<crate::status::Pushback>,
-    stop_sending: &mut bool,
-    hedge_at: &mut Option<tokio::time::Instant>,
-    now: tokio::time::Instant,
-) -> bool {
-    if *stop_sending {
-        return false;
+/// Pending sends and their timer for a single hedged call.
+struct HedgeSchedule {
+    at: Option<tokio::time::Instant>,
+    pending: u32,
+    stopped: bool,
+}
+
+impl HedgeSchedule {
+    fn new(max: u32, delay: Option<Duration>, now: tokio::time::Instant) -> Self {
+        match delay {
+            Some(delay) => Self {
+                at: (max > 1).then_some(now + delay),
+                pending: 0,
+                stopped: false,
+            },
+            None => Self {
+                at: None,
+                pending: max.saturating_sub(1),
+                stopped: false,
+            },
+        }
     }
-    match pushback {
-        Some(crate::status::Pushback::DoNotRetry) => {
-            *stop_sending = true;
-            *hedge_at = None;
-            false
+
+    fn stop(&mut self) {
+        self.at = None;
+        self.pending = 0;
+        self.stopped = true;
+    }
+
+    fn nonfatal(
+        &mut self,
+        pushback: Option<crate::status::Pushback>,
+        remaining: u32,
+        now: tokio::time::Instant,
+    ) {
+        if self.stopped {
+            return;
         }
-        Some(crate::status::Pushback::Delay(delay)) if !delay.is_zero() => {
-            *hedge_at = Some(now + delay);
-            false
+        match pushback {
+            Some(crate::status::Pushback::DoNotRetry) => self.stop(),
+            Some(crate::status::Pushback::Delay(delay)) => {
+                self.at = None;
+                self.pending = 0;
+                if remaining > 0 {
+                    if delay.is_zero() {
+                        self.pending = 1;
+                    } else {
+                        self.at = Some(now + delay);
+                    }
+                }
+            }
+            None => {
+                self.at = None;
+                self.pending = self.pending.saturating_add(1).min(remaining);
+            }
         }
-        None | Some(crate::status::Pushback::Delay(_)) => {
-            *hedge_at = None;
-            true
+    }
+
+    fn timer_elapsed(&mut self) {
+        self.at = None;
+        self.pending = 1;
+    }
+
+    fn sent(&mut self, remaining: u32, delay: Option<Duration>, now: tokio::time::Instant) {
+        self.pending -= 1;
+        if self.pending == 0 && remaining > 0 {
+            match delay {
+                Some(delay) => self.at = Some(now + delay),
+                None => self.pending = remaining,
+            }
         }
+    }
+}
+
+enum HedgeEvent<T> {
+    Cancelled,
+    Deadline,
+    Outcome(Option<T>),
+    Permission(bool),
+    Timer,
+}
+
+struct HedgeReadiness {
+    attempts: bool,
+    pending: bool,
+    timer: bool,
+}
+
+/// A completed attempt takes precedence over a send whose throttle check is
+/// simultaneously ready. Cancellation and the deadline take precedence over
+/// both. Disabled attempt, permit, and timer futures are not polled.
+async fn next_hedge_event<T>(
+    cancel_rx: crate::rpc_cancel::RpcCancel,
+    deadline: Option<tokio::time::Instant>,
+    hedge_at: Option<tokio::time::Instant>,
+    outcome: impl std::future::Future<Output = Option<T>>,
+    ready: HedgeReadiness,
+    allowed: impl std::future::Future<Output = bool>,
+) -> HedgeEvent<T> {
+    tokio::select! {
+        biased;
+        () = cancel_fired(cancel_rx) => HedgeEvent::Cancelled,
+        () = sleep_until_or_pending(deadline) => HedgeEvent::Deadline,
+        result = outcome, if ready.attempts => HedgeEvent::Outcome(result),
+        permission = allowed, if ready.pending => HedgeEvent::Permission(permission),
+        () = sleep_until_or_pending(hedge_at), if ready.timer => HedgeEvent::Timer,
     }
 }
 
@@ -556,13 +662,14 @@ impl super::Channel {
     ///
     /// The first attempt goes out immediately and is never throttled. When it
     /// has not finished after `hedgingDelay`, the next attempt goes out, up to
-    /// `maxAttempts`; an unset delay fans all attempts out at once. Sends past
-    /// the first need a throttling token and stop on a `DoNotRetry` pushback.
-    /// The first `OK` wins; a non-OK status outside `nonFatalStatusCodes`
-    /// commits immediately. A non-fatal status advances the next send, unless
-    /// pushback specifies a delay or stops future sends. When attempts are
-    /// exhausted the last non-fatal error fails the call. Every attempt may
-    /// transparently redial once on a safe pre-commit transport failure.
+    /// `maxAttempts`; an unset delay makes all remaining sends immediately
+    /// eligible. Sends past the first need a throttling token and stop on a
+    /// `DoNotRetry` pushback. The first `OK` wins; a non-OK status outside
+    /// `nonFatalStatusCodes` commits immediately. A non-fatal status advances
+    /// the next send, unless pushback specifies a delay or stops future sends.
+    /// When attempts are exhausted the last non-fatal error fails the call.
+    /// Every attempt may transparently redial once on a safe pre-commit
+    /// transport failure.
     #[allow(
         clippy::too_many_lines,
         reason = "one select loop over cancel, deadline, hedge timer, and completions"
@@ -576,38 +683,34 @@ impl super::Channel {
     {
         let _held = req.permit.take();
         let max = req.policy.max_attempts.max(1);
-        let bound = usize::try_from(max).unwrap_or(usize::MAX).max(1);
-        let (tx, mut rx) = mpsc::channel(bound);
-        let mut handles = Vec::new();
+        let mut handles = JoinSet::new();
         let mut sent = 1u32;
         let mut outstanding = 1u32;
         let mut last_err: Option<Status> = None;
-        let mut stop_sending = false;
-        let mut hedge_at: Option<tokio::time::Instant> = None;
-        handles.push(spawn_hedge_attempt(self.clone(), &req, 1, tx.clone()));
-        match req.policy.hedging_delay {
-            Some(delay) => {
-                hedge_at = Some(tokio::time::Instant::now() + delay);
-            }
-            None => {
-                while sent < max {
-                    if !self.retry_allowed().await {
-                        self.local.retry_stats.record_throttled();
-                        stop_sending = true;
-                        break;
-                    }
-                    sent += 1;
-                    self.local.retry_stats.record_hedged_send();
-                    handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
-                    outstanding += 1;
-                }
-            }
-        }
+        let mut schedule =
+            HedgeSchedule::new(max, req.policy.hedging_delay, tokio::time::Instant::now());
+        spawn_hedge_attempt(&mut handles, self.clone(), &req, 1);
         loop {
-            let send_now = tokio::select! {
-                biased;
-                () = cancel_fired(req.cancel_rx.clone()) => {
-                    abort_hedges(&handles);
+            let pending = schedule.pending > 0 && !schedule.stopped && sent < max;
+            let timer =
+                schedule.at.is_some() && schedule.pending == 0 && !schedule.stopped && sent < max;
+            let has_attempts = !handles.is_empty();
+            let event = next_hedge_event(
+                req.cancel_rx.clone(),
+                req.deadline,
+                schedule.at,
+                handles.join_next(),
+                HedgeReadiness {
+                    attempts: has_attempts,
+                    pending,
+                    timer,
+                },
+                self.retry_allowed(),
+            )
+            .await;
+            match event {
+                HedgeEvent::Cancelled => {
+                    abort_hedges(&mut handles);
                     req.call_guard.cancel(CancellationReason::CallerCancelled);
                     let status = Status::cancelled();
                     req.call_guard.finish(&status);
@@ -615,8 +718,8 @@ impl super::Channel {
                     self.local.retry_stats.record_committed(false);
                     return Err(status);
                 }
-                () = sleep_until_or_pending(req.deadline) => {
-                    abort_hedges(&handles);
+                HedgeEvent::Deadline => {
+                    abort_hedges(&mut handles);
                     req.call_guard.cancel(CancellationReason::DeadlineExceeded);
                     let status = Status::deadline_exceeded();
                     req.call_guard.finish(&status);
@@ -624,24 +727,22 @@ impl super::Channel {
                     self.local.retry_stats.record_committed(false);
                     return Err(status);
                 }
-                outcome = rx.recv() => {
-                    let Some((_attempt, result)) = outcome else {
-                        // Defensive: every task sends exactly one outcome, so
-                        // the channel only closes after a commit aborts the
-                        // tasks. Never return without an outcome.
-                        abort_hedges(&handles);
-                        let status = last_err.take().unwrap_or_else(|| {
-                            Status::unknown("hedging ended without an outcome")
-                        });
-                        req.call_guard.finish(&status);
-                        self.note_call_outcome(false).await;
-                        self.local.retry_stats.record_committed(false);
-                        return Err(status);
-                    };
+                HedgeEvent::Outcome(Some(Err(error))) if error.is_panic() => {
+                    std::panic::resume_unwind(error.into_panic());
+                }
+                HedgeEvent::Outcome(Some(Err(_)) | None) => {
+                    abort_hedges(&mut handles);
+                    let status = Status::internal("hedged attempt ended unexpectedly");
+                    req.call_guard.finish(&status);
+                    self.note_call_outcome(false).await;
+                    self.local.retry_stats.record_committed(false);
+                    return Err(status);
+                }
+                HedgeEvent::Outcome(Some(Ok((_attempt, result)))) => {
                     outstanding = outstanding.saturating_sub(1);
                     match result {
                         Ok(response) => {
-                            abort_hedges(&handles);
+                            abort_hedges(&mut handles);
                             let final_result: Result<Response<Resp>, Status> =
                                 self.apply_response_hooks(req.path, response);
                             match &final_result {
@@ -654,80 +755,48 @@ impl super::Channel {
                                     self.note_call_outcome(false).await;
                                 }
                             }
-                            self.local.retry_stats.record_committed(final_result.is_ok());
+                            self.local
+                                .retry_stats
+                                .record_committed(final_result.is_ok());
                             return final_result;
                         }
                         Err(status) => {
-                            let fatal = !req
-                                .policy
-                                .non_fatal_status_codes
-                                .contains(&status.code());
+                            let fatal = !req.policy.non_fatal_status_codes.contains(&status.code());
                             if fatal {
-                                abort_hedges(&handles);
+                                abort_hedges(&mut handles);
                                 req.call_guard.finish(&status);
                                 self.note_call_outcome(false).await;
                                 self.local.retry_stats.record_committed(false);
                                 return Err(status);
                             }
-                            let send_now = schedule_nonfatal_hedge(
+                            schedule.nonfatal(
                                 status.retry_pushback(),
-                                &mut stop_sending,
-                                &mut hedge_at,
+                                max.saturating_sub(sent),
                                 tokio::time::Instant::now(),
-                            ) && sent < max;
+                            );
                             last_err = Some(status);
-                            send_now
                         }
                     }
                 }
-                () = sleep_until_or_pending(hedge_at),
-                    if hedge_at.is_some() && sent < max && !stop_sending =>
-                {
-                    hedge_at = None;
-                    true
-                }
-            };
-            if send_now {
-                // Complete this response's immediate dispatch before processing
-                // another response, but let cancellation or deadline win while
-                // the throttling decision waits for its lock.
-                let allowed = tokio::select! {
-                    biased;
-                    () = cancel_fired(req.cancel_rx.clone()) => {
-                        abort_hedges(&handles);
-                        req.call_guard.cancel(CancellationReason::CallerCancelled);
-                        let status = Status::cancelled();
-                        req.call_guard.finish(&status);
-                        self.note_call_outcome(false).await;
-                        self.local.retry_stats.record_committed(false);
-                        return Err(status);
+                HedgeEvent::Timer => schedule.timer_elapsed(),
+                HedgeEvent::Permission(allowed) => {
+                    if allowed {
+                        sent += 1;
+                        self.local.retry_stats.record_hedged_send();
+                        spawn_hedge_attempt(&mut handles, self.clone(), &req, sent);
+                        outstanding += 1;
+                        schedule.sent(
+                            max.saturating_sub(sent),
+                            req.policy.hedging_delay,
+                            tokio::time::Instant::now(),
+                        );
+                    } else {
+                        self.local.retry_stats.record_throttled();
+                        schedule.stop();
                     }
-                    () = sleep_until_or_pending(req.deadline) => {
-                        abort_hedges(&handles);
-                        req.call_guard.cancel(CancellationReason::DeadlineExceeded);
-                        let status = Status::deadline_exceeded();
-                        req.call_guard.finish(&status);
-                        self.note_call_outcome(false).await;
-                        self.local.retry_stats.record_committed(false);
-                        return Err(status);
-                    }
-                    allowed = self.retry_allowed() => allowed,
-                };
-                if allowed {
-                    sent += 1;
-                    self.local.retry_stats.record_hedged_send();
-                    handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
-                    outstanding += 1;
-                    hedge_at = req
-                        .policy
-                        .hedging_delay
-                        .map(|delay| tokio::time::Instant::now() + delay);
-                } else {
-                    self.local.retry_stats.record_throttled();
-                    stop_sending = true;
                 }
             }
-            if outstanding == 0 && (stop_sending || sent >= max) {
+            if outstanding == 0 && (schedule.stopped || sent >= max) {
                 let status = last_err
                     .take()
                     .unwrap_or_else(|| Status::unknown("hedging ended without an outcome"));
@@ -742,59 +811,472 @@ impl super::Channel {
 
 #[cfg(test)]
 mod hedge_schedule_tests {
-    use super::schedule_nonfatal_hedge;
+    #![allow(clippy::expect_used, clippy::panic, reason = "hedge test assertions")]
+
+    use super::{HedgeEvent, HedgeReadiness, HedgeSchedule, next_hedge_event};
+    use crate::rpc_cancel::RpcCancel;
     use crate::status::Pushback;
     use std::time::Duration;
+    use tokio::sync::{Mutex, mpsc};
 
     #[test]
-    fn queued_nonfatal_responses_each_advance_then_pushback_takes_effect() {
+    fn queued_nonfatal_responses_keep_separate_sends() {
         let now = tokio::time::Instant::now();
-        let mut stopped = false;
-        let mut timer = Some(now + Duration::from_secs(10));
-
-        // The caller dispatches before reading another outcome. Both queued
-        // nonfatal outcomes therefore have an independent immediate action.
-        assert!(schedule_nonfatal_hedge(None, &mut stopped, &mut timer, now));
-        assert_eq!(timer, None);
-        assert!(schedule_nonfatal_hedge(None, &mut stopped, &mut timer, now));
-        assert_eq!(timer, None);
-        assert!(!schedule_nonfatal_hedge(
-            Some(Pushback::Delay(Duration::from_secs(3))),
-            &mut stopped,
-            &mut timer,
-            now,
-        ));
-        assert_eq!(timer, Some(now + Duration::from_secs(3)));
-
-        assert!(!schedule_nonfatal_hedge(
-            Some(Pushback::DoNotRetry),
-            &mut stopped,
-            &mut timer,
-            now,
-        ));
-        assert!(stopped);
-        assert_eq!(timer, None);
-        assert!(!schedule_nonfatal_hedge(
-            None,
-            &mut stopped,
-            &mut timer,
-            now
-        ));
-        assert_eq!(timer, None);
+        let mut schedule = HedgeSchedule::new(5, Some(Duration::from_secs(10)), now);
+        schedule.nonfatal(None, 2, now);
+        schedule.nonfatal(None, 2, now);
+        schedule.nonfatal(None, 2, now);
+        assert_eq!(schedule.pending, 2);
+        assert_eq!(schedule.at, None);
+        schedule.sent(1, Some(Duration::from_secs(10)), now);
+        assert_eq!(schedule.pending, 1);
+        assert_eq!(schedule.at, None);
+        schedule.sent(0, Some(Duration::from_secs(10)), now);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, None);
     }
 
     #[test]
-    fn zero_pushback_advances_immediately() {
+    fn delay_replaces_pending_and_refusal_stays_sticky() {
         let now = tokio::time::Instant::now();
-        let mut stopped = false;
-        let mut timer = Some(now + Duration::from_secs(10));
-        assert!(schedule_nonfatal_hedge(
-            Some(Pushback::Delay(Duration::ZERO)),
-            &mut stopped,
-            &mut timer,
-            now,
-        ));
-        assert_eq!(timer, None);
-        assert!(!stopped);
+        let mut schedule = HedgeSchedule::new(5, Some(Duration::from_secs(10)), now);
+        schedule.nonfatal(None, 3, now);
+        schedule.nonfatal(None, 3, now);
+        assert_eq!(schedule.pending, 2);
+        schedule.nonfatal(Some(Pushback::Delay(Duration::from_secs(3))), 3, now);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, Some(now + Duration::from_secs(3)));
+        schedule.nonfatal(Some(Pushback::DoNotRetry), 3, now);
+        assert!(schedule.stopped);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, None);
+        schedule.nonfatal(None, 3, now);
+        assert!(schedule.stopped);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, None);
+    }
+
+    #[test]
+    fn delayed_pushback_replaces_pending_then_restores_normal_delay() {
+        let now = tokio::time::Instant::now();
+        let mut schedule = HedgeSchedule::new(5, Some(Duration::from_secs(10)), now);
+        schedule.nonfatal(None, 3, now);
+        schedule.nonfatal(None, 3, now);
+        assert_eq!(schedule.pending, 2);
+        schedule.nonfatal(Some(Pushback::Delay(Duration::from_secs(3))), 3, now);
+        assert_eq!(schedule.pending, 0, "pushback must replace pending sends");
+        assert_eq!(schedule.at, Some(now + Duration::from_secs(3)));
+        schedule.timer_elapsed();
+        assert_eq!(schedule.pending, 1);
+        schedule.sent(
+            2,
+            Some(Duration::from_secs(10)),
+            now + Duration::from_secs(3),
+        );
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, Some(now + Duration::from_secs(13)));
+    }
+
+    #[test]
+    fn zero_pushback_and_unset_delay_resume_immediately() {
+        let now = tokio::time::Instant::now();
+        let mut schedule = HedgeSchedule::new(5, None, now);
+        assert_eq!(schedule.pending, 4);
+        schedule.nonfatal(Some(Pushback::Delay(Duration::ZERO)), 4, now);
+        assert_eq!(schedule.pending, 1);
+        schedule.sent(3, None, now);
+        assert_eq!(schedule.pending, 3);
+        assert_eq!(schedule.at, None);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn held_throttle_does_not_hide_a_completed_outcome() {
+        let gate = Mutex::new(());
+        let held = gate.lock().await;
+        let (tx, mut rx) = mpsc::channel::<u8>(2);
+        let permit = async {
+            let _held = gate.lock().await;
+            true
+        };
+        let cancel = RpcCancel::new();
+        let wait = next_hedge_event(
+            cancel,
+            None,
+            None,
+            rx.recv(),
+            HedgeReadiness {
+                attempts: true,
+                pending: true,
+                timer: false,
+            },
+            permit,
+        );
+        tokio::pin!(wait);
+        assert!(
+            tokio::time::timeout(Duration::from_secs(1), &mut wait)
+                .await
+                .is_err()
+        );
+        tx.send(7).await.expect("queue outcome");
+        let event = tokio::time::timeout(Duration::from_secs(1), &mut wait)
+            .await
+            .expect("outcome must interrupt the held throttle");
+        assert!(matches!(event, HedgeEvent::Outcome(Some(7))));
+        drop(held);
+    }
+
+    #[tokio::test]
+    async fn queued_outcome_precedes_a_ready_throttle() {
+        let gate = Mutex::new(());
+        let held = gate.lock().await;
+        let (tx, mut rx) = mpsc::channel::<u8>(2);
+        tx.send(7).await.expect("queue outcome");
+        drop(held);
+        let permit = async {
+            let _held = gate.lock().await;
+            true
+        };
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            None,
+            None,
+            rx.recv(),
+            HedgeReadiness {
+                attempts: true,
+                pending: true,
+                timer: false,
+            },
+            permit,
+        )
+        .await;
+        assert!(
+            matches!(event, HedgeEvent::Outcome(Some(7))),
+            "queued outcome must precede ready permission"
+        );
+    }
+
+    #[tokio::test]
+    async fn held_throttle_processes_refusal_before_dispatch() {
+        let now = tokio::time::Instant::now();
+        let gate = Mutex::new(());
+        let held = gate.lock().await;
+        let (tx, mut rx) = mpsc::channel(2);
+        let mut schedule = HedgeSchedule::new(3, Some(Duration::from_secs(10)), now);
+        schedule.nonfatal(None, 1, now);
+        assert_eq!(schedule.pending, 1);
+        tx.send(Pushback::DoNotRetry).await.expect("queue refusal");
+        let permit = async {
+            let _held = gate.lock().await;
+            true
+        };
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            None,
+            None,
+            rx.recv(),
+            HedgeReadiness {
+                attempts: true,
+                pending: true,
+                timer: false,
+            },
+            permit,
+        )
+        .await;
+        let HedgeEvent::Outcome(Some(pushback)) = event else {
+            panic!("refusal must precede a blocked send");
+        };
+        schedule.nonfatal(Some(pushback), 1, now);
+        assert!(schedule.stopped);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, None);
+        drop(held);
+    }
+
+    #[tokio::test]
+    async fn held_throttle_processes_delay_before_dispatch() {
+        let now = tokio::time::Instant::now();
+        let gate = Mutex::new(());
+        let held = gate.lock().await;
+        let (tx, mut rx) = mpsc::channel(2);
+        let mut schedule = HedgeSchedule::new(4, Some(Duration::from_secs(10)), now);
+        schedule.nonfatal(None, 2, now);
+        schedule.nonfatal(None, 2, now);
+        assert_eq!(schedule.pending, 2);
+        tx.send(Pushback::Delay(Duration::from_secs(3)))
+            .await
+            .expect("queue delay");
+        let permit = async {
+            let _held = gate.lock().await;
+            true
+        };
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            None,
+            None,
+            rx.recv(),
+            HedgeReadiness {
+                attempts: true,
+                pending: true,
+                timer: false,
+            },
+            permit,
+        )
+        .await;
+        let HedgeEvent::Outcome(Some(pushback)) = event else {
+            panic!("delay must precede a blocked send");
+        };
+        schedule.nonfatal(Some(pushback), 2, now);
+        assert_eq!(schedule.pending, 0);
+        assert_eq!(schedule.at, Some(now + Duration::from_secs(3)));
+        drop(held);
+    }
+
+    #[tokio::test]
+    async fn held_throttle_keeps_multiple_nonfatal_sends_separate() {
+        let now = tokio::time::Instant::now();
+        let gate = Mutex::new(());
+        let held = gate.lock().await;
+        let (tx, mut rx) = mpsc::channel::<()>(2);
+        let mut schedule = HedgeSchedule::new(5, Some(Duration::from_secs(10)), now);
+        tx.send(()).await.expect("first outcome");
+        tx.send(()).await.expect("second outcome");
+        for _ in 0..2 {
+            let permit = async {
+                let _held = gate.lock().await;
+                true
+            };
+            let event = next_hedge_event(
+                RpcCancel::new(),
+                None,
+                None,
+                rx.recv(),
+                HedgeReadiness {
+                    attempts: true,
+                    pending: true,
+                    timer: false,
+                },
+                permit,
+            )
+            .await;
+            assert!(matches!(event, HedgeEvent::Outcome(Some(()))));
+            schedule.nonfatal(None, 2, now);
+        }
+        assert_eq!(schedule.pending, 2);
+        drop(held);
+        for remaining in [1, 0] {
+            let permit = async {
+                let _held = gate.lock().await;
+                true
+            };
+            let event = next_hedge_event(
+                RpcCancel::new(),
+                None,
+                None,
+                rx.recv(),
+                HedgeReadiness {
+                    attempts: true,
+                    pending: true,
+                    timer: false,
+                },
+                permit,
+            )
+            .await;
+            assert!(matches!(event, HedgeEvent::Permission(true)));
+            schedule.sent(remaining, Some(Duration::from_secs(10)), now);
+        }
+        assert_eq!(schedule.pending, 0);
+    }
+
+    #[tokio::test]
+    async fn cancellation_and_deadline_precede_a_held_throttle() {
+        for cancelled in [true, false] {
+            let gate = Mutex::new(());
+            let held = gate.lock().await;
+            let (_tx, mut rx) = mpsc::channel::<u8>(1);
+            let cancel = RpcCancel::new();
+            if cancelled {
+                cancel.signal();
+            }
+            let deadline = (!cancelled).then(tokio::time::Instant::now);
+            let permit = async {
+                let _held = gate.lock().await;
+                true
+            };
+            let event = next_hedge_event(
+                cancel,
+                deadline,
+                None,
+                rx.recv(),
+                HedgeReadiness {
+                    attempts: true,
+                    pending: true,
+                    timer: false,
+                },
+                permit,
+            )
+            .await;
+            assert!(if cancelled {
+                matches!(event, HedgeEvent::Cancelled)
+            } else {
+                matches!(event, HedgeEvent::Deadline)
+            });
+            drop(held);
+        }
+    }
+}
+
+#[cfg(test)]
+mod hedge_stream_accounting_tests {
+    use super::HedgeStreamAccounting;
+    use crate::channelz::{Registry, SocketParent, SocketSecurity};
+
+    #[test]
+    fn failed_stream_then_success_counts_each_stream_once() {
+        let registry = Registry::global_shared();
+        let channel = registry.register_channel("hedge accounting test", "hedge accounting");
+        let socket = registry.register_socket(
+            SocketParent::Channel(channel.id()),
+            None,
+            None,
+            None,
+            SocketSecurity::None,
+            false,
+        );
+        let entry = registry.socket(socket.id()).expect("registered socket");
+        {
+            let mut first = HedgeStreamAccounting::start(Some(socket.id()));
+            first.finish(false);
+        }
+        {
+            let mut second = HedgeStreamAccounting::start(Some(socket.id()));
+            second.finish(true);
+        }
+        assert_eq!(entry.streams_started(), 2);
+        assert_eq!(entry.streams_failed(), 1);
+        assert_eq!(entry.streams_succeeded(), 1);
+        assert_eq!(entry.messages_sent(), 1);
+        assert_eq!(entry.messages_received(), 1);
+    }
+}
+
+#[cfg(test)]
+mod hedge_panic_priority_tests {
+    #![allow(clippy::expect_used, clippy::panic, reason = "hedge priority tests")]
+
+    use super::{HedgeEvent, HedgeReadiness, next_hedge_event};
+    use crate::rpc_cancel::RpcCancel;
+    use std::time::Duration;
+    use tokio::task::JoinSet;
+
+    async fn panicked_task() -> JoinSet<()> {
+        let mut tasks = JoinSet::new();
+        let handle = tasks.spawn(async { panic!("completed hedge panic") });
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !handle.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("child task completed");
+        tasks
+    }
+
+    fn ready() -> HedgeReadiness {
+        HedgeReadiness {
+            attempts: true,
+            pending: true,
+            timer: false,
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn ready_cancel_deadline_and_panic_follow_priority() {
+        let mut tasks = panicked_task().await;
+        let cancel = RpcCancel::new();
+        cancel.signal();
+        let event = next_hedge_event(
+            cancel,
+            None,
+            None,
+            tasks.join_next(),
+            ready(),
+            std::future::ready(true),
+        )
+        .await;
+        assert!(
+            matches!(event, HedgeEvent::Cancelled),
+            "ready cancellation must beat child panic"
+        );
+
+        let mut tasks = panicked_task().await;
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            Some(tokio::time::Instant::now() - Duration::from_secs(1)),
+            None,
+            tasks.join_next(),
+            ready(),
+            std::future::ready(true),
+        )
+        .await;
+        assert!(
+            matches!(event, HedgeEvent::Deadline),
+            "ready deadline must beat child panic"
+        );
+
+        let mut tasks = panicked_task().await;
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            None,
+            None,
+            tasks.join_next(),
+            ready(),
+            std::future::ready(true),
+        )
+        .await;
+        assert!(
+            matches!(event, HedgeEvent::Outcome(Some(Err(error))) if error.is_panic()),
+            "ready child panic must beat throttle permission"
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn selected_success_aborts_a_later_panicking_attempt() {
+        let mut tasks = JoinSet::<u8>::new();
+        let (release, wait) = tokio::sync::oneshot::channel::<()>();
+        let pending = tasks.spawn(async move {
+            let _released = wait.await.is_ok();
+            panic!("the later attempt must be aborted");
+        });
+        let winner = tasks.spawn(async { 7_u8 });
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !winner.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("winner finished");
+        let event = next_hedge_event(
+            RpcCancel::new(),
+            None,
+            None,
+            tasks.join_next(),
+            HedgeReadiness {
+                attempts: true,
+                pending: false,
+                timer: false,
+            },
+            std::future::ready(true),
+        )
+        .await;
+        assert!(matches!(event, HedgeEvent::Outcome(Some(Ok(7)))));
+        drop(tasks);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !pending.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("losing attempt aborted");
+        assert!(release.send(()).is_err(), "losing future was dropped");
     }
 }

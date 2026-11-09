@@ -157,9 +157,10 @@ one initial attempt plus two retries.
   (`exhausted`) from fail-fast on a non-retryable code.
 - A transparent redial inside an attempt does not consume a policy attempt.
 - Cancellation (`CallHandle::cancel`) and overall-deadline expiry interrupt
-  backoff and pushback waits. For unset-delay hedging, the initial eager
-  fanout checks throttling before entering the event loop; cancellation or
-  deadline expiry can wait for that check.
+  retry backoff and pushback waits. Hedged sends waiting on throttling poll
+  cancellation and the deadline before admission; a signal arriving after
+  that poll can race the send. Final call accounting can still wait for the
+  throttling mutex.
 
 ### 6.2 Deadline budget (RT-03)
 
@@ -265,7 +266,7 @@ parsed gRPC status block:
 
 | Field value | Meaning |
 |---|---|
-| Negative integer, unparseable or non-ASCII value, value outside the signed 32-bit range, or repeated field values in that block | `DoNotRetry`: once processed, no new policy retry or hedge is started. A hedge already waiting on throttling can be started before queued pushback is processed. The sequential retry path can record `pushback_refusals`; already-started hedges may continue, including transparent redials under the existing limits. |
+| Negative integer, unparseable or non-ASCII value, value outside the signed 32-bit range, or repeated field values in that block | `DoNotRetry`: once processed, no new policy retry or hedge is started. An outcome ready when the coordinator polls takes priority over a waiting send; an outcome becoming ready afterward can still race admission. The sequential retry path can record `pushback_refusals`; already-started hedges may continue, including transparent redials under the existing limits. |
 | Non-negative signed 32-bit integer `ms` | With `retryPolicy`, the next retry waits this long instead of the computed jittered backoff and a dispatched retry records `pushback_delays`. With `hedgingPolicy`, the next unsent hedge waits this long; a later outcome from an in-flight attempt may replace the schedule. Subsequent hedge sends use `hedgingDelay`. |
 
 The pbrs-grpc server emits decimal values without redundant leading zeros.

@@ -61,7 +61,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Non-fatal responses advance the next unsent attempt, subject to pushback and throttling. Ordinary response headers do not stop competing attempts; a completed outcome queued during a throttle check can be processed after a new send. Streaming hedging is not supported. |
+| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Non-fatal responses advance the next unsent attempt, subject to pushback and throttling. Ordinary response headers do not stop competing attempts; an outcome becoming ready after the coordinator polls can still race a new send. Streaming hedging is not supported. |
 | A44 | xDS retry | planned | With the xDS client (route-level retry policy). |
 | A45 | Retry stats | planned | Per-call retry attempt counters. |
 | A96 | Retry OTel stats | planned | With OTel metrics. |

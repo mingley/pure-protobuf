@@ -308,6 +308,12 @@ impl RetryThrottler {
         *self.tokens.lock().await > self.max_tokens / 2.0
     }
 
+    /// Hold the token mutex for deterministic internal contention tests.
+    #[cfg(test)]
+    pub(crate) async fn hold_tokens_for_test(&self) -> tokio::sync::MutexGuard<'_, f64> {
+        self.tokens.lock().await
+    }
+
     /// Current token balance, for tests and telemetry.
     pub async fn tokens(&self) -> f64 {
         *self.tokens.lock().await

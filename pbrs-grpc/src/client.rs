@@ -3,6 +3,8 @@
 pub(crate) mod call;
 pub(crate) mod channel;
 pub(crate) mod config_glue;
+#[cfg(test)]
+mod hedge_contention_tests;
 pub(crate) mod pool;
 pub(crate) mod retry;
 pub(crate) mod streaming;

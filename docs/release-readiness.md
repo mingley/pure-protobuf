@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`4037304c`](https://github.com/mingley/pure-protobuf/commit/4037304c7730588e0e3c12a25ee77a4f7c84c0a1):
+These versions are declared at [`001d0b8b`](https://github.com/mingley/pure-protobuf/commit/001d0b8bc9e89a098047695c3ba73401ba330ea3):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -82,9 +82,9 @@ gates in the checklist remain in effect.
 ## Retry and binary-log claims
 
 Opt-in native unary hedging does not yet enforce A6 commitment when ordinary
-response headers arrive: another attempt can continue or win. An outcome,
-including pushback, queued while a send waits on throttling can be processed
-after that send. The receiver accepts
+response headers arrive: another attempt can continue or win. An outcome
+becoming ready after the coordinator polls can still race a new send. The
+receiver accepts
 redundant leading zeros; the pbrs-grpc server emits canonical decimal values.
 Client binary logs can include uncommitted retry or hedge attempts, omit an
 early rejection trailer, or report a peer `CANCELLED` status as a client

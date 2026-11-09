@@ -62,12 +62,13 @@ method entry, then apply the configured policy:
   immediately. Non-negative pushback schedules the next send after that delay;
   a later in-flight response can replace the schedule. Once processed,
   `DoNotRetry` stops new policy hedges; already-started attempts can complete
-  or transparently redial under the existing limits. Cancellation and the
-  overall deadline interrupt the wait. If another outcome, including
-  pushback, is queued while a send waits for the throttling check, the new
-  hedge can be sent before that outcome is processed. With an unset hedge delay, initial fanout checks
-  throttling before the event loop; cancellation and deadline expiry can wait
-  for that check.
+  or transparently redial under the existing limits. The coordinator polls
+  cancellation and the overall deadline before admitting a pending hedge.
+  While a send waits for throttling, it also listens for completed outcomes.
+  An outcome ready when polled takes priority over admission; an outcome or
+  cancellation becoming ready after its poll can still race a send admitted
+  in the same turn. Final call accounting can wait for the throttling mutex
+  before returning.
 - `retryThrottling` debits every failed unary call and credits every success.
   Retries and hedged sends past the first need more than half the bucket.
 - Transparent retry runs first, is at most once per attempt, requires proof
@@ -95,6 +96,15 @@ Every policy outcome (unary attempts, hedging sends, and streaming calls)
 records into channel-scoped lock-free `RetryStats` counters. They are exported
 through `Channel::retry_stats` for GF-01/A96 channelz and OpenTelemetry (OTel)
 export.
+
+When the coordinator selects a panicking hedged attempt before cancellation,
+the deadline, or another terminal outcome, it propagates that panic to the call
+future. Dropping a pending call aborts its remaining attempt tasks.
+
+For a registered socket, hedged attempts record a channelz stream end on
+completion, cancellation, or panic. If the socket unregisters before terminal
+accounting runs on another thread, the lookup may miss it; that teardown race
+needs further testing.
 
 Streaming throttling accounting is approximate. Credit and debit tap the
 headers read because the receipt of an `OK` status is read through the

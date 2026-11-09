@@ -5,9 +5,9 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`4037304c`](https://github.com/mingley/pure-protobuf/commit/4037304c7730588e0e3c12a25ee77a4f7c84c0a1), all 12 required
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42699573962)
-and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42699573955)
+At source [`001d0b8b`](https://github.com/mingley/pure-protobuf/commit/001d0b8bc9e89a098047695c3ba73401ba330ea3), all 12 required
+[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42712834480)
+and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42712834747)
 passed. The optional fuzz and sanitizer jobs were skipped. All six
 [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42675951169)
 passed at the earlier source `6024ac88`. These checks cover their named source
@@ -74,17 +74,18 @@ See the [parity summary](parity.md) and
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
 check the registry before treating them as published. The
-[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42705533856)
-at `4037304c` used that revision's successful CI, packaged all three crates,
-and produced a CycloneDX SBOM and
-[provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65542200).
-Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42705533856/artifacts/13713617511)
-has SHA-256 `647fff29052a40473432274f6878a3886f87ac103d8987a2f1a7f30fa4806877`
+[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42718098243)
+at `001d0b8b` used that revision's successful CI in dry-run mode, packaged all
+three crates, and produced a CycloneDX SBOM and a
+[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65571095).
+Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42718098243/artifacts/13719007800)
+has SHA-256 `5fda6b966238654c4d7ef8bb1a9d497bdede6608932aa5f6935156684e52bff5`
 and expires February 7, 2027. The rehearsal did not authenticate to crates.io
 or upload the crates. An eventual release needs the same checks on its final
 source revision.
 
 Earlier rehearsals are available for
+[4037304c](https://github.com/mingley/pure-protobuf/actions/runs/42705533856),
 [4a2d8e26](https://github.com/mingley/pure-protobuf/actions/runs/42694074846),
 [6024ac88](https://github.com/mingley/pure-protobuf/actions/runs/42682463666),
 [1472791](https://github.com/mingley/pure-protobuf/actions/runs/42530248925),
@@ -323,7 +324,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Load balancing**: resolver-managed channels default to `pick_first`. `loadBalancingConfig` can select `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, or `outlier_detection`. These are source- and test-covered, not production-qualified traffic management.
 - **Transparent retry**: Each attempt retries transparently at most once with proof of non-execution and before response commitment; see the [retry contract](retry-contract.md).
 - **Service-config retry**: `Channel::service_config` and resolver service config support `retryPolicy` with backoff, throttling, per-attempt receive timeout, pushback, and retry stats. Unary and server-streaming calls retry before response commitment; client-streaming and bidirectional calls keep only transparent setup redial.
-- **Hedging**: Unary `hedgingPolicy` is opt-in and bounded by `maxAttempts`. Another hedge can continue or win after ordinary response headers, and a completed outcome can race with a send waiting on throttling. See the [retry contract](retry-contract.md). Streaming hedging is not supported.
+- **Hedging**: Unary `hedgingPolicy` is opt-in and bounded by `maxAttempts`. Another hedge can continue or win after ordinary response headers, and an outcome becoming ready after the coordinator polls can still race a new send. See the [retry contract](retry-contract.md). Streaming hedging is not supported.
 - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT, including TLS end-to-end through the tunnel. There is no per-channel proxy option.
 - **xDS**: xDS target URIs and the xDS control plane are not implemented.
 
