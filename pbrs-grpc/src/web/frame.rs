@@ -22,7 +22,7 @@ use base64::engine::{
     DecodePaddingMode,
     general_purpose::{GeneralPurpose, GeneralPurposeConfig},
 };
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
 
 const APPLICATION_GRPC_WEB: HeaderValue = HeaderValue::from_static("application/grpc-web");
@@ -534,6 +534,9 @@ pub(crate) async fn send_trailers(
 }
 
 /// Decode a unary grpc-web-text request body and parse its single message.
+///
+/// Decode bounded batches as DATA arrives, so the gRPC frame length is checked
+/// before the complete HTTP body is buffered or the peer half-closes.
 pub(crate) async fn read_one_text_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
@@ -541,32 +544,122 @@ pub(crate) async fn read_one_text_message<T: CodecMessage>(
     codec: Option<CompressionAlgorithm>,
     tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
-    let mut encoded = BytesMut::new();
-    while let Some(chunk) = next_data(recv).await? {
-        let n = chunk.len();
-        encoded.extend_from_slice(&chunk);
-        release(recv, n)?;
-    }
-    let decoded = TEXT_BASE64
-        .decode(&encoded)
-        .map_err(|e| Status::invalid_argument(format!("grpc-web-text base64: {e}")))?;
+    // A DATA frame can be much larger than the configured message cap. Decode
+    // in bounded pieces, keeping at most one incomplete base64 quantum.
+    const ENCODED_BATCH: usize = 4096;
+    let mut encoded = Vec::new();
     let mut reader = FrameReader::new(limits);
-    reader.push(Bytes::from(decoded));
     let mut found = None;
-    while let Some(frame) = reader.next_frame()? {
-        if found.is_some() {
-            return Err(Status::internal("unary rpc received more than one message"));
+    let mut padded = false;
+    while let Some(mut chunk) = next_data(recv).await? {
+        let n = chunk.len();
+        release(recv, n)?;
+        while !chunk.is_empty() {
+            if padded {
+                return Err(Status::invalid_argument(
+                    "grpc-web-text base64: data after padding",
+                ));
+            }
+            let take = (ENCODED_BATCH - encoded.len()).min(chunk.len());
+            let (part, _) = chunk.split_at(take);
+            encoded.extend_from_slice(part);
+            chunk.advance(take);
+
+            let complete = encoded.len() / 4 * 4;
+            if complete == 0 {
+                continue;
+            }
+            let (part, tail) = encoded.split_at(complete);
+            padded = part.contains(&b'=');
+            if padded && (!tail.is_empty() || !chunk.is_empty()) {
+                return Err(Status::invalid_argument(
+                    "grpc-web-text base64: data after padding",
+                ));
+            }
+            read_text_part::<T>(
+                part,
+                &mut reader,
+                &mut found,
+                limits,
+                accept_gzip,
+                codec,
+                tap,
+            )?;
+            let remaining = encoded.len() - complete;
+            encoded.copy_within(complete.., 0);
+            encoded.truncate(remaining);
         }
-        if let Some(tap) = tap {
-            tap.log_read(&frame.payload);
-        }
-        found = Some(decode_frame(frame, limits, accept_gzip, codec)?);
     }
+    if !encoded.is_empty() {
+        read_text_part::<T>(
+            &encoded,
+            &mut reader,
+            &mut found,
+            limits,
+            accept_gzip,
+            codec,
+            tap,
+        )?;
+    }
+    // As before, decode the first protobuf message before reporting a
+    // truncated following frame. Decoding also applies the inflated-size cap.
+    let found = found
+        .map(|frame| decode_text_message::<T>(frame, limits, accept_gzip, codec, tap))
+        .transpose()?;
     reader.finish()?;
     if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
         tap.log_half_close();
     }
     found.ok_or_else(|| Status::internal("Missing request message."))
+}
+
+/// Decode one complete group of base64 quanta, or the final unpadded suffix.
+fn read_text_part<T: CodecMessage>(
+    encoded: &[u8],
+    reader: &mut FrameReader,
+    found: &mut Option<crate::codec::Frame>,
+    limits: MessageLimits,
+    accept_gzip: bool,
+    codec: Option<CompressionAlgorithm>,
+    tap: Option<&CallLogger>,
+) -> Result<(), Status> {
+    let decoded = TEXT_BASE64
+        .decode(encoded)
+        .map_err(|e| Status::invalid_argument(format!("grpc-web-text base64: {e}")))?;
+    reader.push(Bytes::from(decoded));
+    loop {
+        match reader.next_frame() {
+            Ok(Some(frame)) => {
+                if let Some(first) = found.take() {
+                    // The original reader decodes the first message before
+                    // returning a duplicate-message error.
+                    decode_text_message::<T>(first, limits, accept_gzip, codec, tap)?;
+                    return Err(Status::internal("unary rpc received more than one message"));
+                }
+                *found = Some(frame);
+            }
+            Ok(None) => return Ok(()),
+            Err(status) => {
+                if let Some(first) = found.take() {
+                    decode_text_message::<T>(first, limits, accept_gzip, codec, tap)?;
+                }
+                return Err(status);
+            }
+        }
+    }
+}
+
+fn decode_text_message<T: CodecMessage>(
+    frame: crate::codec::Frame,
+    limits: MessageLimits,
+    accept_gzip: bool,
+    codec: Option<CompressionAlgorithm>,
+    tap: Option<&CallLogger>,
+) -> Result<Framed<T>, Status> {
+    if let Some(tap) = tap {
+        tap.log_read(&frame.payload);
+    }
+    decode_frame(frame, limits, accept_gzip, codec)
 }
 
 fn trailer_frame(status: &Status) -> Result<Bytes, Status> {
