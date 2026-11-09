@@ -391,7 +391,7 @@ See the [code generation guide](guides/codegen.md) and [migration guide](guides/
 
 `pbrs-grpc` keeps retry behavior explicit and bounded.
 
-- **Transparent retry**: The sequential path retries at most once and requires proof that the server did not process the request. Hedged attempts do not reliably retain response commitment when deciding a transparent redial.
+- **Transparent retry**: Each attempt retries at most once and requires proof that the server did not process the request. A hedged attempt does not transparently redial after its response headers commit.
 - **Service-config retries**: attach an A6 document with `Channel::service_config` for `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. Unary and server-streaming calls use the policy before response commitment. Unary calls also accept bounded `hedgingPolicy`, but an opt-in hedge can continue or win after another attempt receives ordinary response headers. Hedging also ignores non-negative pushback delays and may leave a scheduled hedge waiting after a non-fatal response while another attempt is in flight.
 - **No policy fallback**: without a policy, application retries stay at the call site and should be evaluated with `Code::is_retryable`.
 - **In-process bypass**: in-process connections (`from_io`) have no transparent retry.

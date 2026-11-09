@@ -1,11 +1,9 @@
 # gRPC Retry Safety & Commitment Boundaries Contract
 
-Sequential transparent retry requires proof that the server application never
-processed the request. Once an attempt enters `BodyStarted`, an ambiguous
-connection failure cannot be retried transparently. Hedged attempts do not
-always retain response commitment when deciding a redial; their limitations are
-described below. An explicit service-config policy may allow re-execution; the
-application must make that safe.
+Transparent retry requires proof that the server application never processed
+the request. Once an attempt enters `BodyStarted`, an ambiguous connection
+failure cannot be retried transparently. An explicit service-config policy
+may allow re-execution; the application must make that safe.
 
 This contract defines the implementation states and evidence needed to enforce
 that distinction. For application setup, start with the
@@ -28,8 +26,7 @@ gRPC has two retry mechanisms:
    `UNAVAILABLE`.
 2. **Transparent retries:** automatic transport-kernel retries that need no
    user configuration. They are permitted **only when the client can prove that
-   server application logic never saw or processed the request**. The current
-   hedged-redial limitation is described below.
+   server application logic never saw or processed the request**.
 
 The central hazard is **ambiguous connection loss**. If an HTTP/2 connection
 or TCP socket drops after request bytes were sent, no response does **not**
@@ -67,11 +64,11 @@ method entry, then apply the configured policy:
   `DoNotRetry` pushback stops further hedge sends.
 - `retryThrottling` debits every failed unary call and credits every success.
   Retries and hedged sends past the first need more than half the bucket.
-- In the sequential path, transparent retry runs first, is at most once,
-  requires proof of non-execution before response commitment, and does not
-  consume a policy attempt. Hedged attempts do not reliably preserve response
-  commitment when deciding a transparent redial; that path may redial after
-  response headers.
+- Transparent retry runs first, is at most once per attempt, requires proof
+  of non-execution before response commitment, and does not consume a policy
+  attempt. Each hedged attempt retains its own response commitment when
+  deciding whether to redial; ordinary headers still do not commit the entire
+  hedge race as described above.
 
 Policy retry replays the already encoded request frame. It does not
 re-serialize the request, and it does not exceed the method's caps.

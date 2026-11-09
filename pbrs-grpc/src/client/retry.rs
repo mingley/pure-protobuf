@@ -1,7 +1,7 @@
 //! Policy retry and hedging execution.
 
 use super::Channel;
-use super::unary::run_unary;
+use super::unary::{UnaryFailure, run_unary_frame};
 use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::request::Response;
@@ -409,7 +409,7 @@ where
                 crate::channelz::Registry::global().note_stream_started(socket, true);
             }
             let routing = channel.local.for_attempt(route.authority());
-            match run_unary(
+            match run_unary_frame(
                 live.send,
                 &routing,
                 path,
@@ -423,13 +423,16 @@ where
                 ua.clone(),
                 byte_permit,
                 tap.as_ref(),
+                None,
             )
             .await
             {
-                Err(status)
-                    if !redialed
-                        && status.is_transparent_retryable()
-                        && channel.inner.endpoint.can_redial() =>
+                Err(UnaryFailure {
+                    status,
+                    response_committed: false,
+                }) if !redialed
+                    && status.is_transparent_retryable()
+                    && channel.inner.endpoint.can_redial() =>
                 {
                     redialed = true;
                     channel.local.retry_stats.record_transparent_retry();
@@ -442,6 +445,7 @@ where
                         .await;
                 }
                 result => {
+                    let result = result.map_err(|failure| failure.status);
                     // Channelz: the hedged attempt's stream ends here
                     // (completed unaries claim one message each way).
                     if let Some(socket) = live_socket {

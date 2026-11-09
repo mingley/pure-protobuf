@@ -26,11 +26,12 @@ use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
 use std::time::Duration;
 
-// A configured retryable status cannot authorize replay after response
-// headers committed the call. Retain that state through the attempt error.
-struct UnaryFailure {
-    status: Status,
-    response_committed: bool,
+/// A unary failure retains whether response headers committed the attempt.
+pub(crate) struct UnaryFailure {
+    /// Error from the attempt.
+    pub(crate) status: Status,
+    /// Whether the response headers committed this attempt.
+    pub(crate) response_committed: bool,
 }
 
 // The peer rejection helper inspects transport-sourced errors without
@@ -65,42 +66,12 @@ impl UnaryFailure {
     }
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "one transport handle plus request, cancel, limits, and scheme"
-)]
-pub(crate) async fn run_unary<Resp>(
-    send_req: backend::SendRequest,
-    routing: &impl super::channel::RequestRouting,
-    path: &'static str,
-    md: &crate::metadata::Metadata,
-    timeout: Option<Duration>,
-    deadline: Option<tokio::time::Instant>,
-    compress: bool,
-    frame: SegFrame,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
-    wire: Wire,
-    user_agent: HeaderValue,
-    permit: BytePermit,
-    tap: Option<&CallLogger>,
-) -> Result<Response<Resp>, Status>
-where
-    Resp: CodecMessage + Send,
-{
-    run_unary_frame(
-        send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, permit, tap, None,
-    )
-    .await
-    .map_err(|failure| failure.status)
-}
-
-/// [`run_unary`] with private commitment information for retry decisions.
+/// Run a unary attempt, retaining commitment information for retry decisions.
 #[allow(
     clippy::too_many_arguments,
     reason = "thin cancel-logging wrapper over run_unary_inner"
 )]
-async fn run_unary_frame<Resp>(
+pub(crate) async fn run_unary_frame<Resp>(
     send_req: backend::SendRequest,
     routing: &impl super::channel::RequestRouting,
     path: &'static str,
