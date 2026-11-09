@@ -690,8 +690,10 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
             tap.log_trailer(status.metadata(), &status);
         }
         super::deadline::before_commit(call).await;
-        send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
-        return status;
+        return match send.send_trailers(crate::wire::bare_ok_trailer_map()) {
+            Ok(()) => status,
+            Err(error) => Status::from_h2_send(error),
+        };
     }
     if status.is_ok() {
         *status.metadata_mut() = ok_trailers;
@@ -700,10 +702,14 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
         tap.log_trailer(status.metadata(), &status);
     }
     super::deadline::before_commit(call).await;
-    if let Ok(map) = grpc_trailers(&status) {
-        send.send_trailers(map).ok();
+    let map = match grpc_trailers(&status) {
+        Ok(map) => map,
+        Err(error) => return error,
+    };
+    match send.send_trailers(map) {
+        Ok(()) => status,
+        Err(error) => Status::from_h2_send(error),
     }
-    status
 }
 
 #[cfg(feature = "grpc-web")]
@@ -811,13 +817,14 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     }
     super::deadline::before_commit(call).await;
     call.deadline.web_frame_started();
-    if crate::web::send_trailers(&mut send, web.mode, &mut text, &status, wire.send_buffer)
-        .await
-        .is_ok()
+    match crate::web::send_trailers(&mut send, web.mode, &mut text, &status, wire.send_buffer).await
     {
-        call.deadline.web_frame_finished();
+        Ok(()) => {
+            call.deadline.web_frame_finished();
+            status
+        }
+        Err(error) => error,
     }
-    status
 }
 
 #[cfg(feature = "grpc-web")]
@@ -1403,3 +1410,7 @@ mod sv09_cancel_tests;
 #[cfg(test)]
 #[path = "sv09_timeout_tests.rs"]
 mod sv09_timeout_tests;
+
+#[cfg(test)]
+#[path = "terminal_send_tests.rs"]
+mod terminal_send_tests;

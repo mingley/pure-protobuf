@@ -176,7 +176,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Native gRPC-Web integration tests
-        run: cargo test --locked -p pbrs-grpc --features grpc-web --lib --test grpc_web --test server_deadline_extended
+        run: cargo test --locked -p pbrs-grpc --features grpc-web --lib --test grpc_web --test server_deadline_extended --test web_terminal_accounting
 
   # Cross-language gRPC interop. The kernel talks to grpc-go's reference
   # client and server in both directions, so a protocol regression fails here
