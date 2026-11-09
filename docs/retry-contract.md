@@ -1,7 +1,7 @@
 # gRPC Retry Safety & Commitment Boundaries Contract
 
 Sequential transparent retry requires proof that the server application never
-processed the request. Once request bytes reach `BodyStarted`, an ambiguous
+processed the request. Once an attempt enters `BodyStarted`, an ambiguous
 connection failure cannot be retried transparently. Hedged attempts do not
 always retain response commitment when deciding a redial; their limitations are
 described below. An explicit service-config policy may allow re-execution; the
@@ -102,23 +102,24 @@ is explicit follow-up work.
 
 ## 2. Call and Attempt Lifecycle State Machine
 
-Each RPC attempt moves through discrete lifecycle states. These state
-boundaries decide whether transparent retry is allowed.
+Sequential unary and server-streaming attempts move through these lifecycle
+states. The hedging limitations above still apply.
 
 ```
        [ Client Initiates RPC ]
                   │
                   ▼
-              (Queued) ───[ Connect error / timeout ]───► [ Transparent Retry Safe ]
+              (Queued) ───[ Connection-attempt failure ]───► [ Transparent retry may be eligible ]
                   │
-                  ▼ (Open connection & send HEADERS)
+                  ▼ (Stream admitted; request HEADERS queued)
             (HeadersSent) ───[ REFUSED_STREAM / GOAWAY last < id ]───► [ Transparent Retry Safe ]
                   │
-                  ▼ (Send request payload DATA)
-            (BodyStarted) ───[ Ambiguous connection loss ]───► [ MUST NOT RETRY (Committed) ]
+                  ▼ (Enter request-body send phase)
+            (BodyStarted) ───[ Ambiguous connection loss ]───► [ No transparent retry ]
+                  │  └──[ Explicit non-processing evidence ]──► [ Transparent retry may be eligible ]
                   │
-                  ▼ (Server sends response HEADERS)
-         (ResponseCommitted) ───[ Stream error / Conn drop ]───► [ MUST NOT RETRY (Committed) ]
+                  ▼ (Client receives ordinary initial response HEADERS)
+         (ResponseCommitted) ───[ Stream error / Conn drop ]───► [ No automatic retry ]
                   │
                   ▼ (Receive DATA & trailers)
           (TrailersReceived) ───► [ Terminal State ]
@@ -130,33 +131,35 @@ boundaries decide whether transparent retry is allowed.
    - The RPC exists and waits for channel readiness, connection establishment,
      Transport Layer Security (TLS) handshake, or stream concurrency limits
      (`SETTINGS_MAX_CONCURRENT_STREAMS`).
-   - *Commitment:* Uncommitted. No bytes have been sent to any remote server
+   - *Commitment:* Uncommitted. No request `HEADERS` or `DATA` have been sent
      for this attempt.
 2. **`HeadersSent`:**
-   - The client has serialized and written the HTTP/2 `HEADERS` frame
+   - The HTTP/2 transport has accepted the request `HEADERS`
      (`:method = POST`, `:path = /<service>/<method>`, `:scheme`,
-     `:authority`, metadata) to the wire.
+     `:authority`, metadata). They may still be queued for transmission.
    - An HTTP/2 stream ID has been allocated.
    - *Commitment:* Conditionally uncommitted. If the remote peer responds with
      `REFUSED_STREAM` or `GOAWAY` showing the stream was never processed, the
      attempt remains uncommitted.
-3. **`BodyStarted` (Request Data Transmitted):**
-   - The client has written one or more HTTP/2 `DATA` frames, or the complete
-     unary length-prefixed request message, onto the wire.
-   - For unary and server-streaming calls in `pbrs-grpc`, the entire request
-     frame is sent immediately after headers.
-   - *Commitment:* **Committed against transparent retry.** Server application
-     logic may have read the stream and started execution.
+3. **`BodyStarted` (Request-Body Send Phase):**
+   - The client has entered the request-body send phase. Data may be queued,
+     blocked by flow control, or already on the wire.
+   - Ambiguous loss in this phase does not prove non-execution and cannot
+     trigger transparent retry. Explicit peer evidence of non-processing can
+     still allow it before response commitment, subject to retry and deadline
+     limits.
 4. **`ResponseCommitted`:**
-   - The client has received the initial HTTP/2 response `HEADERS` frame
-     (HTTP status 200, `content-type: application/grpc`) or Trailers-Only
-     headers.
-   - *Commitment:* **Committed.** The server accepted the request and produced
-     response headers. Any later failure belongs to the active stream and is
-     never a transparent-retry candidate.
+   - In sequential unary and server-streaming calls, ordinary initial response
+     headers commit the attempt against policy and transparent retry.
+   - A valid non-OK trailers-only response is a terminal status and may remain
+     eligible for policy retry. It does not by itself prove non-execution for
+     transparent retry.
+   - In sequential paths, the current client conservatively treats non-200
+     responses as committed, including some HTTP fallback responses other
+     clients treat as trailers-only.
 5. **`TrailersReceived`:**
-   - The client has received the trailing `HEADERS` with `grpc-status` and
-     optional `grpc-message` / error details.
+   - The client has received `grpc-status` and optional `grpc-message` or error
+     details in trailers or a trailers-only response.
    - Terminal state of the RPC attempt.
 6. **`Cancelled`:**
    - The caller cancelled the RPC (`CallHandle::cancel`) or the request
@@ -251,8 +254,9 @@ Under [gRFC A6](https://github.com/grpc/proposal/blob/6342be729b96478a2897ceb208
 retries.
 
 ### Permitted Transparent Retries
-A transparent retry is permitted **if and only if** the client has positive
-proof that server application logic never started processing the request:
+Transparent retry requires positive proof that the server application never
+processed the request. It remains subject to retry, replay and deadline limits.
+Examples of non-processing evidence include:
 
 1. **Pre-Stream / Connect Failures:**
    - Failure to acquire a connection or stream slot.
@@ -272,24 +276,22 @@ proof that server application logic never started processing the request:
 ### Prohibited Transparent Retries
 Transparent retry is **strictly forbidden** in all of the following conditions:
 
-1. **Ambiguous Connection Loss After Request Data Sent:**
-   - Once request `DATA` has been sent on the wire and the stream opened, any
-     transport error without `REFUSED_STREAM` or `GOAWAY` stream-id evidence is
-     ambiguous. Treat it as potentially executed. It must **not** be
-     transparently retried.
+1. **Ambiguous Connection Loss During the Request-Body Phase:**
+   - Once the request-body send phase begins, a transport error without proof of
+     non-processing is ambiguous. Treat the request as potentially executed; it
+     must **not** be transparently retried.
 2. **Response Headers Received (`ResponseCommitted`):**
-   - Once response `HEADERS` have been received from the server, the RPC is
-     committed. Later connection loss or stream resets must fail the call
-     directly to the caller.
+   - For sequential attempts, ordinary initial response `HEADERS` commit the
+     RPC. Later connection loss or stream resets fail the call. A trailers-only
+     terminal status is handled separately.
 3. **Stream Resets with Other Error Codes:**
    - `RST_STREAM` with `CANCEL`, `INTERNAL_ERROR`, `PROTOCOL_ERROR`, or
-     `STREAM_CLOSED` indicates failure after stream acceptance. It cannot be
-     transparently retried.
+     `STREAM_CLOSED` does not prove non-processing. It cannot by itself trigger
+     transparent retry.
 4. **Explicit Application Error Statuses:**
-   - If the server sends trailers with `grpc-status: UNAVAILABLE`, or any other
-     code, server application logic ran and generated that status. It cannot
-     be transparently retried. Only policy retries may evaluate application
-     status codes.
+   - A `grpc-status`, including `UNAVAILABLE`, does not prove the application
+     did not process the request. The status alone cannot trigger transparent
+     retry; a configured policy may evaluate it for policy retry.
 5. **Caller Cancellation or Timeout:**
    - Client-side `CallHandle::cancel` or local deadline expiration immediately terminates the RPC.
 
@@ -318,14 +320,18 @@ pub(crate) enum TransportEvidence {
 
 ### 2. Transparent Retry Decision Matrix
 
-| State at Failure | Error Cause | Transparent Retry Allowed? | Reason |
+Eligibility also depends on retry and replay availability, cancellation and
+remaining deadline. `YES` means the evidence permits a retry, not that a retry
+is guaranteed.
+
+| State at Failure | Error Cause | Transparent Retry Eligible? | Reason |
 |---|---|:---:|---|
-| `Queued` / Connect | `ECONNREFUSED` / Timeout | **YES** | Server never saw request |
+| `Queued` / Connect | `ECONNREFUSED` / connection-attempt timeout | **YES** | Server never saw request |
 | `Queued` (Idle Slot) | Server closed idle connection | **YES** | Request never written to socket |
-| `HeadersSent` | `REFUSED_STREAM` | **YES** | RFC 7540 §8.1.4 non-processing guarantee |
+| `HeadersSent` / `BodyStarted` | `REFUSED_STREAM` | **YES** | RFC 7540 §8.1.4 non-processing guarantee |
 | `HeadersSent` / `BodyStarted` | `GOAWAY (last < stream_id)` | **YES** | RFC 7540 §6.8 non-processing guarantee |
 | `BodyStarted` | IO Error / Broken Pipe / TCP Reset | **NO** | Ambiguous: server may have executed |
-| `BodyStarted` | `RST_STREAM(CANCEL / INTERNAL)` | **NO** | Stream was accepted before reset |
+| `BodyStarted` | `RST_STREAM(CANCEL / INTERNAL)` | **NO** | Reset does not prove non-processing |
 | `ResponseCommitted` | Any stream / transport error | **NO** | Response headers already arrived |
 | Any | Local cancellation / Deadline | **NO** | Caller cancelled or timed out |
 

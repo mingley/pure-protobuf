@@ -313,7 +313,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 
 ### Transport and Security Invariants
 
-- **Mandatory certificate verification**: in TLS and mTLS, certificate verification is not optional. There is no skip-verify constructor in the kernel; clients verify through `ClientTls::webpki` or pinned CAs through `ClientTls::ca`.
+- **Certificate verification**: Built-in `ClientTls::webpki` and `ClientTls::ca` constructors verify the server using WebPKI or a configured CA. `ClientTls::from_rustls` retains the caller's verification policy; callers must provide an authenticating verifier. The wrapper cannot certify an opaque verifier; disabling verification is unsupported. There is no built-in skip-verify constructor.
 - **ALPN requirement**: every TLS handshake requires ALPN `h2`.
 - **Peer information**: mTLS peer identities are exposed through `Rpc::peer_identity`; Unix caller credentials (`SO_PEERCRED`) are exposed through `Rpc::peer_cred`.
 - **In-process channels**: `Channel::from_io` provides memory-backed streaming without socket overhead, but does not perform transparent retry or connection pooling.

@@ -101,8 +101,14 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "transparent_retries",
         title: "retry_commitment_boundaries",
         doc_path: "docs/retry-contract.md",
-        required_all: &["BodyStarted", "MUST NOT RETRY (Committed)"],
-        description: "Retry contract must forbid retrying once request body data has started transmitting.",
+        required_all: &[
+            "BodyStarted",
+            "Ambiguous loss in this phase",
+            "Explicit peer evidence of non-processing",
+            "trailers-only response is a terminal status",
+            "non-200 responses as committed",
+        ],
+        description: "Retry documentation must distinguish ambiguous loss, explicit non-processing evidence, and trailers-only policy retry.",
     },
     CaveatRequirement {
         category: "transparent_retries",
@@ -124,7 +130,7 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
             "built-in constructors",
             "WebPKI certificate verification",
         ],
-        description: "gRPC TLS documentation must mandate ALPN h2 and state that certificate verification is not optional.",
+        description: "gRPC TLS documentation must require ALPN h2 and describe built-in certificate verification.",
     },
     CaveatRequirement {
         category: "security_tls",
@@ -144,8 +150,14 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "security_tls",
         title: "tls_no_skip_verify",
         doc_path: "docs/status.md",
-        required_all: &["skip-verify constructor", "ClientTls::webpki"],
-        description: "Status documentation must document that there is no skip-verify constructor.",
+        required_all: &[
+            "skip-verify constructor",
+            "ClientTls::webpki",
+            "ClientTls::from_rustls",
+            "caller's verification policy",
+            "authenticating verifier",
+        ],
+        description: "Status documentation must distinguish built-in verification from caller-owned rustls policies.",
     },
     CaveatRequirement {
         category: "security_tls",

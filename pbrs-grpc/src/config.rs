@@ -230,7 +230,8 @@ impl ServerConfig {
         Self::default()
     }
 
-    /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
+    /// Cap inbound frame payloads and uncompressed message bytes at `limit`.
+    /// Default: 4 MiB.
     /// Applies to every call shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
@@ -248,8 +249,9 @@ impl ServerConfig {
 
     /// Set both inbound and outbound message-size limits.
     ///
-    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Limits
-    /// apply to uncompressed message bytes in every RPC shape.
+    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Inbound
+    /// limits cover frame payloads and uncompressed bytes; outbound limits cover
+    /// uncompressed message bytes. These limits apply to every RPC shape.
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
@@ -1134,7 +1136,8 @@ impl ChannelConfig {
         self
     }
 
-    /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
+    /// Cap inbound frame payloads and uncompressed message bytes at `limit`.
+    /// Default: 4 MiB.
     ///
     /// Applies to every RPC shape.
     #[must_use]
@@ -1154,8 +1157,9 @@ impl ChannelConfig {
 
     /// Set both inbound and outbound message-size limits.
     ///
-    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Limits
-    /// apply to uncompressed message bytes in every RPC shape.
+    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Inbound
+    /// limits cover frame payloads and uncompressed bytes; outbound limits cover
+    /// uncompressed message bytes. These limits apply to every RPC shape.
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
