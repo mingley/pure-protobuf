@@ -1,0 +1,125 @@
+diff --git a/pbrs-grpc/src/limits.rs b/pbrs-grpc/src/limits.rs
+index c0296408965cb330da8060aa4b2debed9c7adeac..855616961eb82a70b3c28c09f5cc4436d78952e7 100644
+--- a/pbrs-grpc/src/limits.rs
++++ b/pbrs-grpc/src/limits.rs
+@@ -424,6 +424,57 @@ pub struct MessageLimits {
+     max_zstd_window: Option<u64>,
+ }
+ 
++/// Compact sender-side copy of message limits. All values remain available for
++/// the public sender's Debug output; only the encoding cap is read on send.
++#[derive(Clone, Copy)]
++pub(crate) struct SenderLimits {
++    encoding: Option<usize>,
++    decoding: usize,
++    compression_frames: usize,
++    #[cfg(feature = "zstd")]
++    zstd_window: u64,
++    present: u8,
++}
++
++impl SenderLimits {
++    #[inline]
++    pub(crate) fn new(limits: MessageLimits) -> Self {
++        let MessageLimits {
++            max_decoding: decoding,
++            max_encoding: encoding,
++            max_compression_frames: compression_frames,
++            #[cfg(feature = "zstd")]
++                max_zstd_window: zstd_window,
++        } = limits;
++        let present = u8::from(decoding.is_some()) | (u8::from(compression_frames.is_some()) << 1);
++        #[cfg(feature = "zstd")]
++        let present = present | (u8::from(zstd_window.is_some()) << 2);
++        Self {
++            encoding,
++            decoding: decoding.unwrap_or_default(),
++            compression_frames: compression_frames.unwrap_or_default(),
++            #[cfg(feature = "zstd")]
++            zstd_window: zstd_window.unwrap_or_default(),
++            present,
++        }
++    }
++
++    #[inline]
++    pub(crate) fn max_encoding(self) -> Option<usize> {
++        self.encoding
++    }
++
++    pub(crate) fn into_message_limits(self) -> MessageLimits {
++        MessageLimits {
++            max_decoding: (self.present & 1 != 0).then_some(self.decoding),
++            max_encoding: self.encoding,
++            max_compression_frames: (self.present & 2 != 0).then_some(self.compression_frames),
++            #[cfg(feature = "zstd")]
++            max_zstd_window: (self.present & 4 != 0).then_some(self.zstd_window),
++        }
++    }
++}
++
+ impl Default for MessageLimits {
+     /// 4 MiB inbound, unlimited outbound, 1,024 compressed frames per message,
+     /// and an 8 MiB Zstd window when enabled.
+diff --git a/pbrs-grpc/src/stream.rs b/pbrs-grpc/src/stream.rs
+index 0eb99731939fac66969f22ec96b0064348a3d122..3a211ae01ebfc1dab3a0559856d89356e6d64ea4 100644
+--- a/pbrs-grpc/src/stream.rs
++++ b/pbrs-grpc/src/stream.rs
+@@ -6,7 +6,7 @@
+ //! [`Streaming::channel`].
+ 
+ use crate::codec::CodecMessage;
+-use crate::limits::MessageLimits;
++use crate::limits::{MessageLimits, SenderLimits};
+ use crate::metadata::Metadata;
+ use crate::status::Status;
+ use futures_core::Stream;
+@@ -346,7 +346,7 @@ impl<T> Streaming<T> {
+         (
+             StreamSender {
+                 tx,
+-                limits: MessageLimits::unlimited(),
++                limits: SenderLimits::new(MessageLimits::unlimited()),
+                 compress: false,
+             },
+             Self {
+@@ -746,7 +746,7 @@ impl<T> FusedStream for Streaming<T> {
+ /// [`Self::close`] consumes this handle only.
+ pub struct StreamSender<T> {
+     tx: mpsc::Sender<Item<T>>,
+-    limits: MessageLimits,
++    limits: SenderLimits,
+     compress: bool,
+ }
+ 
+@@ -766,7 +766,7 @@ impl<T> Clone for StreamSender<T> {
+ impl<T> StreamSender<T> {
+     /// Enforce `limits` on every subsequent [`Self::send`].
+     pub(crate) fn with_limits(mut self, limits: MessageLimits) -> Self {
+-        self.limits = limits;
++        self.limits = SenderLimits::new(limits);
+         self
+     }
+ 
+@@ -833,8 +833,11 @@ impl<T> StreamSender<T> {
+     {
+         // Skip the length walk when no cap is set: `check_encode` is a
+         // no-op then, and the drain measures again for the frame anyway.
+-        if self.limits.max_encoding().is_some() {
+-            if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
++        if let Some(max) = self.limits.max_encoding() {
++            if let Err(status) = MessageLimits::unlimited()
++                .with_max_encoding(max)
++                .check_encode(item.message.encoded_len())
++            {
+                 self.tx.send(Err(status.clone())).await.ok();
+                 return Err(status);
+             }
+@@ -895,7 +898,7 @@ impl<T> std::fmt::Debug for StreamSender<T> {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         f.debug_struct("StreamSender")
+             .field("closed", &self.tx.is_closed())
+-            .field("limits", &self.limits)
++            .field("limits", &self.limits.into_message_limits())
+             .field("compress", &self.compress)
+             .finish()
+     }

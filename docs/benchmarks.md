@@ -27,6 +27,7 @@ performance claim.
 | [Synthetic Call polling](benchmarks/call-poll-component-screen-20261110.md) | Unmerged prototype: component CPU and controls, November 10 |
 | [Streaming Call poll-state screen](benchmarks/streaming-call-poll-screen-20261110.md) | Unmerged prototype; server/bidi `Call` futures end after response headers, November 10 |
 | [Split streaming observer experiment](benchmarks/streaming-observer-split-20261110.md) | Rejected split futures: fewer requested bytes, slower bidi CPU and a larger fixture, November 10 |
+| [Compact streaming sender limits](benchmarks/compact-sender-limits-20261110.md) | Held representation: smaller sender, no measured CPU or allocation gain, November 10 |
 | [Unpolled-call cancellation screen](benchmarks/unary-unpolled-drop-screen-20261110.md) | Unmerged prototype: unary lifecycle and endpoint CPU, November 10 |
 | [Identity frame staging screen](benchmarks/identity-frame-staging-20261110.md) | Rejected chunk staging, whole-frame timing losses and synthetic backing retention, November 10 |
 | [Unary cancellation on 713](benchmarks/unary-cancel-713-screen-20261110.md) | Matched endpoint and unpolled-call CPU, allocations and controls, November 10 |

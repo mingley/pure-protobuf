@@ -1,0 +1,112 @@
+name: Verify lossless compact streaming sender limits
+on:
+  push:
+    branches: [codex-sender-limit-correctness-v2-c8dd-20261110]
+permissions:
+  contents: write
+jobs:
+  tests:
+    if: ${{ github.event.deleted == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact candidate and diagnostic source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = c134820046c26bcbbce9e23c96967bc0f6493631
+          test "$(git cat-file -p HEAD^ | sed -n 's/^parent //p')" = c8dd4bd7738074a29dee8727814832a4e754198f
+          test "$(git rev-parse HEAD^:pbrs-grpc/src/stream.rs)" = 3a211ae01ebfc1dab3a0559856d89356e6d64ea4
+          test "$(git hash-object pbrs-grpc/src/stream.rs)" = 1c1b7d3f10102b739be12760c3aad1b9f2019a83
+          test "$(git hash-object pbrs-grpc/src/limits.rs)" = 855616961eb82a70b3c28c09f5cc4436d78952e7
+          git diff --name-only HEAD^ HEAD | sort > "$RUNNER_TEMP/paths"
+          printf '%s\n' .github/workflows/sender-limit-correctness.yml pbrs-grpc/src/stream.rs | sort > "$RUNNER_TEMP/expected"
+          diff -u "$RUNNER_TEMP/expected" "$RUNNER_TEMP/paths"
+          test -z "$(git status --porcelain)"
+      - name: Install compilers and protoc
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup toolchain install 1.85.0 --profile minimal
+          rustc +stable -Vv
+          rustc +1.85.0 -Vv
+          protoc --version
+      - name: Verify candidate formatting
+        run: |
+          set -euo pipefail
+          git show HEAD^:pbrs-grpc/src/stream.rs > "$RUNNER_TEMP/candidate-stream.rs"
+          rustfmt +stable --edition 2024 --config-path rustfmt.toml --check "$RUNNER_TEMP/candidate-stream.rs"
+          git show HEAD^:pbrs-grpc/src/limits.rs > "$RUNNER_TEMP/candidate-limits.rs"
+          rustfmt +stable --edition 2024 --config-path rustfmt.toml --check "$RUNNER_TEMP/candidate-limits.rs"
+      - name: Check limits, Debug, cloning and send behavior on MSRV
+        run: cargo +1.85.0 test --locked -p pbrs-grpc --lib sender_limit_diagnostics -- --nocapture
+      - name: Check Zstd limit and Debug preservation
+        run: cargo +stable test --locked -p pbrs-grpc --features zstd --lib sender_limit_diagnostics -- --nocapture
+      - name: Existing streaming, codec, compression and limit controls
+        run: cargo +stable test --locked -p pbrs-grpc --test streaming_final_status --test timeout_limits --test codec_generic --test sv09_streaming --test compression -- --nocapture
+      - name: Existing Tower streaming controls
+        run: cargo +stable test --locked -p pbrs-grpc --features tower --test tower_client -- --nocapture
+      - name: Strict library lint with Tower and Zstd
+        run: cargo +stable clippy --locked -p pbrs-grpc --lib --features tower,zstd -- -D warnings
+      - name: Check that limit and Debug controls reject lossy mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pbrs-grpc/src/stream.rs "$RUNNER_TEMP/positive.rs"
+          cp pbrs-grpc/src/limits.rs "$RUNNER_TEMP/positive-limits.rs"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("pbrs-grpc/src/limits.rs")
+          s = p.read_text()
+          old = "(self.present & 1 != 0).then_some(self.decoding)"
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, "None"))
+          PY
+          set +e
+          cargo +stable test --locked -p pbrs-grpc --lib sender_limit_diagnostics::all_limit_values_and_public_debug_round_trip -- --nocapture > "$RUNNER_TEMP/debug-mutant.log" 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 101
+          grep -Fq 'assertion' "$RUNNER_TEMP/debug-mutant.log"
+          cp "$RUNNER_TEMP/positive-limits.rs" pbrs-grpc/src/limits.rs
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("pbrs-grpc/src/stream.rs")
+          s = p.read_text()
+          old = "if let Some(max) = self.limits.max_encoding() {"
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, "if let Some(max) = self.limits.max_encoding().filter(|v| *v != usize::MAX) {"))
+          PY
+          set +e
+          cargo +stable test --locked -p pbrs-grpc --lib sender_limit_diagnostics::send_clone_limit_error_and_length_walk_semantics -- --nocapture > "$RUNNER_TEMP/max-mutant.log" 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 101
+          grep -Fq 'encoded_len call policy' "$RUNNER_TEMP/max-mutant.log"
+          cp "$RUNNER_TEMP/positive.rs" pbrs-grpc/src/stream.rs
+          printf '%s\n' SENDER_LIMIT_MUTANTS_REJECTED
+      - name: Checkout scratch for cleanup
+        if: ${{ always() }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          path: .cleanup-scratch
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Delete exact scratch head
+        if: ${{ always() }}
+        working-directory: .cleanup-scratch
+        run: |
+          set -euo pipefail
+          branch=codex-sender-limit-correctness-v2-c8dd-20261110
+          test "$GITHUB_REF" = "refs/heads/$branch"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git push --force-with-lease="refs/heads/$branch:$GITHUB_SHA" origin ":refs/heads/$branch"
