@@ -1,0 +1,2231 @@
+{
+  "allowed_cpus_before_pin": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "candidate": "f2cca72100959a3dcce4f68ca003f7f573066726",
+  "cpu": 0,
+  "results": [
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2151327000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334500,
+                "wall_ns": 2151761930
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2160537000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334240,
+                "wall_ns": 2160964822
+              },
+              "ratio": 1.0042810786086913
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2138463000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334596,
+                "wall_ns": 2138898527
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2118938000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334476,
+                "wall_ns": 2119392577
+              },
+              "ratio": 0.9908696105567409
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9748810769540467,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2205628000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334664,
+              "wall_ns": 2206107713
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2150225000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334664,
+              "wall_ns": 2150656519
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2148951000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334340,
+                "wall_ns": 2149345973
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2128624000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334440,
+                "wall_ns": 2129064863
+              },
+              "ratio": 0.9905409662667971
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2159204000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334584,
+                "wall_ns": 2159605975
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2141558000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334444,
+                "wall_ns": 2142017143
+              },
+              "ratio": 0.991827543854124
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9967972965099342,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2145375000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334188,
+              "wall_ns": 2145823542
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2138504000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334772,
+              "wall_ns": 2138918562
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2153236000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334620,
+                "wall_ns": 2153703111
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2145233000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334428,
+                "wall_ns": 2145687146
+              },
+              "ratio": 0.9962832685316426
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2163593000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334580,
+                "wall_ns": 2164021133
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2161370000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334528,
+                "wall_ns": 2161772311
+              },
+              "ratio": 0.9989725424328882
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.995911954341212,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2161424000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334296,
+              "wall_ns": 2161847128
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2152588000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334860,
+              "wall_ns": 2153444311
+            }
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2146623000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334528,
+                "wall_ns": 2147034671
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2163220000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334464,
+                "wall_ns": 2163674129
+              },
+              "ratio": 1.0077316790139674
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2159538000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334556,
+                "wall_ns": 2159968084
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 2161522000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 334788,
+                "wall_ns": 2162260247
+              },
+              "ratio": 1.0009187150214536
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.996317538016457,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2145847000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334404,
+              "wall_ns": 2146290607
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 2137945000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 334408,
+              "wall_ns": 2138452355
+            }
+          }
+        }
+      ],
+      "case": "single-default",
+      "messages": 50,
+      "mode": "check",
+      "source": {
+        "base": {
+          "bytes": 1038723,
+          "files": 2,
+          "sha256": "ec5420642523a608c39588172f00b8beb32f5e54a2d3ebc990fa2b866b3a8da1"
+        },
+        "candidate": {
+          "bytes": 1024286,
+          "files": 2,
+          "sha256": "76950d7080b67faeea75cf6896ba4a718aaa98b966f09052ffbafcd18510b7ec"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9905409662667971,
+            1.0077316790139674
+          ],
+          "candidate": [
+            0.9908696105567409,
+            1.0009187150214536
+          ]
+        },
+        "median": 0.9961147461788344,
+        "range": [
+          0.9748810769540467,
+          0.9967972965099342
+        ],
+        "slower": 0
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4524917000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561572,
+                "wall_ns": 4525474926
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4619882000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561704,
+                "wall_ns": 4620477828
+              },
+              "ratio": 1.020987125288707
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4563516000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561052,
+                "wall_ns": 4564082597
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4543181000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561368,
+                "wall_ns": 4543710442
+              },
+              "ratio": 0.995544005981353
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9943592571486479,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4558974000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561516,
+              "wall_ns": 4559549687
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4533258000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561440,
+              "wall_ns": 4533762744
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4555555000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561644,
+                "wall_ns": 4556156478
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4513178000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561628,
+                "wall_ns": 4513678349
+              },
+              "ratio": 0.990697730572894
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4624007000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561084,
+                "wall_ns": 4624624545
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4580928000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561280,
+                "wall_ns": 4581446948
+              },
+              "ratio": 0.9906836213699504
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.980092901092163,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4625134000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561716,
+              "wall_ns": 4625710850
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4533061000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561520,
+              "wall_ns": 4533677434
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4522523000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561748,
+                "wall_ns": 4523093633
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4582136000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561944,
+                "wall_ns": 4582636992
+              },
+              "ratio": 1.0131813591661114
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4586955000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561408,
+                "wall_ns": 4587550939
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4543523000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561380,
+                "wall_ns": 4544140920
+              },
+              "ratio": 0.9905314091810362
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0013878438807058,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4565355000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561800,
+              "wall_ns": 4568087909
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4571691000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561256,
+              "wall_ns": 4572263954
+            }
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4529587000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561548,
+                "wall_ns": 4530169471
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4499891000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561640,
+                "wall_ns": 4505542011
+              },
+              "ratio": 0.9934439939005477
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4632223000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561236,
+                "wall_ns": 4632842361
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 4596418000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 561268,
+                "wall_ns": 4597117248
+              },
+              "ratio": 0.9922704498466502
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9982804359679899,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4597677000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561648,
+              "wall_ns": 4598199813
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 4589771000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 561408,
+              "wall_ns": 4590277117
+            }
+          }
+        }
+      ],
+      "case": "nested5-default",
+      "messages": 100,
+      "mode": "check",
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.990697730572894,
+            1.020987125288707
+          ],
+          "candidate": [
+            0.9905314091810362,
+            0.995544005981353
+          ]
+        },
+        "median": 0.996319846558319,
+        "range": [
+          0.980092901092163,
+          1.0013878438807058
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 54448839000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333596,
+                "wall_ns": 54455352262
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 54044944000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333616,
+                "wall_ns": 54051498812
+              },
+              "ratio": 0.9925821191522559
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 52503876000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4326748,
+                "wall_ns": 52507774119
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 51557842000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4326888,
+                "wall_ns": 51563952829
+              },
+              "ratio": 0.9819816350320498
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0026719927330638,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50858297000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4333480,
+              "wall_ns": 50863876296
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50994190000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4326480,
+              "wall_ns": 51000116429
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50312870000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333964,
+                "wall_ns": 50318277472
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 51392790000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333584,
+                "wall_ns": 51398014103
+              },
+              "ratio": 1.0214640905994827
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50946981000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4325052,
+                "wall_ns": 50952960368
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 52112293000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4326596,
+                "wall_ns": 52118324217
+              },
+              "ratio": 1.0228730334384288
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9942735121344504,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50460423000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4333740,
+              "wall_ns": 50466306494
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50171462000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4326692,
+              "wall_ns": 50176859145
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 51459517000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333596,
+                "wall_ns": 51465605052
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50835906000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4333796,
+                "wall_ns": 50841836032
+              },
+              "ratio": 0.987881522479117
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 52536858000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4325052,
+                "wall_ns": 52543459866
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 54014150000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4324928,
+                "wall_ns": 54022168792
+              },
+              "ratio": 1.0281191539851888
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0353103889671085,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50623175000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4333924,
+              "wall_ns": 50628572167
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 52410699000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4327008,
+              "wall_ns": 52416725132
+            }
+          }
+        }
+      ],
+      "case": "balanced20-default",
+      "messages": 1000,
+      "mode": "check",
+      "source": {
+        "base": {
+          "bytes": 34347839,
+          "files": 21,
+          "sha256": "7cda09da63d7b983175f687415f823f2b4ef167d234f3f12eb59822be3802316"
+        },
+        "candidate": {
+          "bytes": 27556279,
+          "files": 21,
+          "sha256": "e92bb2c415be7bba2f6ec60abbd2b612688f9b9966d1a64e3c9df5b2bd95e435"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.987881522479117,
+            1.0214640905994827
+          ],
+          "candidate": [
+            0.9819816350320498,
+            1.0281191539851888
+          ]
+        },
+        "median": 1.0026719927330638,
+        "range": [
+          0.9942735121344504,
+          1.0353103889671085
+        ],
+        "slower": 2
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32465329000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125216,
+                "wall_ns": 32467792619
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32392740000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125156,
+                "wall_ns": 32397098928
+              },
+              "ratio": 0.9977641070571008
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32481609000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3123648,
+                "wall_ns": 32484094707
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 33013987000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3124832,
+                "wall_ns": 33018220133
+              },
+              "ratio": 1.0163901363383816
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0027928208661634,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 32710297000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3125196,
+              "wall_ns": 32712634809
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 32801651000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3125236,
+              "wall_ns": 32806330669
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32664962000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125076,
+                "wall_ns": 32669681688
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32594483000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3122536,
+                "wall_ns": 32596829297
+              },
+              "ratio": 0.9978423669986207
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32640845000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125240,
+                "wall_ns": 32645167817
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32699315000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125220,
+                "wall_ns": 32701750562
+              },
+              "ratio": 1.0017913139197223
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 1.0175060910872502,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 32726095000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3125132,
+              "wall_ns": 32728619472
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 33299001000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3125320,
+              "wall_ns": 33304658756
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32423665000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125248,
+                "wall_ns": 32428079993
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32968248000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125204,
+                "wall_ns": 32970617645
+              },
+              "ratio": 1.0167958495746856
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32424576000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3124080,
+                "wall_ns": 32429968440
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 32447262000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3125448,
+                "wall_ns": 32451831925
+              },
+              "ratio": 1.0006996544843023
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9937400302604528,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 32677634000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3125140,
+              "wall_ns": 32682368517
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 32473073000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3124640,
+              "wall_ns": 32475452630
+            }
+          }
+        }
+      ],
+      "case": "balanced20-lean",
+      "messages": 1000,
+      "mode": "check",
+      "source": {
+        "base": {
+          "bytes": 12925901,
+          "files": 21,
+          "sha256": "de51947430a8769f539989b1911cf0af55d32ecb2266be5b0638a0036491ae03"
+        },
+        "candidate": {
+          "bytes": 12925901,
+          "files": 21,
+          "sha256": "de51947430a8769f539989b1911cf0af55d32ecb2266be5b0638a0036491ae03"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9977641070571008,
+            1.0167958495746856
+          ],
+          "candidate": [
+            1.0006996544843023,
+            1.0163901363383816
+          ]
+        },
+        "median": 1.0027928208661634,
+        "range": [
+          0.9937400302604528,
+          1.0175060910872502
+        ],
+        "slower": 2
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 51340502000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4318756,
+                "wall_ns": 51346192161
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50569352000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4320084,
+                "wall_ns": 50576057510
+              },
+              "ratio": 0.9849796949784402
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 51098629000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4319072,
+                "wall_ns": 51102353722
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50767670000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4317900,
+                "wall_ns": 50773302406
+              },
+              "ratio": 0.9935231334680232
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9968359698662397,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50355083000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4321772,
+              "wall_ns": 50360707492
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50195758000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4320596,
+              "wall_ns": 50201240178
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50150203000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4321344,
+                "wall_ns": 50155309690
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50759119000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4317704,
+                "wall_ns": 50762675390
+              },
+              "ratio": 1.0121418451686028
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50597881000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4318792,
+                "wall_ns": 50603734336
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50718743000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4320236,
+                "wall_ns": 50725442592
+              },
+              "ratio": 1.0023886771068535
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 1.0067470848067115,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 49936826000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4319276,
+              "wall_ns": 49942463422
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50273754000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4318436,
+              "wall_ns": 50279665355
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50546282000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4318004,
+                "wall_ns": 50551859031
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50179075000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4321152,
+                "wall_ns": 50185762140
+              },
+              "ratio": 0.9927352322372593
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50370618000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4316764,
+                "wall_ns": 50376026051
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 50778462000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 4320372,
+                "wall_ns": 50782069612
+              },
+              "ratio": 1.0080968631355685
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9905033102052171,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50926903000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4319784,
+              "wall_ns": 50932060615
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 50443266000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 4318056,
+              "wall_ns": 50449099143
+            }
+          }
+        }
+      ],
+      "case": "balanced20-shared",
+      "messages": 1000,
+      "mode": "check",
+      "source": {
+        "base": {
+          "bytes": 21943885,
+          "files": 22,
+          "sha256": "06d32000ae1ffc24a54390a8c6c87ad055c43830dbce610d1a641ad6c02d397a"
+        },
+        "candidate": {
+          "bytes": 21604307,
+          "files": 22,
+          "sha256": "e3a95d1fa63ac63306cd38182a1084f0b67f15279d098b7b9596293860a4b0a4"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9849796949784402,
+            1.0121418451686028
+          ],
+          "candidate": [
+            0.9935231334680232,
+            1.0080968631355685
+          ]
+        },
+        "median": 0.9968359698662397,
+        "range": [
+          0.9905033102052171,
+          1.0067470848067115
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17438328000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 578860,
+                "wall_ns": 17441765095
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17804788000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 574628,
+                "wall_ns": 17808460345
+              },
+              "ratio": 1.0210146293841933
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 18577617000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 592280,
+                "wall_ns": 18583615177
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17793087000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 576792,
+                "wall_ns": 17797222971
+              },
+              "ratio": 0.9577701488840038
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0006370693897322,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17567945000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 574900,
+              "wall_ns": 17578963840
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17579137000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 598820,
+              "wall_ns": 17585047028
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17913564000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 569928,
+                "wall_ns": 17917353503
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 18287965000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 591416,
+                "wall_ns": 18294408115
+              },
+              "ratio": 1.0209004193693672
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17775673000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 601108,
+                "wall_ns": 17780945202
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 18199541000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 583320,
+                "wall_ns": 18203680761
+              },
+              "ratio": 1.0238453981461069
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 1.0151094443969257,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17501901000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 568324,
+              "wall_ns": 17506906357
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17766345000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 584616,
+              "wall_ns": 17769964229
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 18107883000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 571160,
+                "wall_ns": 18113523438
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 18039317000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 566228,
+                "wall_ns": 18043016147
+              },
+              "ratio": 0.9962134723313598
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17872727000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 577948,
+                "wall_ns": 17876139737
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17702267000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 577184,
+                "wall_ns": 17705798161
+              },
+              "ratio": 0.9904625634353392
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0184290554662592,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 18001845000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 576660,
+              "wall_ns": 18005740932
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 18333602000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 597760,
+              "wall_ns": 18338910216
+            }
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17598137000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 581012,
+                "wall_ns": 17602929381
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17832216000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 571784,
+                "wall_ns": 17836251186
+              },
+              "ratio": 1.0133013511600688
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17543240000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 613920,
+                "wall_ns": 17546921621
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 17539178000,
+                "dependencies_fresh": true,
+                "executable_bytes": 928104,
+                "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+                "max_child_rss_kib": 591552,
+                "wall_ns": 17544140060
+              },
+              "ratio": 0.9997684578219302
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9996044792312736,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17498449000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 578524,
+              "wall_ns": 17501700179
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 17491528000,
+              "dependencies_fresh": true,
+              "executable_bytes": 928104,
+              "executable_sha256": "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c",
+              "max_child_rss_kib": 582728,
+              "wall_ns": 17496647374
+            }
+          }
+        }
+      ],
+      "case": "single-default",
+      "messages": 50,
+      "mode": "release",
+      "source": {
+        "base": {
+          "bytes": 1038723,
+          "files": 2,
+          "sha256": "ec5420642523a608c39588172f00b8beb32f5e54a2d3ebc990fa2b866b3a8da1"
+        },
+        "candidate": {
+          "bytes": 1024286,
+          "files": 2,
+          "sha256": "76950d7080b67faeea75cf6896ba4a718aaa98b966f09052ffbafcd18510b7ec"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9962134723313598,
+            1.0210146293841933
+          ],
+          "candidate": [
+            0.9577701488840038,
+            1.0238453981461069
+          ]
+        },
+        "median": 1.0078732568933289,
+        "range": [
+          0.9996044792312736,
+          1.0184290554662592
+        ],
+        "slower": 3
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 29956492000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 760080,
+                "wall_ns": 29963350997
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30059077000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759832,
+                "wall_ns": 30063905099
+              },
+              "ratio": 1.0034244663894558
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 29889834000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 758708,
+                "wall_ns": 29897016563
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30595468000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759572,
+                "wall_ns": 30601879665
+              },
+              "ratio": 1.023607825991941
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0071429287524707,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 30722132000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 760484,
+              "wall_ns": 30728814877
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 30941578000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 759712,
+              "wall_ns": 30946401027
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30053111000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 760772,
+                "wall_ns": 30059892599
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30307340000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759492,
+                "wall_ns": 30311905175
+              },
+              "ratio": 1.0084593238949537
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30419026000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759940,
+                "wall_ns": 30426909772
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30507183000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759788,
+                "wall_ns": 30512180131
+              },
+              "ratio": 1.0028980875324542
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9894475094599681,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 30276265000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 760128,
+              "wall_ns": 30281315516
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 29956775000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 759864,
+              "wall_ns": 29963492061
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30476585000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759456,
+                "wall_ns": 30483894570
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30702482000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 760444,
+                "wall_ns": 30707690787
+              },
+              "ratio": 1.0074121493599102
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30517511000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759580,
+                "wall_ns": 30523953411
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 30319125000,
+                "dependencies_fresh": true,
+                "executable_bytes": 1561224,
+                "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+                "max_child_rss_kib": 759848,
+                "wall_ns": 30323441452
+              },
+              "ratio": 0.9934992732533134
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9894056957409414,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 30693285000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 759848,
+              "wall_ns": 30700420674
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 30368111000,
+              "dependencies_fresh": true,
+              "executable_bytes": 1561224,
+              "executable_sha256": "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94",
+              "max_child_rss_kib": 760100,
+              "wall_ns": 30373066628
+            }
+          }
+        }
+      ],
+      "case": "nested5-default",
+      "messages": 100,
+      "mode": "release",
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            1.0034244663894558,
+            1.0084593238949537
+          ],
+          "candidate": [
+            0.9934992732533134,
+            1.023607825991941
+          ]
+        },
+        "median": 0.9894475094599681,
+        "range": [
+          0.9894056957409414,
+          1.0071429287524707
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1385054000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 460276,
+                "wall_ns": 1386035351
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1394388000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459640,
+                "wall_ns": 1395318656
+              },
+              "ratio": 1.0067390874290822
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1402488000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459876,
+                "wall_ns": 1403561210
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1382487000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459428,
+                "wall_ns": 1383576454
+              },
+              "ratio": 0.98573891541318
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9796897658052881,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1392303000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 460600,
+              "wall_ns": 1505006535
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1364025000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 460368,
+              "wall_ns": 1365270455
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1376958000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459672,
+                "wall_ns": 1377872987
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1394163000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459684,
+                "wall_ns": 1395234594
+              },
+              "ratio": 1.0124949344860192
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1419051000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459296,
+                "wall_ns": 1422368175
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1365364000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459412,
+                "wall_ns": 1366378625
+              },
+              "ratio": 0.9621669693337308
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9966265371889247,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1391745000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 459700,
+              "wall_ns": 1393038783
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1387050000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 459900,
+              "wall_ns": 1387945680
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1368193000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 460368,
+                "wall_ns": 1369225026
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1400984000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 460312,
+                "wall_ns": 1402018629
+              },
+              "ratio": 1.0239666479802192
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1461955000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459796,
+                "wall_ns": 1462974793
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 1480423000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 459900,
+                "wall_ns": 1481533047
+              },
+              "ratio": 1.0126323997660667
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 0.9908108298419182,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1391747000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 460420,
+              "wall_ns": 1393313822
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 1378958000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 459512,
+              "wall_ns": 1379942772
+            }
+          }
+        }
+      ],
+      "case": "nested5-default",
+      "messages": 100,
+      "mode": "incremental",
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            1.0067390874290822,
+            1.0239666479802192
+          ],
+          "candidate": [
+            0.9621669693337308,
+            1.0126323997660667
+          ]
+        },
+        "median": 0.9908108298419182,
+        "range": [
+          0.9796897658052881,
+          0.9966265371889247
+        ],
+        "slower": 0
+      }
+    },
+    {
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 16006173000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3569856,
+                "wall_ns": 16395188972
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15971667000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3576660,
+                "wall_ns": 16353457239
+              },
+              "ratio": 0.9978442067319903
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15632230000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3570604,
+                "wall_ns": 16017127232
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 16067216000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3566256,
+                "wall_ns": 16757004761
+              },
+              "ratio": 1.0278262282476653
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0030111622278928,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 15954969000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3574868,
+              "wall_ns": 16338548346
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 16003012000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3564144,
+              "wall_ns": 16469544094
+            }
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15894220000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3573556,
+                "wall_ns": 16511797369
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 16044042000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3579444,
+                "wall_ns": 16485977700
+              },
+              "ratio": 1.0094261939245839
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15921855000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3562912,
+                "wall_ns": 16311624631
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15818891000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3564792,
+                "wall_ns": 16218145364
+              },
+              "ratio": 0.9935331655764985
+            }
+          },
+          "order": [
+            "candidate",
+            "base"
+          ],
+          "ratio": 0.9921006874762587,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 15995316000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3571932,
+              "wall_ns": 16324161122
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 15868964000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3565284,
+              "wall_ns": 16331749658
+            }
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15849020000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3574760,
+                "wall_ns": 16234742838
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15721006000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3570924,
+                "wall_ns": 16391432009
+              },
+              "ratio": 0.9919229075362388
+            },
+            "candidate": {
+              "a": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 16471096000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3561180,
+                "wall_ns": 16853096514
+              },
+              "b": {
+                "consumer_rebuilt": true,
+                "cpu_ns": 15818300000,
+                "dependencies_fresh": true,
+                "max_child_rss_kib": 3568064,
+                "wall_ns": 16198516077
+              },
+              "ratio": 0.9603671789661113
+            }
+          },
+          "order": [
+            "base",
+            "candidate"
+          ],
+          "ratio": 1.0263374870681834,
+          "samples": {
+            "base": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 15730582000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3572212,
+              "wall_ns": 16113650030
+            },
+            "candidate": {
+              "consumer_rebuilt": true,
+              "cpu_ns": 16144886000,
+              "dependencies_fresh": true,
+              "max_child_rss_kib": 3566428,
+              "wall_ns": 16531435631
+            }
+          }
+        }
+      ],
+      "case": "balanced20-default",
+      "messages": 1000,
+      "mode": "incremental",
+      "source": {
+        "base": {
+          "bytes": 34347839,
+          "files": 21,
+          "sha256": "7cda09da63d7b983175f687415f823f2b4ef167d234f3f12eb59822be3802316"
+        },
+        "candidate": {
+          "bytes": 27556279,
+          "files": 21,
+          "sha256": "e92bb2c415be7bba2f6ec60abbd2b612688f9b9966d1a64e3c9df5b2bd95e435"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9919229075362388,
+            1.0094261939245839
+          ],
+          "candidate": [
+            0.9603671789661113,
+            1.0278262282476653
+          ]
+        },
+        "median": 1.0030111622278928,
+        "range": [
+          0.9921006874762587,
+          1.0263374870681834
+        ],
+        "slower": 2
+      }
+    }
+  ],
+  "scope": "Dependency-warm cargo check or release build; clean mode removes only consumer artifacts and disables incremental; incremental mode uses per-variant warmed caches and changes a fixed-width main-source marker each run. Single pinned logical CPU; CPU is wait4 sum for cargo and reaped descendants; max_child_rss_kib is maximum for a child, not process-tree total; source copying and executable validation excluded.",
+  "source": "5fe70efdc798031badefd1a3847d8866dde352f5"
+}

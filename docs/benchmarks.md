@@ -26,6 +26,7 @@ performance claim.
 | [Small-response reserve screen](benchmarks/response-reserve-screen.md) | Unmerged prototype: loopback CPU, allocations and functional limits, November 10 |
 | [Synthetic Call polling](benchmarks/call-poll-component-screen-20261110.md) | Unmerged prototype: component CPU and controls, November 10 |
 | [Streaming Call poll-state screen](benchmarks/streaming-call-poll-screen-20261110.md) | Unmerged prototype; server/bidi `Call` futures end after response headers, November 10 |
+| [Streaming sender-failure logging](benchmarks/streaming-sender-failure-20261110.md) | Source-scoped CPU controls and allocation tradeoffs, November 10 |
 | [Split streaming observer experiment](benchmarks/streaming-observer-split-20261110.md) | Rejected split futures: fewer requested bytes, slower bidi CPU and a larger fixture, November 10 |
 | [Compact streaming sender limits](benchmarks/compact-sender-limits-20261110.md) | Held representation: smaller sender, no measured CPU or allocation gain, November 10 |
 | [Unpolled-call cancellation screen](benchmarks/unary-unpolled-drop-screen-20261110.md) | Unmerged prototype: unary lifecycle and endpoint CPU, November 10 |
@@ -52,6 +53,9 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Codegen target-file cache](benchmarks/codegen-target-cache-20261110.md) | Held match-reuse experiment: grouped and interleaved holdouts, November 10 |
+| [Compact descriptor literals](benchmarks/compact-descriptor-literals-20261110.md) | Held reflective-output experiment with lean CPU concerns, November 10 |
+| [Lean codegen instruction profile](benchmarks/codegen-instruction-profile-20261110.md) | Callgrind caller edges and native controls for 5fe, November 10 |
 | [Aligned codegen settings](benchmarks/codegen-aligned-20261110.md) | Descriptor-matched generation CPU, output partition and controls, November 10 |
 | [Lazy-message cell seeding](benchmarks/lazy-cell-seeding-20261110.md) | Held Query CPU experiment across Rust 1.85 and 1.99, November 10 |
 | [Codegen filename memo](benchmarks/codegen-file-memo-20261110.md) | Held codegen allocation experiment with CPU holdouts, November 10 |

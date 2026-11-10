@@ -1,0 +1,141 @@
+name: Screen target-match cache prototype
+on:
+  push:
+    branches: [scratch/target-cache-screen-20261110]
+permissions:
+  contents: write
+env:
+  GH_TOKEN: ${{ github.token }}
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+  SOURCE: 5fe70efdc798031badefd1a3847d8866dde352f5
+  CANDIDATE: 540e12e1a71d6ebdad86bb55b36ab89711451455
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify pins and restore retained corpus
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE"
+          test "$(git rev-parse HEAD^^)" = "$SOURCE"
+          test "$(git diff --name-only "$SOURCE" "$CANDIDATE")" = src/codegen/descriptors.rs
+          test "$(git hash-object src/codegen/descriptors.rs)" = 8c2ead035dbac53426fc67f5a465f7c76eda6069
+          test "$(git hash-object .github/experiments/target-cache/probe.rs)" = 9239bd9b594dc3b819ae19d971d837c86e2460fd
+          test "$(git hash-object .github/experiments/target-cache/corpus.py)" = 82943cfb7bba4e1db730a4c107383baacfd8e4c2
+          test "$(git hash-object .github/experiments/target-cache/compare.py)" = 46ca59e224108e71573e8830add926b69718cf1a
+          test "$(git hash-object .github/experiments/target-cache/witness.py)" = 5527145bc83b07c8d5acd86758ed964f6d01f1c9
+          test "$(git hash-object .github/experiments/target-cache/base-trace.rs)" = 2a46eba6e3bdc14db32061accfd504e5e81993aa
+          test "$(git hash-object .github/experiments/target-cache/candidate-trace.rs)" = cfa476ad84cfa9f21da920566025803c378fb7e4
+          test "$(git hash-object .github/experiments/target-cache/mutant.rs)" = 0fe81c048fe271ac8caf6f424ca790d677d7cc48
+          test -z "$(git status --porcelain)"
+          if ! command -v protoc >/dev/null || ! test -f /usr/include/google/protobuf/any.proto; then
+            timeout 300s sudo apt-get update
+            timeout 300s sudo apt-get install -y protobuf-compiler libprotobuf-dev
+          fi
+          test "$(protoc --version)" = 'libprotoc 3.21.12'
+          test "$(rustc -V)" = 'rustc 1.99.1 (58cf8f9c3 2026-10-13)'
+          work="$RUNNER_TEMP/target-cache"
+          mkdir -p "$work/original" "$work/evidence/sources"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/13744031514/zip -o "$work/evidence/original.zip"
+          printf '3ec488759acd5e27f234c222c6b64f6aa97ae162ea6ff3d3a39cba3ee7c01a7e  %s\n' "$work/evidence/original.zip" | sha256sum --check
+          unzip -q "$work/evidence/original.zip" -d "$work/original"
+          { rustc -Vv; protoc --version; uname -a; grep -m1 'model name' /proc/cpuinfo || true; } > "$work/evidence/environment.txt"
+          cp .github/experiments/target-cache/* "$work/evidence/sources/"
+      - name: Check generated consumer semantics
+        run: |
+          set -euo pipefail
+          cargo test --locked -p pbrs --test plugin protoc_plugin_multi_file_stem_collision_and_cross_package_references
+          cargo test --locked -p pbrs --test plugin protoc_plugin_extern_path_across_two_modules_without_duplicates
+      - name: Build pinned native, allocation, mutant and diagnostic binaries
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/target-cache"
+          source_file=src/codegen/descriptors.rs
+          mkdir -p "$work/probe/src"
+          cp .github/experiments/target-cache/probe.rs "$work/probe/src/main.rs"
+          cp "$work/original/data/Cargo.lock" "$work/probe/Cargo.lock"
+          cp "$work/probe/Cargo.lock" "$work/evidence/Cargo.lock"
+          cat > "$work/probe/Cargo.toml" <<EOF
+          [package]
+          name = "file-memo-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+          [workspace]
+          [dependencies]
+          pbrs = { path = "$GITHUB_WORKSPACE" }
+          libc = "=0.2.189"
+          [features]
+          allocation-probe = []
+          [profile.release]
+          opt-level = 3
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cp "$work/probe/Cargo.toml" "$work/evidence/Cargo.toml"
+          cargo fetch --locked --manifest-path "$work/probe/Cargo.toml"
+          restore() { git checkout "$GITHUB_SHA" -- "$source_file"; }
+          trap restore EXIT
+          for variant in base candidate mutant base-trace candidate-trace; do
+            case "$variant" in
+              base) git show "$SOURCE:$source_file" > "$source_file" ;;
+              candidate) git show "$CANDIDATE:$source_file" > "$source_file" ;;
+              *) cp ".github/experiments/target-cache/$variant.rs" "$source_file" ;;
+            esac
+            printf 'TARGET_CACHE_SOURCE_V1 %s ' "$variant"
+            git hash-object "$source_file"
+            touch "$source_file"
+            cargo build --offline --locked --release --manifest-path "$work/probe/Cargo.toml" \
+              --message-format=json > "$work/evidence/build-$variant.jsonl"
+            python3 - "$work/evidence/build-$variant.jsonl" <<'PY'
+          import json, sys
+          rows = [json.loads(line) for line in open(sys.argv[1]) if line.startswith("{")]
+          matches = [r for r in rows if r.get("reason") == "compiler-artifact"
+                     and r.get("target", {}).get("name") == "pbrs" and "lib" in r["target"]["kind"]]
+          assert matches and any(not r["fresh"] for r in matches), matches
+          PY
+            cp "$work/probe/target/release/file-memo-probe" "$work/$variant"
+            if test "$variant" = base || test "$variant" = candidate; then
+              cargo build --offline --locked --release --manifest-path "$work/probe/Cargo.toml" --features allocation-probe
+              cp "$work/probe/target/release/file-memo-probe" "$work/$variant-alloc"
+            fi
+          done
+          sha256sum "$work"/{base,candidate,mutant,base-trace,candidate-trace,base-alloc,candidate-alloc} | tee "$work/evidence/binaries.sha256"
+          restore
+          trap - EXIT
+          test -z "$(git status --porcelain)"
+      - name: Generate holdouts and validate call counts and invalidation
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/target-cache"
+          python3 .github/experiments/target-cache/corpus.py "$work/original/corpus" "$work/corpus"
+          python3 .github/experiments/target-cache/witness.py "$work/base" "$work/candidate" "$work/mutant" \
+            "$work/base-trace" "$work/candidate-trace" "$work/corpus" "$work/evidence/witness"
+      - name: Compare exact outputs and balanced CPU samples
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/target-cache"
+          for workers in 1 2; do
+            PBRS_CODEGEN_CORES="$workers" python3 .github/experiments/target-cache/compare.py \
+              "$work/base" "$work/candidate" "$work/base-alloc" "$work/candidate-alloc" \
+              "$work/corpus" "$work/evidence/cores-$workers"
+          done
+          cp -r "$work/corpus" "$work/evidence/corpus"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: target-cache-screen-5fe
+          path: ${{ runner.temp }}/target-cache/evidence
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Remove exact scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/scratch/target-cache-screen-20261110:$GITHUB_SHA" origin ":refs/heads/scratch/target-cache-screen-20261110"

@@ -65,6 +65,15 @@ were published. Final release evidence must match the release source.
    release artifacts identify the qualified source. Follow
    [same-tag recovery](RELEASE.md#recovery) after a partial upload.
 
+Native gRPC on `i686-unknown-linux-gnu` is outside the verified support scope.
+At `f73b85d`, [clean checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
+failed on Rust 1.85 and 1.99 with default and no-default features. The
+unconditional `rustls-graviola` dependency pulls in `graviola` 0.2.1, which
+rejects that architecture. Any
+proposal to support this target needs a buildable transport/provider
+configuration and checks on the release source. The core `pbrs` alloc-only
+profile and i686 alloc-cell Miri evidence do not cover the gRPC crate.
+
 ## Native transport memory
 
 The configured `ByteBudgetTracker` limit applies to charged bytes. A

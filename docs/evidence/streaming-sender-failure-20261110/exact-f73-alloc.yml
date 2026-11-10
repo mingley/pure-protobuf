@@ -1,0 +1,127 @@
+name: Scratch exact streaming allocation comparison
+on:
+  push:
+    branches: [codex-stream-f73-alloc-compare-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "2"
+jobs:
+  allocations:
+    if: github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+      - name: Pin exact sources and unchanged probe
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = f73b85d067ea861fe36f23536153e4c5add3137f
+          test "$(git rev-parse HEAD^^{tree})" = a0a320f11ba7045d7e7355706c5d9d2968e04e24
+          test "$(git hash-object pbrs-grpc/src/bin/streaming-alloc-hist.rs)" = fcd4c81e03a51e6b332b7113e11dfc653f58b6f8
+          git fetch --no-tags origin 63ff4b4072f35631c9ddb11dadec76c9487ef80b
+          git diff --name-only 63ff4b4072f35631c9ddb11dadec76c9487ef80b f73b85d067ea861fe36f23536153e4c5add3137f
+          git worktree add --detach "$RUNNER_TEMP/stream-63ff" 63ff4b4072f35631c9ddb11dadec76c9487ef80b
+          git worktree add --detach "$RUNNER_TEMP/stream-f73" f73b85d067ea861fe36f23536153e4c5add3137f
+          for name in 63ff f73; do
+            test "$(git -C "$RUNNER_TEMP/stream-$name" rev-parse HEAD)" = "$(case "$name" in 63ff) printf %s 63ff4b4072f35631c9ddb11dadec76c9487ef80b;; f73) printf %s f73b85d067ea861fe36f23536153e4c5add3137f;; esac)"
+            install -D pbrs-grpc/src/bin/streaming-alloc-hist.rs "$RUNNER_TEMP/stream-$name/pbrs-grpc/src/bin/streaming-alloc-hist.rs"
+            test "$(git hash-object "$RUNNER_TEMP/stream-$name/pbrs-grpc/src/bin/streaming-alloc-hist.rs")" = fcd4c81e03a51e6b332b7113e11dfc653f58b6f8
+            git -C "$RUNNER_TEMP/stream-$name" diff --exit-code
+            git -C "$RUNNER_TEMP/stream-$name" diff --cached --exit-code
+          done
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          bash scripts/ci-install-apt.sh protobuf-compiler
+          rustup toolchain install stable --profile minimal
+          rustc +stable -Vv
+          protoc --version
+          uname -a
+          lscpu | sed -n -e '/Architecture:/p' -e '/Model name:/p' -e '/Thread(s) per core:/p'
+      - name: Build release probe on exact source trees
+        run: |
+          set -euo pipefail
+          for name in 63ff f73; do
+            cd "$RUNNER_TEMP/stream-$name"
+            cargo +stable tree --locked -p pbrs-grpc -e features > "$RUNNER_TEMP/features-$name"
+            if grep -E 'pbrs(-grpc)? feature "copy-counts"' "$RUNNER_TEMP/features-$name"; then exit 1; fi
+            CARGO_TARGET_DIR="$RUNNER_TEMP/stream-target" cargo +stable build --locked --release -p pbrs-grpc --bin streaming-alloc-hist
+            cp "$RUNNER_TEMP/stream-target/release/streaming-alloc-hist" "$RUNNER_TEMP/$name-hist"
+            sha256sum "$RUNNER_TEMP/$name-hist"
+            size "$RUNNER_TEMP/$name-hist"
+            git diff --exit-code
+            git diff --cached --exit-code
+          done
+      - name: Measure paired allocation histograms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          cpu = min(os.sched_getaffinity(0))
+          os.sched_setaffinity(0, {cpu})
+          variants = ("63ff", "f73")
+          bins = {v: root / (v + "-hist") for v in variants}
+          hashes = {v: hashlib.sha256(p.read_bytes()).hexdigest() for v,p in bins.items()}
+          def sample(v, shape, mode):
+              output = subprocess.check_output([str(bins[v]), shape, mode, "4", "500"], text=True, timeout=120)
+              totals, hist = None, {}
+              for line in output.splitlines():
+                  parts = line.split()
+                  if parts and parts[0] == "PBRS_STREAM_ALLOC":
+                      assert totals is None and parts[1:5] == [shape, mode, "4", "500"], line
+                      totals = {"count": int(parts[5]), "bytes": int(parts[6])}
+                  elif parts and parts[0] == "PBRS_ALLOC_HIST":
+                      key = parts[1] + ":" + parts[2]
+                      assert key not in hist
+                      hist[key] = int(parts[3])
+                  else:
+                      raise AssertionError(line)
+              assert totals is not None and sum(hist.values()) == totals["count"], (totals, hist)
+              overflow = sum(v for k,v in hist.items() if k.endswith(":65536"))
+              if not overflow:
+                  assert sum(int(k.split(":")[1]) * v for k,v in hist.items()) == totals["bytes"]
+              return {"totals": totals, "hist": hist, "overflow_count": overflow}
+          def diff(a,b):
+              keys = sorted(set(a["hist"]) | set(b["hist"]), key=lambda k: tuple(map(int,k.split(":"))))
+              return {k:b["hist"].get(k,0)-a["hist"].get(k,0) for k in keys if b["hist"].get(k,0)!=a["hist"].get(k,0)}
+          records = {}
+          for mode in ("none","excluded"):
+              for shape in ("client","server","bidi"):
+                  pairs = []
+                  for i in range(5):
+                      order = variants if i%2 == 0 else tuple(reversed(variants))
+                      samples = {v:sample(v,shape,mode) for v in order}
+                      delta = diff(samples["63ff"],samples["f73"])
+                      row = {"order":order,"samples":samples,"hist_delta":delta}
+                      pairs.append(row)
+                      print("PAIR",mode,shape,i,json.dumps({"totals":{v:samples[v]["totals"] for v in variants},"delta":delta,"overflow":{v:samples[v]["overflow_count"] for v in variants}},sort_keys=True),flush=True)
+                  records[mode+"."+shape]=pairs
+          data = {"schema":"stream-f73-exact-alloc/1","baseline":"63ff4b4072f35631c9ddb11dadec76c9487ef80b","candidate":"f73b85d067ea861fe36f23536153e4c5add3137f","probe_blob":"fcd4c81e03a51e6b332b7113e11dfc653f58b6f8","binary_sha256":hashes,"cpu":cpu,"results":records,"scope":"Five balanced pairs per shape and mode, no-logger or excluded logger, exact detached release source trees with an identical added probe; one-process loopback native client/server on a pinned CPU, four-message 500-call successful streams. Requested allocation bytes and counts, not peak memory or CPU timing."}
+          path = pathlib.Path("target/stream-f73-exact-alloc.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(data,indent=2)+"\n")
+          print("SAVED",path,flush=True)
+          PY
+      - name: Retain raw allocation samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-f73-exact-alloc
+          path: target/stream-f73-exact-alloc.json
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Delete exact scratch ref
+        if: always()
+        run: |
+          set -euo pipefail
+          branch=codex-stream-f73-alloc-compare-20261110
+          test "$GITHUB_REF" = "refs/heads/$branch"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git push --force-with-lease="refs/heads/$branch:$GITHUB_SHA" origin ":refs/heads/$branch"

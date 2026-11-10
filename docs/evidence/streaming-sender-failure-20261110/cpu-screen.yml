@@ -1,0 +1,249 @@
+name: Scratch streaming helper b0 performance screen
+on:
+  push:
+    branches: [codex-stream-helper-b0-perf-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+jobs:
+  screen:
+    if: ${{ github.event.deleted == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Verify exact source and fixtures
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 63ff4b4072f35631c9ddb11dadec76c9487ef80b
+          test "$(git rev-parse HEAD^^)" = 268edce99745469da24fd6c59d3a782d8407683e
+          test "$(git rev-parse HEAD^^^)" = b0e693148fd8adcd242aa247358bb87dcacb99f5
+          test "$(git hash-object pbrs-grpc/src/bin/streaming-poll-probe.rs)" = 845bd6789785dfa41502107d423cb8434085924c
+          test "$(git hash-object pbrs-grpc/src/bin/streaming-poll-alloc.rs)" = bef178405a1f79e8a9f4ce7155b87ace52765518
+          test "$(git hash-object scripts/instrument-split-layout.py)" = a737af02d590d5eeffa61542d0953d9760c88968
+          test "$(git hash-object pbrs-grpc/src/request.rs)" = d66b5b4929eefa21fc0ad4f5d76940a6969bc833
+          test "$(git hash-object pbrs-grpc/src/rpc_cancel.rs)" = f69bb5108ed5abcca12e281ae9dcb678015c90b4
+          test "$(git hash-object pbrs-grpc/src/stream.rs)" = d04e8f419f2ff1f42277638a0d4349667f87b879
+          test "$(git hash-object pbrs-grpc/src/client/streaming.rs)" = 0a14d4519e5e3c1061c1ca48b15c02442760cae5
+          test "$(git hash-object pbrs-grpc/src/wire/send.rs)" = d702a7c300e144d0817c94beeba4d0a1612e1129
+          test "$(git hash-object pbrs-grpc/src/server/drain.rs)" = d2665849665360081e90f36d587e0b9382c8c89d
+          test "$(git hash-object pbrs-grpc/src/binlog/logger.rs)" = bb2f29a85a15eb8a527ae3e01ffd1b6aa47a371d
+          test "$(git hash-object pbrs-grpc/src/client/call.rs)" = 93b6e01b99ccc4698a3c1f8e799e459af9566737
+          git diff --name-only HEAD^ HEAD | sort > "$RUNNER_TEMP/paths"
+          printf '%s\n' .github/workflows/stream-observer-perf.yml pbrs-grpc/src/bin/streaming-poll-probe.rs pbrs-grpc/src/bin/streaming-poll-alloc.rs scripts/instrument-split-layout.py | sort > "$RUNNER_TEMP/expected-paths"
+          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/paths"
+          test -z "$(git status --porcelain)"
+          rustc +stable -Vv
+          uname -a
+          lscpu | grep -E 'Model name|Architecture|CPU\\(s\\)' | head -5
+      - name: Install compiler and protoc
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          rustup toolchain install stable --profile minimal
+          rustc +stable -Vv
+          protoc --version
+      - name: Build exact baseline and prototype
+        run: |
+          set -euo pipefail
+          cargo +stable tree --locked -p pbrs-grpc -e features > "$RUNNER_TEMP/features.txt"
+          if grep -E 'pbrs(-grpc)? feature "copy-counts"' "$RUNNER_TEMP/features.txt"; then exit 1; fi
+          for variant in baseline candidate; do
+            if test "$variant" = baseline; then source_ref=b0e693148fd8adcd242aa247358bb87dcacb99f5; else source_ref=63ff4b4072f35631c9ddb11dadec76c9487ef80b; fi
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            cargo +stable build --locked --release -p pbrs-grpc --bin streaming-poll-probe --bin streaming-poll-alloc
+            cp target/release/streaming-poll-probe "$RUNNER_TEMP/$variant-streaming"
+            cp target/release/streaming-poll-alloc "$RUNNER_TEMP/$variant-alloc"
+          done
+          sha256sum "$RUNNER_TEMP"/baseline-streaming "$RUNNER_TEMP"/candidate-streaming "$RUNNER_TEMP"/baseline-alloc "$RUNNER_TEMP"/candidate-alloc
+          for variant in baseline candidate; do
+            echo "BINARY_BYTES variant=$variant $(stat -c %s "$RUNNER_TEMP/$variant-streaming")"
+            size "$RUNNER_TEMP/$variant-streaming"
+          done
+      - name: Verify behavior for all workloads and log modes
+        run: |
+          set -euo pipefail
+          for variant in baseline candidate; do
+            for mode in none excluded enabled; do
+              for shape in client server bidi; do
+                for messages in 4 128; do
+                  PBRS_PROBE_VERIFY=1 timeout 60 "$RUNNER_TEMP/$variant-streaming" "$shape" "$mode" "$messages" 2
+                done
+              done
+            done
+          done
+      - name: Compare successful streaming CPU and allocations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import statistics
+          import subprocess
+
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          cpu = min(os.sched_getaffinity(0))
+          os.sched_setaffinity(0, {cpu})
+          env = os.environ.copy()
+          env.pop("PBRS_PROBE_VERIFY", None)
+          variants = ("baseline", "candidate")
+          programs = {v: root / f"{v}-streaming" for v in variants}
+          allocs = {v: root / f"{v}-alloc" for v in variants}
+          hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (*programs.values(), *allocs.values())}
+          def run(path, label, shape, mode, messages, calls):
+              line = subprocess.check_output([str(path), shape, mode, str(messages), str(calls)],
+                                             text=True, timeout=120, env=env).strip()
+              parts = line.split()
+              assert len(parts) == 7 and parts[0] == label, line
+              assert parts[1:5] == [shape, mode, str(messages), str(calls)], line
+              return (int(parts[5]), int(parts[6]))
+          def measure(variant, shape, mode, messages, calls):
+              cpu_ns, wall_ns = run(programs[variant], "PBRS_STREAM_PROBE", shape, mode, messages, calls)
+              return {"cpu_ns": cpu_ns, "wall_ns": wall_ns}
+          modes = ("none", "excluded", "enabled")
+          shapes = ("client", "server", "bidi")
+          lengths = {"interactive": (4, 500), "long": (128, 20)}
+          for variant in variants:
+              for mode in modes:
+                  for shape in shapes:
+                      for messages, calls in lengths.values():
+                          measure(variant, shape, mode, messages, calls)
+          results = {}
+          for mode in modes:
+              for shape in shapes:
+                  for size, (messages, calls) in lengths.items():
+                      blocks = []
+                      for i in range(10):
+                          order = (["baseline0", "candidate0", "candidate1", "baseline1"] if i % 2 == 0
+                                   else ["candidate0", "baseline0", "baseline1", "candidate1"])
+                          rows = {label: measure(label[:-1], shape, mode, messages, calls) for label in order}
+                          ratio = ((rows["candidate0"]["cpu_ns"] + rows["candidate1"]["cpu_ns"])
+                                   / (rows["baseline0"]["cpu_ns"] + rows["baseline1"]["cpu_ns"]))
+                          control_order = ["first", "second"] if i % 2 == 0 else ["second", "first"]
+                          controls = {}
+                          for variant in variants:
+                              values = {label: measure(variant, shape, mode, messages, calls) for label in control_order}
+                              controls[variant] = {"order": control_order, "values": values,
+                                                   "ratio": values["second"]["cpu_ns"] / values["first"]["cpu_ns"]}
+                          blocks.append({"order": order, "runs": rows, "candidate_over_baseline": ratio,
+                                         "same_binary_controls": controls})
+                      ratios = [block["candidate_over_baseline"] for block in blocks]
+                      results[f"{mode}.{shape}.{size}"] = {"messages": messages, "calls": calls, "blocks": blocks,
+                                                          "median": statistics.median(ratios),
+                                                          "min": min(ratios), "max": max(ratios)}
+                      controls = {variant: [block["same_binary_controls"][variant]["ratio"] for block in blocks] for variant in variants}
+                      print("CPU", mode, shape, size, f"{statistics.median(ratios):.4f}", f"{min(ratios):.4f}", f"{max(ratios):.4f}",
+                            "baseline_control", f"{min(controls['baseline']):.4f}..{max(controls['baseline']):.4f}",
+                            "candidate_control", f"{min(controls['candidate']):.4f}..{max(controls['candidate']):.4f}", flush=True)
+          allocation_results = {}
+          for mode in modes:
+              for shape in shapes:
+                  samples = []
+                  for i in range(5):
+                      order = ["baseline", "candidate"] if i % 2 == 0 else ["candidate", "baseline"]
+                      measured = {}
+                      for variant in order:
+                          allocations, requested_bytes = run(allocs[variant], "PBRS_STREAM_ALLOC", shape, mode, 4, 500)
+                          assert allocations > 0 and requested_bytes > 0
+                          measured[variant] = {"allocations": allocations, "requested_bytes": requested_bytes}
+                      samples.append({"order": order, "samples": measured})
+                  allocation_results[f"{mode}.{shape}"] = {"messages": 4, "calls": 500, "samples": samples}
+                  print("ALLOC", mode, shape, json.dumps(samples, sort_keys=True), flush=True)
+          record = {
+              "schema": "streaming-helper-b0-screen/1",
+              "baseline": "b0e693148fd8adcd242aa247358bb87dcacb99f5", "candidate": "63ff4b4072f35631c9ddb11dadec76c9487ef80b",
+              "fixture_blob": "845bd6789785dfa41502107d423cb8434085924c",
+              "allocation_fixture_blob": "bef178405a1f79e8a9f4ce7155b87ace52765518", "binary_sha256": hashes, "cpu": cpu,
+              "cpu_results": results, "allocation_results": allocation_results,
+              "scope": "isolated scoped error-helper candidate compared with b0 baseline; successful native current-thread client and server share a loopback process and one CPU; no TLS; 4-message/500-call and 128-message/20-call streams; 32-byte input/output; ten balanced CPU blocks with same-binary controls; five process-wide allocation pairs per 4-message case count alloc, alloc_zeroed and realloc requests after warmup; no-op log sink in timed enabled mode; no cancellation-event timing; shared host; not a tonic comparison or production ranking"
+          }
+          path = pathlib.Path("target/streaming-observer-screen.json")
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print("SAVED", path)
+          PY
+      - name: Balanced clean package rebuild times
+        run: |
+          set -euo pipefail
+          block=0
+          for variant in baseline candidate candidate baseline; do
+            if test "$variant" = baseline; then source_ref=b0e693148fd8adcd242aa247358bb87dcacb99f5; else source_ref=63ff4b4072f35631c9ddb11dadec76c9487ef80b; fi
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            cargo +stable clean -p pbrs-grpc
+            /usr/bin/time -f "BUILD_TIME variant=$variant block=$block elapsed=%e user=%U sys=%S rss_kb=%M" cargo +stable build --locked --release -p pbrs-grpc --bin streaming-poll-probe --bin streaming-poll-alloc
+            block=$((block+1))
+          done
+      - name: Build separately instrumented call layouts
+        run: |
+          set -euo pipefail
+          for variant in baseline candidate; do
+            if test "$variant" = baseline; then source_ref=b0e693148fd8adcd242aa247358bb87dcacb99f5; else source_ref=63ff4b4072f35631c9ddb11dadec76c9487ef80b; fi
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs pbrs-grpc/src/request.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            test "$(git hash-object pbrs-grpc/src/request.rs)" = d66b5b4929eefa21fc0ad4f5d76940a6969bc833
+            python3 scripts/instrument-split-layout.py
+            cargo +stable build --locked --release -p pbrs-grpc --bin streaming-poll-probe
+            cp target/release/streaming-poll-probe "$RUNNER_TEMP/$variant-layout"
+          done
+      - name: Report concrete call-future layouts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, subprocess
+          from pathlib import Path
+          env = os.environ.copy()
+          env["PBRS_FUTURE_LAYOUT"] = "1"
+          root = Path(os.environ["RUNNER_TEMP"])
+          for mode in ("none", "excluded", "enabled"):
+              for shape in ("client", "server", "bidi"):
+                  values = {}
+                  for variant in ("baseline", "candidate"):
+                      p = subprocess.run([str(root / f"{variant}-layout"), shape, mode, "4", "1"], env=env, text=True, capture_output=True, timeout=60, check=True)
+                      assert "PBRS_STREAM_PROBE" in p.stdout
+                      found = set(map(int, re.findall(r"PBRS_SPLIT_CALL_BYTES=(\d+)", p.stderr)))
+                      assert len(found) == 1, (mode, shape, variant, found, p.stderr)
+                      values[variant] = next(iter(found))
+                  print(f"CALL_LAYOUT {mode} {shape} baseline={values['baseline']} candidate={values['candidate']} delta={values['candidate']-values['baseline']}")
+          PY
+      - name: Preserve raw measurements
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: streaming-helper-b0-screen
+          path: target/streaming-observer-screen.json
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Checkout scratch for cleanup
+        if: ${{ always() }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          path: .cleanup-scratch
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Delete exact scratch head
+        if: ${{ always() }}
+        shell: bash
+        working-directory: .cleanup-scratch
+        run: |
+          set -euo pipefail
+          branch=codex-stream-helper-b0-perf-20261110
+          test "$GITHUB_REF" = "refs/heads/$branch"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git push --force-with-lease="refs/heads/$branch:$GITHUB_SHA" origin ":refs/heads/$branch"

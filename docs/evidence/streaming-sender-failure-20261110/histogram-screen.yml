@@ -1,0 +1,210 @@
+name: Scratch final streaming helper histogram
+on:
+  push:
+    branches: [codex-stream-helper-final-hist-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+jobs:
+  histogram:
+    if: github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Verify source and fixture pins
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 63ff4b4072f35631c9ddb11dadec76c9487ef80b
+          test "$(git rev-parse HEAD^^)" = 268edce99745469da24fd6c59d3a782d8407683e
+          git fetch --no-tags origin 260465c07898297fc46d035c1b790df8c697a254
+          test "$(git rev-parse HEAD^^^)" = b0e693148fd8adcd242aa247358bb87dcacb99f5
+          test "$(git hash-object pbrs-grpc/src/bin/streaming-alloc-hist.rs)" = fcd4c81e03a51e6b332b7113e11dfc653f58b6f8
+          test "$(git hash-object pbrs-grpc/src/request.rs)" = d66b5b4929eefa21fc0ad4f5d76940a6969bc833
+          test "$(git hash-object pbrs-grpc/src/rpc_cancel.rs)" = f69bb5108ed5abcca12e281ae9dcb678015c90b4
+          test "$(git hash-object pbrs-grpc/src/stream.rs)" = d04e8f419f2ff1f42277638a0d4349667f87b879
+          test "$(git hash-object pbrs-grpc/src/client/streaming.rs)" = 0a14d4519e5e3c1061c1ca48b15c02442760cae5
+          test "$(git hash-object pbrs-grpc/src/wire/send.rs)" = d702a7c300e144d0817c94beeba4d0a1612e1129
+          test "$(git hash-object pbrs-grpc/src/server/drain.rs)" = d2665849665360081e90f36d587e0b9382c8c89d
+          test "$(git hash-object pbrs-grpc/src/binlog/logger.rs)" = bb2f29a85a15eb8a527ae3e01ffd1b6aa47a371d
+          test "$(git diff --name-only HEAD^^ HEAD^)" = pbrs-grpc/src/server/drain.rs
+          git diff --name-only HEAD^ HEAD | sort > "$RUNNER_TEMP/paths"
+          printf '%s\n' .github/workflows/stream-error-helper.yml pbrs-grpc/src/bin/streaming-alloc-hist.rs | sort > "$RUNNER_TEMP/expected"
+          diff -u "$RUNNER_TEMP/expected" "$RUNNER_TEMP/paths"
+          test -z "$(git status --porcelain)"
+          uname -a
+          lscpu | sed -n -e '/Architecture:/p' -e '/Model name:/p' -e '/Thread(s) per core:/p'
+      - name: Install compiler and protoc
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          rustup toolchain install stable --profile minimal
+          rustc +stable -Vv
+          protoc --version
+      - name: Build exact source variants with histogram probe
+        run: |
+          set -euo pipefail
+          cargo +stable tree --locked -p pbrs-grpc -e features > "$RUNNER_TEMP/features.txt"
+          if grep -E 'pbrs(-grpc)? feature "copy-counts"' "$RUNNER_TEMP/features.txt"; then exit 1; fi
+          for variant in baseline prototype helper; do
+            case "$variant" in
+              baseline) source_ref=b0e693148fd8adcd242aa247358bb87dcacb99f5 ;;
+              prototype) source_ref=260465c07898297fc46d035c1b790df8c697a254 ;;
+              helper) source_ref=63ff4b4072f35631c9ddb11dadec76c9487ef80b ;;
+            esac
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            cargo +stable build --locked --release -p pbrs-grpc --bin streaming-alloc-hist
+            cp target/release/streaming-alloc-hist "$RUNNER_TEMP/$variant-hist"
+          done
+          sha256sum "$RUNNER_TEMP"/{baseline,prototype,helper}-hist
+      - name: Compare successful no-logger allocation histograms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          cpu = min(os.sched_getaffinity(0))
+          os.sched_setaffinity(0, {cpu})
+          variants = ("baseline", "prototype", "helper")
+          bins = {v: root / f"{v}-hist" for v in variants}
+          hashes = {v: hashlib.sha256(p.read_bytes()).hexdigest() for v, p in bins.items()}
+          def sample(variant, shape):
+              output = subprocess.check_output([str(bins[variant]), shape, "none", "4", "500"], text=True, timeout=120)
+              totals, hist = None, {}
+              for line in output.splitlines():
+                  parts = line.split()
+                  if parts and parts[0] == "PBRS_STREAM_ALLOC":
+                      assert totals is None and parts[1:5] == [shape, "none", "4", "500"], line
+                      totals = {"count": int(parts[5]), "bytes": int(parts[6])}
+                  elif parts and parts[0] == "PBRS_ALLOC_HIST":
+                      k = f"{parts[1]}:{parts[2]}"
+                      assert k not in hist, k
+                      hist[k] = int(parts[3])
+                  else:
+                      raise AssertionError(line)
+              assert totals and sum(hist.values()) == totals["count"], (totals, hist)
+              overflow = sum(v for k, v in hist.items() if k.endswith(":65536"))
+              if not overflow:
+                  assert sum(int(k.split(":")[1]) * v for k, v in hist.items()) == totals["bytes"]
+              return {"totals": totals, "hist": hist, "overflow_count": overflow}
+          def diff(a, b):
+              keys = sorted(set(a["hist"]) | set(b["hist"]), key=lambda k: tuple(map(int, k.split(":"))))
+              return {k: b["hist"].get(k, 0) - a["hist"].get(k, 0)
+                      for k in keys if b["hist"].get(k, 0) != a["hist"].get(k, 0)}
+          results = {}
+          for shape in ("client", "server", "bidi"):
+              pairs = []
+              for i in range(5):
+                  order = variants if i % 2 == 0 else tuple(reversed(variants))
+                  samples = {v: sample(v, shape) for v in order}
+                  first = diff(samples["baseline"], samples["prototype"])
+                  second = diff(samples["prototype"], samples["helper"])
+                  print("HELPER_HIST", shape, i, json.dumps({
+                      "totals": {v: samples[v]["totals"] for v in variants},
+                      "baseline_to_prototype": first, "prototype_to_helper": second,
+                      "overflow": {v: samples[v]["overflow_count"] for v in variants}
+                  }, sort_keys=True), flush=True)
+                  pairs.append({"order": order, "samples": samples,
+                                "baseline_to_prototype": first, "prototype_to_helper": second})
+              results[shape] = pairs
+          record = {"schema": "stream-error-helper-hist/1", "baseline": "b0e693148fd8adcd242aa247358bb87dcacb99f5",
+                    "prototype": "260465c07898297fc46d035c1b790df8c697a254", "helper": "63ff4b4072f35631c9ddb11dadec76c9487ef80b",
+                    "fixture_blob": "fcd4c81e03a51e6b332b7113e11dfc653f58b6f8", "binary_sha256": hashes, "cpu": cpu, "results": results,
+                    "scope": "Five balanced process-wide allocation histogram triples per shape; no-logger, current-thread native client and server share a loopback process on one pinned CPU, 500 successful four-message calls. Allocation counts and requested bytes are not peak memory or CPU."}
+          path = pathlib.Path("target/stream-error-helper.json")
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print("SAVED", path)
+          PY
+      - name: Verify streamed status ordering and server terminal accounting
+        run: |
+          set -euo pipefail
+          for source_ref in 260465c07898297fc46d035c1b790df8c697a254 63ff4b4072f35631c9ddb11dadec76c9487ef80b; do
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            echo "CONTROL_SOURCE $source_ref"
+            cargo +stable test --locked --release -p pbrs-grpc --test rpc typed_google_rpc_status_after_a_streamed_message -- --exact
+            cargo +stable test --locked --release -p pbrs-grpc --test server_terminal_accounting
+          done
+      - name: Build separately instrumented hold-cancel future layouts
+        run: |
+          set -euo pipefail
+          for variant in baseline prototype helper; do
+            case "$variant" in
+              baseline) source_ref=b0e693148fd8adcd242aa247358bb87dcacb99f5 ;;
+              prototype) source_ref=260465c07898297fc46d035c1b790df8c697a254 ;;
+              helper) source_ref=63ff4b4072f35631c9ddb11dadec76c9487ef80b ;;
+            esac
+            for path in pbrs-grpc/src/stream.rs pbrs-grpc/src/client/streaming.rs pbrs-grpc/src/wire/send.rs pbrs-grpc/src/server/drain.rs pbrs-grpc/src/binlog/logger.rs; do
+              git show "$source_ref:$path" > "$path"
+              test "$(git hash-object "$path")" = "$(git rev-parse "$source_ref:$path")"
+            done
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path("pbrs-grpc/src/server/drain.rs")
+          s = p.read_text()
+          old = "pub(crate) fn hold_cancel<F: Future<Output = ()>>(cancel: CancelOnDrop, write: F) -> HoldCancel<F> {\n"
+          new = old + '    if std::env::var_os("PBRS_HOLD_LAYOUT").is_some() { eprintln!("PBRS_HOLD_FUTURE_SIZE={}", std::mem::size_of_val(&write)); }\n'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new))
+          PY
+            cargo +stable build --locked --release -p pbrs-grpc --bin streaming-alloc-hist
+            cp target/release/streaming-alloc-hist "$RUNNER_TEMP/$variant-layout"
+          done
+      - name: Report concrete hold-cancel future layouts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, subprocess
+          from pathlib import Path
+          env = os.environ.copy()
+          env["PBRS_HOLD_LAYOUT"] = "1"
+          root = Path(os.environ["RUNNER_TEMP"])
+          for shape in ("client", "server", "bidi"):
+              values = {}
+              for variant in ("baseline", "prototype", "helper"):
+                  p = subprocess.run([str(root / f"{variant}-layout"), shape, "none", "4", "1"],
+                                     env=env, text=True, capture_output=True, timeout=60, check=True)
+                  assert "PBRS_STREAM_ALLOC" in p.stdout
+                  found = set(map(int, re.findall(r"PBRS_HOLD_FUTURE_SIZE=(\d+)", p.stderr)))
+                  assert len(found) == 1, (shape, variant, found, p.stderr)
+                  values[variant] = next(iter(found))
+              print("HOLD_LAYOUT", shape, values)
+          PY
+      - name: Preserve raw measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streaming-error-helper-final-hist
+          path: target/stream-error-helper.json
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Checkout scratch for cleanup
+        if: always()
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          path: .cleanup-scratch
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Delete exact scratch head
+        if: always()
+        shell: bash
+        working-directory: .cleanup-scratch
+        run: |
+          set -euo pipefail
+          branch=codex-stream-helper-final-hist-20261110
+          test "$GITHUB_REF" = "refs/heads/$branch"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git push --force-with-lease="refs/heads/$branch:$GITHUB_SHA" origin ":refs/heads/$branch"

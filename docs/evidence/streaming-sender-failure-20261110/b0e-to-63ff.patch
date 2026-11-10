@@ -1,0 +1,445 @@
+diff --git a/pbrs-grpc/src/binlog/logger.rs b/pbrs-grpc/src/binlog/logger.rs
+index fa739c8021fb7169e95c2c93daa64f39fe4bc6dc..bb2f29a85a15eb8a527ae3e01ffd1b6aa47a371d 100644
+--- a/pbrs-grpc/src/binlog/logger.rs
++++ b/pbrs-grpc/src/binlog/logger.rs
+@@ -107,6 +107,8 @@ impl BinaryLogger {
+                 sequence: AtomicU64::new(1),
+                 peer: std::sync::Mutex::new(None),
+                 peer_logged: AtomicBool::new(false),
++                streaming_cancel_logged: AtomicBool::new(false),
++                streaming_sender_failed: AtomicBool::new(false),
+                 mask_sensitive: self.mask_sensitive,
+             }),
+         })
+@@ -128,6 +130,8 @@ struct CallState {
+     sequence: AtomicU64,
+     peer: std::sync::Mutex<Option<Address>>,
+     peer_logged: AtomicBool,
++    streaming_cancel_logged: AtomicBool,
++    streaming_sender_failed: AtomicBool,
+     mask_sensitive: bool,
+ }
+ 
+@@ -263,6 +267,47 @@ impl CallLogger {
+         self.emit(EventType::Cancel, None, false, None);
+     }
+ 
++    /// Share a single cancellation event between the upload pump and the
++    /// existing streaming status paths.
++    pub(crate) fn log_streaming_cancel_once(&self) {
++        if !self
++            .inner
++            .streaming_cancel_logged
++            .swap(true, Ordering::Relaxed)
++        {
++            self.log_cancel();
++        }
++    }
++
++    /// Remember a native sender failure that the ordered upload pump reached.
++    pub(crate) fn note_streaming_sender_failure(&self) {
++        self.inner
++            .streaming_sender_failed
++            .store(true, Ordering::Release);
++    }
++
++    /// Emit after the failure outcome is selected. Sink panics must not replace
++    /// the status supplied by the sender.
++    #[allow(
++        clippy::mem_forget,
++        reason = "a second panic payload may panic when dropped"
++    )]
++    pub(crate) fn log_pending_streaming_sender_failure(&self) {
++        if self.inner.streaming_sender_failed.load(Ordering::Acquire) {
++            if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++                self.log_streaming_cancel_once();
++            })) {
++                // Dropping the caught panic payload can panic. Contain that
++                // unwind too, and forget its payload to avoid another drop.
++                if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++                    drop(payload);
++                })) {
++                    std::mem::forget(payload);
++                }
++            }
++        }
++    }
++
+     /// Which side this logger records.
+     #[must_use]
+     pub fn role(&self) -> Logger {
+diff --git a/pbrs-grpc/src/client/streaming.rs b/pbrs-grpc/src/client/streaming.rs
+index 5026b09a503a5aa007810bfed9765b277c6b1b67..0a14d4519e5e3c1061c1ca48b15c02442760cae5 100644
+--- a/pbrs-grpc/src/client/streaming.rs
++++ b/pbrs-grpc/src/client/streaming.rs
+@@ -431,7 +431,7 @@ where
+                 cancel_rx.clone(),
+                 wire,
+                 &budget,
+-                tap.cloned(),
++                tap,
+                 socket,
+             );
+             tokio::pin!(pump);
+@@ -480,8 +480,9 @@ where
+     send.live = false;
+     let result = prefer_deadline(result, deadline);
+     if let (Some(tap), Err(status)) = (tap, &result) {
++        tap.log_pending_streaming_sender_failure();
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     // Channelz: the attempt's stream ends here, like unary. Sent messages
+@@ -491,17 +492,40 @@ where
+     result
+ }
+ 
++// Record only a reached native sender failure. The live pump defers the
++// callback until its outcome is selected; a closed upload has no competing
++// status selection after this synchronous function returns.
++#[cold]
++fn upload_failure_status(
++    error: crate::stream::ItemError,
++    tap: Option<&CallLogger>,
++    defer: bool,
++) -> Status {
++    match error {
++        crate::stream::ItemError::SenderFailure(status) => {
++            if let Some(tap) = tap {
++                tap.note_streaming_sender_failure();
++                if !defer {
++                    tap.log_pending_streaming_sender_failure();
++                }
++            }
++            status
++        }
++        crate::stream::ItemError::Other(status) => status,
++    }
++}
++
+ async fn pump_outbound_budget<T: CodecMessage>(
+     send: &mut backend::SendStream,
+     mut rx: Streaming<T>,
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     budget: &ByteBudgetTracker,
+-    tap: Option<CallLogger>,
++    tap: Option<&CallLogger>,
+     channelz_socket: Option<crate::channelz::SocketId>,
+ ) -> PumpEnd {
+     let mut batch = OutBatch::new(wire);
+-    if let Some(tap) = &tap {
++    if let Some(tap) = tap {
+         batch.set_tap(tap.clone());
+     }
+     // One map lookup for the whole upload. Each encoded message then
+@@ -533,7 +557,7 @@ async fn pump_outbound_budget<T: CodecMessage>(
+             }
+             permits.clear();
+             send.send_data(Bytes::new(), true).ok();
+-            if let Some(tap) = &tap {
++            if let Some(tap) = tap {
+                 tap.log_half_close();
+             }
+             return PumpEnd::HalfClosed;
+@@ -548,7 +572,9 @@ async fn pump_outbound_budget<T: CodecMessage>(
+             let ready_messages = ready.len() + 1;
+             let item = match item {
+                 Ok(item) => item,
+-                Err(status) => return PumpEnd::Failed(status),
++                Err(error) => {
++                    return PumpEnd::Failed(upload_failure_status(*error, tap, true));
++                }
+             };
+             let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
+             {
+@@ -646,7 +672,7 @@ struct EncodedUpload {
+ /// not fit in the stream buffer; nothing in `rest` has been queued.
+ fn write_closed_upload<T: CodecMessage>(
+     send: &mut backend::SendStream,
+-    items: Vec<Result<crate::stream::Framed<T>, Status>>,
++    items: Vec<crate::stream::Item<T>>,
+     wire: Wire,
+     budget: &ByteBudgetTracker,
+     tap: &Option<CallLogger>,
+@@ -668,7 +694,10 @@ fn write_closed_upload<T: CodecMessage>(
+         let ready_messages = ready.len() + 1;
+         let item = match item {
+             Ok(item) => item,
+-            Err(status) => return Err(fail(send, status)),
++            Err(error) => {
++                send.send_reset(Reason::CANCEL);
++                return Err(upload_failure_status(*error, tap.as_ref(), false));
++            }
+         };
+         let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits) {
+             Ok(len) => len,
+@@ -834,7 +863,7 @@ async fn await_closed_client_response<Resp: CodecMessage>(
+     send.live = false;
+     if let (Some(tap), Err(status)) = (tap, &result) {
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     note_client_stream_end(socket, &result);
+@@ -886,7 +915,7 @@ async fn send_client_rest<Resp: CodecMessage>(
+     send.live = false;
+     if let (Some(tap), Err(status)) = (&tap, &result) {
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     note_client_stream_end(socket, &result);
+@@ -938,7 +967,7 @@ async fn wait_ready_bidi_http(
+     send.live = false;
+     if let (Some(tap), Err(status)) = (&tap, &received) {
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     ReadyHttp {
+@@ -1142,7 +1171,7 @@ where
+     let result = prefer_deadline(result, deadline);
+     if let (Some(tap), Err(status)) = (&tap, &result) {
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     match result {
+@@ -1362,7 +1391,7 @@ where
+                                 cancel_rx.clone(),
+                                 wire,
+                                 &budget,
+-                                tap,
++                                tap.as_ref(),
+                                 socket,
+                             )
+                             .await
+@@ -1394,7 +1423,14 @@ where
+                     // and resp_fut surfaces CANCEL as UNAVAILABLE
+                     // ("stream no longer needed") on the same poll.
+                     fail_tx.send(status).ok();
+-                    hold_rx.await.ok();
++                    // A selected failure is logged by the Call before it
++                    // acknowledges. If the Call finished or was dropped, the
++                    // pump owns the pending event before it resets the stream.
++                    if hold_rx.await.is_err() {
++                        if let Some(tap) = &tap {
++                            tap.log_pending_streaming_sender_failure();
++                        }
++                    }
+                     send.stream_mut().send_reset(Reason::CANCEL);
+                 }
+                 Some(PumpEnd::HalfClosed) => {
+@@ -1418,7 +1454,7 @@ where
+             send.live = false;
+         }
+     });
+-    let result = {
++    let (result, deadline_checked) = {
+         let fut = async {
+             let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+             finish_stream::<Resp>(
+@@ -1443,25 +1479,37 @@ where
+         loop {
+             tokio::select! {
+                 biased;
+-                () = &mut until_deadline => break Err(Status::deadline_exceeded()),
+-                _ = cancelled.wait() => break Err(Status::cancelled()),
++                () = &mut until_deadline => break (Err(Status::deadline_exceeded()), false),
++                _ = cancelled.wait() => break (Err(Status::cancelled()), false),
+                 status = &mut fail_rx, if !fail_done => {
+                     match status {
+                         Ok(status) => {
+-                            hold_tx.take();
+-                            break Err(status);
++                            // Fix deadline preference before calling the sink:
++                            // the callback must not change the selected status.
++                            let result = prefer_deadline(Err(status), deadline);
++                            if let Some(tap) = &tap {
++                                tap.log_pending_streaming_sender_failure();
++                            }
++                            if let Some(hold_tx) = hold_tx.take() {
++                                hold_tx.send(()).ok();
++                            }
++                            break (result, true);
+                         }
+                         Err(_) => fail_done = true,
+                     }
+                 }
+-                result = &mut fut => break result,
++                result = &mut fut => break (result, false),
+             }
+         }
+     };
+-    let result = prefer_deadline(result, deadline);
++    let result = if deadline_checked {
++        result
++    } else {
++        prefer_deadline(result, deadline)
++    };
+     if let (Some(tap), Err(status)) = (&tap, &result) {
+         if status.code() == Code::Cancelled {
+-            tap.log_cancel();
++            tap.log_streaming_cancel_once();
+         }
+     }
+     // Channelz: count the attempt's stream like unary (started on every
+diff --git a/pbrs-grpc/src/server/drain.rs b/pbrs-grpc/src/server/drain.rs
+index 83261a8f210c710426292486f7625e0ebee4ed0c..d2665849665360081e90f36d587e0b9382c8c89d 100644
+--- a/pbrs-grpc/src/server/drain.rs
++++ b/pbrs-grpc/src/server/drain.rs
+@@ -926,6 +926,11 @@ async fn flush_batch(
+     Ok(())
+ }
+ 
++#[inline]
++fn consume_item_error(error: Box<crate::stream::ItemError>) -> Status {
++    (*error).into_status()
++}
++
+ async fn flush_queued_before_error(
+     batch: &mut OutBatch,
+     send: &mut backend::SendStream,
+@@ -1016,6 +1021,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
+             let mut item = match item {
+                 Ok(item) => item,
+                 Err(status) => {
++                    let status = consume_item_error(status);
+                     return flush_queued_before_error(
+                         &mut batch,
+                         send,
+diff --git a/pbrs-grpc/src/stream.rs b/pbrs-grpc/src/stream.rs
+index 0eb99731939fac66969f22ec96b0064348a3d122..d04e8f419f2ff1f42277638a0d4349667f87b879 100644
+--- a/pbrs-grpc/src/stream.rs
++++ b/pbrs-grpc/src/stream.rs
+@@ -58,7 +58,26 @@ impl<T> Framed<T> {
+     }
+ }
+ 
+-type Item<T> = Result<Framed<T>, Status>;
++/// An outbound stream failure with its origin preserved until the upload loop
++/// handles it. Only a direct call to the sender's fail API is attributed;
++/// errors yielded by external streams or by the wire have no such attribution.
++#[derive(Debug)]
++pub(crate) enum ItemError {
++    SenderFailure(Status),
++    Other(Status),
++}
++
++impl ItemError {
++    pub(crate) fn into_status(self) -> Status {
++        match self {
++            Self::SenderFailure(status) | Self::Other(status) => status,
++        }
++    }
++}
++
++// Keep provenance in the cold error allocation rather than adding a field to
++// every successful item; enum layout remains compiler and type dependent.
++pub(crate) type Item<T> = Result<Framed<T>, Box<ItemError>>;
+ 
+ /// Where a [`Streaming`] gets its messages.
+ enum Source<T> {
+@@ -161,16 +180,19 @@ where
+     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+         let this = self.project();
+         this.stream.poll_next(cx).map(|item| {
+-            item.map(|item| {
+-                item.and_then(|message| {
++            item.map(|item| match item {
++                Ok(message) => {
+                     if this.limits.max_encoding().is_some() {
+-                        this.limits.check_encode(message.encoded_len())?;
++                        this.limits
++                            .check_encode(message.encoded_len())
++                            .map_err(|status| Box::new(ItemError::Other(status)))?;
+                     }
+                     Ok(Framed {
+                         message,
+                         compressed: *this.compress,
+                     })
+-                })
++                }
++                Err(status) => Err(Box::new(ItemError::Other(status))),
+             })
+         })
+     }
+@@ -521,12 +543,14 @@ impl<T> Streaming<T> {
+     fn poll_source(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
+         match &mut self.source {
+             #[cfg(feature = "tower")]
+-            Source::External(input) => input.poll_next(cx).map(|item| item.transpose()),
++            Source::External(input) => input
++                .poll_next(cx)
++                .map(|item| item.transpose().map_err(|error| (*error).into_status())),
+             Source::Channel(rx) => match rx.poll_recv(cx) {
+                 Poll::Pending => Poll::Pending,
+                 Poll::Ready(None) => Poll::Ready(Ok(None)),
+                 Poll::Ready(Some(Ok(framed))) => Poll::Ready(Ok(Some(framed))),
+-                Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
++                Poll::Ready(Some(Err(error))) => Poll::Ready(Err((*error).into_status())),
+             },
+             Source::Wire(wire) => {
+                 // Sending RST_STREAM happens on a background task. Observe the
+@@ -620,7 +644,7 @@ impl<T> Streaming<T> {
+             Source::Wire(wire) => match wire.next().await.transpose() {
+                 None => 0,
+                 Some(item) => {
+-                    out.push(item);
++                    out.push(item.map_err(|status| Box::new(ItemError::Other(status))));
+                     1
+                 }
+             },
+@@ -629,7 +653,7 @@ impl<T> Streaming<T> {
+ 
+     /// Drain a closed in-memory channel. `None` when this stream is wire-backed
+     /// or the sender is still alive, so the caller must keep the async pump.
+-    pub(crate) fn drain_closed_channel(&mut self) -> Option<Vec<Result<Framed<T>, Status>>> {
++    pub(crate) fn drain_closed_channel(&mut self) -> Option<Vec<Item<T>>> {
+         let Source::Channel(rx) = &mut self.source else {
+             return None;
+         };
+@@ -835,7 +859,10 @@ impl<T> StreamSender<T> {
+         // no-op then, and the drain measures again for the frame anyway.
+         if self.limits.max_encoding().is_some() {
+             if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
+-                self.tx.send(Err(status.clone())).await.ok();
++                self.tx
++                    .send(Err(Box::new(ItemError::Other(status.clone()))))
++                    .await
++                    .ok();
+                 return Err(status);
+             }
+         }
+@@ -861,7 +888,10 @@ impl<T> StreamSender<T> {
+     /// A bidi call that already has headers surfaces the reset on the
+     /// received [`Streaming`] as [`crate::Code::Cancelled`], not `status`.
+     pub async fn fail(self, status: Status) {
+-        self.tx.send(Err(status)).await.ok();
++        self.tx
++            .send(Err(Box::new(ItemError::SenderFailure(status))))
++            .await
++            .ok();
+     }
+ 
+     /// Half-close this handle. Equivalent to dropping it.
+diff --git a/pbrs-grpc/src/wire/send.rs b/pbrs-grpc/src/wire/send.rs
+index 04a876cf9006702dd52b9eb4bbb74bfb7859c0c6..d702a7c300e144d0817c94beeba4d0a1612e1129 100644
+--- a/pbrs-grpc/src/wire/send.rs
++++ b/pbrs-grpc/src/wire/send.rs
+@@ -456,7 +456,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
+                     // Do not RST here: the caller delivers this status first
+                     // (in-task on client-streaming, oneshot on bidi) so the
+                     // Call does not lose it to h2 UNAVAILABLE from the reset.
+-                    return PumpEnd::Failed(status);
++                    return PumpEnd::Failed((*status).into_status());
+                 }
+             };
+             if let Err(status) = batch.encode_ready(item, ready_messages) {

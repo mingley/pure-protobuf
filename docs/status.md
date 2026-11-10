@@ -23,6 +23,13 @@ That revision's [Miri record](https://github.com/mingley/pure-protobuf/actions/r
 also includes interpreted i686 checks for the alloc publication cell. The other
 lanes do not establish 32-bit coverage.
 
+At [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f), [native gRPC i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
+failed on Rust 1.85 and 1.99 with both default and no-default features. The
+unconditional `rustls-graviola` dependency uses `graviola` 0.2.1, which rejects
+`i686-unknown-linux-gnu` at compile time. This is separate from the core
+`pbrs` alloc-only profile and i686 alloc-cell Miri evidence; it does not
+establish gRPC support for other targets.
+
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
 for complete traversal, or [`boxed(path)`](guides/codegen.md#box-selected-nested-fields)

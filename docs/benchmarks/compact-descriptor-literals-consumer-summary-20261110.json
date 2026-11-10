@@ -1,0 +1,545 @@
+{
+  "candidate": "f2cca72100959a3dcce4f68ca003f7f573066726",
+  "cases": [
+    {
+      "blocks": 4,
+      "case": "single-default",
+      "mode": "check",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            2145375000,
+            2205628000
+          ],
+          "max_child_rss_kib_range": [
+            334188,
+            334664
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            2137945000,
+            2152588000
+          ],
+          "max_child_rss_kib_range": [
+            334408,
+            334860
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 1038723,
+          "files": 2,
+          "sha256": "ec5420642523a608c39588172f00b8beb32f5e54a2d3ebc990fa2b866b3a8da1"
+        },
+        "candidate": {
+          "bytes": 1024286,
+          "files": 2,
+          "sha256": "76950d7080b67faeea75cf6896ba4a718aaa98b966f09052ffbafcd18510b7ec"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9905409662667971,
+            1.0077316790139674
+          ],
+          "candidate": [
+            0.9908696105567409,
+            1.0009187150214536
+          ]
+        },
+        "median": 0.9961147461788344,
+        "range": [
+          0.9748810769540467,
+          0.9967972965099342
+        ],
+        "slower": 0
+      }
+    },
+    {
+      "blocks": 4,
+      "case": "nested5-default",
+      "mode": "check",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            4558974000,
+            4625134000
+          ],
+          "max_child_rss_kib_range": [
+            561516,
+            561800
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            4533061000,
+            4589771000
+          ],
+          "max_child_rss_kib_range": [
+            561256,
+            561520
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.990697730572894,
+            1.020987125288707
+          ],
+          "candidate": [
+            0.9905314091810362,
+            0.995544005981353
+          ]
+        },
+        "median": 0.996319846558319,
+        "range": [
+          0.980092901092163,
+          1.0013878438807058
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "balanced20-default",
+      "mode": "check",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            50460423000,
+            50858297000
+          ],
+          "max_child_rss_kib_range": [
+            4333480,
+            4333924
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            50171462000,
+            52410699000
+          ],
+          "max_child_rss_kib_range": [
+            4326480,
+            4327008
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 34347839,
+          "files": 21,
+          "sha256": "7cda09da63d7b983175f687415f823f2b4ef167d234f3f12eb59822be3802316"
+        },
+        "candidate": {
+          "bytes": 27556279,
+          "files": 21,
+          "sha256": "e92bb2c415be7bba2f6ec60abbd2b612688f9b9966d1a64e3c9df5b2bd95e435"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.987881522479117,
+            1.0214640905994827
+          ],
+          "candidate": [
+            0.9819816350320498,
+            1.0281191539851888
+          ]
+        },
+        "median": 1.0026719927330638,
+        "range": [
+          0.9942735121344504,
+          1.0353103889671085
+        ],
+        "slower": 2
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "balanced20-lean",
+      "mode": "check",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            32677634000,
+            32726095000
+          ],
+          "max_child_rss_kib_range": [
+            3125132,
+            3125196
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            32473073000,
+            33299001000
+          ],
+          "max_child_rss_kib_range": [
+            3124640,
+            3125320
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 12925901,
+          "files": 21,
+          "sha256": "de51947430a8769f539989b1911cf0af55d32ecb2266be5b0638a0036491ae03"
+        },
+        "candidate": {
+          "bytes": 12925901,
+          "files": 21,
+          "sha256": "de51947430a8769f539989b1911cf0af55d32ecb2266be5b0638a0036491ae03"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9977641070571008,
+            1.0167958495746856
+          ],
+          "candidate": [
+            1.0006996544843023,
+            1.0163901363383816
+          ]
+        },
+        "median": 1.0027928208661634,
+        "range": [
+          0.9937400302604528,
+          1.0175060910872502
+        ],
+        "slower": 2
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "balanced20-shared",
+      "mode": "check",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            49936826000,
+            50926903000
+          ],
+          "max_child_rss_kib_range": [
+            4319276,
+            4321772
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            50195758000,
+            50443266000
+          ],
+          "max_child_rss_kib_range": [
+            4318056,
+            4320596
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 21943885,
+          "files": 22,
+          "sha256": "06d32000ae1ffc24a54390a8c6c87ad055c43830dbce610d1a641ad6c02d397a"
+        },
+        "candidate": {
+          "bytes": 21604307,
+          "files": 22,
+          "sha256": "e3a95d1fa63ac63306cd38182a1084f0b67f15279d098b7b9596293860a4b0a4"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9849796949784402,
+            1.0121418451686028
+          ],
+          "candidate": [
+            0.9935231334680232,
+            1.0080968631355685
+          ]
+        },
+        "median": 0.9968359698662397,
+        "range": [
+          0.9905033102052171,
+          1.0067470848067115
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": 4,
+      "case": "single-default",
+      "mode": "release",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            17498449000,
+            18001845000
+          ],
+          "executable_bytes": [
+            928104
+          ],
+          "executable_sha256": [
+            "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c"
+          ],
+          "max_child_rss_kib_range": [
+            568324,
+            578524
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            17491528000,
+            18333602000
+          ],
+          "executable_bytes": [
+            928104
+          ],
+          "executable_sha256": [
+            "2b682d7d84ec3514e4c172b1bcb2c545f62c83365920e5ca08088ba4bb16e29c"
+          ],
+          "max_child_rss_kib_range": [
+            582728,
+            598820
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 1038723,
+          "files": 2,
+          "sha256": "ec5420642523a608c39588172f00b8beb32f5e54a2d3ebc990fa2b866b3a8da1"
+        },
+        "candidate": {
+          "bytes": 1024286,
+          "files": 2,
+          "sha256": "76950d7080b67faeea75cf6896ba4a718aaa98b966f09052ffbafcd18510b7ec"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9962134723313598,
+            1.0210146293841933
+          ],
+          "candidate": [
+            0.9577701488840038,
+            1.0238453981461069
+          ]
+        },
+        "median": 1.0078732568933289,
+        "range": [
+          0.9996044792312736,
+          1.0184290554662592
+        ],
+        "slower": 3
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "nested5-default",
+      "mode": "release",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            30276265000,
+            30722132000
+          ],
+          "executable_bytes": [
+            1561224
+          ],
+          "executable_sha256": [
+            "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94"
+          ],
+          "max_child_rss_kib_range": [
+            759848,
+            760484
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            29956775000,
+            30941578000
+          ],
+          "executable_bytes": [
+            1561224
+          ],
+          "executable_sha256": [
+            "8e26765165cf89e97ba6420a306fc215237e8ca6d97c25c160a1608634d6fb94"
+          ],
+          "max_child_rss_kib_range": [
+            759712,
+            760100
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            1.0034244663894558,
+            1.0084593238949537
+          ],
+          "candidate": [
+            0.9934992732533134,
+            1.023607825991941
+          ]
+        },
+        "median": 0.9894475094599681,
+        "range": [
+          0.9894056957409414,
+          1.0071429287524707
+        ],
+        "slower": 1
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "nested5-default",
+      "mode": "incremental",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            1391745000,
+            1392303000
+          ],
+          "max_child_rss_kib_range": [
+            459700,
+            460600
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            1364025000,
+            1387050000
+          ],
+          "max_child_rss_kib_range": [
+            459512,
+            460368
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 4983364,
+          "files": 11,
+          "sha256": "5b7429fe3978db8e60d814531b4eddd792dea28d2c2cc7511dbf2b6e2dda8d3a"
+        },
+        "candidate": {
+          "bytes": 4622504,
+          "files": 11,
+          "sha256": "df1a767ebbfdbdcb32fab2f7822d17e3789e8f8e7e7e1b3e112bc84f34ab6074"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            1.0067390874290822,
+            1.0239666479802192
+          ],
+          "candidate": [
+            0.9621669693337308,
+            1.0126323997660667
+          ]
+        },
+        "median": 0.9908108298419182,
+        "range": [
+          0.9796897658052881,
+          0.9966265371889247
+        ],
+        "slower": 0
+      }
+    },
+    {
+      "blocks": 3,
+      "case": "balanced20-default",
+      "mode": "incremental",
+      "samples": {
+        "base": {
+          "cpu_ns_range": [
+            15730582000,
+            15995316000
+          ],
+          "max_child_rss_kib_range": [
+            3571932,
+            3574868
+          ]
+        },
+        "candidate": {
+          "cpu_ns_range": [
+            15868964000,
+            16144886000
+          ],
+          "max_child_rss_kib_range": [
+            3564144,
+            3566428
+          ]
+        }
+      },
+      "source": {
+        "base": {
+          "bytes": 34347839,
+          "files": 21,
+          "sha256": "7cda09da63d7b983175f687415f823f2b4ef167d234f3f12eb59822be3802316"
+        },
+        "candidate": {
+          "bytes": 27556279,
+          "files": 21,
+          "sha256": "e92bb2c415be7bba2f6ec60abbd2b612688f9b9966d1a64e3c9df5b2bd95e435"
+        }
+      },
+      "summary": {
+        "controls": {
+          "base": [
+            0.9919229075362388,
+            1.0094261939245839
+          ],
+          "candidate": [
+            0.9603671789661113,
+            1.0278262282476653
+          ]
+        },
+        "median": 1.0030111622278928,
+        "range": [
+          0.9921006874762587,
+          1.0263374870681834
+        ],
+        "slower": 2
+      }
+    }
+  ],
+  "schema": "literal-consumer-resource-summary-v1",
+  "scope": "Dependency-warm cargo check or release build; clean mode removes only consumer artifacts and disables incremental; incremental mode uses per-variant warmed caches and changes a fixed-width main-source marker each run. Single pinned logical CPU; CPU is wait4 sum for cargo and reaped descendants; max_child_rss_kib is maximum for a child, not process-tree total; source copying and executable validation excluded.",
+  "source": "5fe70efdc798031badefd1a3847d8866dde352f5"
+}
