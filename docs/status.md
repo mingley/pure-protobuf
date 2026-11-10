@@ -5,6 +5,13 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
+At source [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
+all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027919),
+five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027747)
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42873027995)
+passed. Optional Miri/sanitizer and fuzz jobs were skipped; the parity audit
+includes known gaps. These results do not qualify later source revisions.
+
 At source [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618),
 all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163563),
 five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163478),

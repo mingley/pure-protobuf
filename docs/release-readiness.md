@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618):
+These versions are declared at [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -20,20 +20,23 @@ manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
 The [implementation status](status.md) links the recorded CI and Miri checks.
-At `9acfc0b6`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
-packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
-passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492)
-checked their manifests, selected source files, CycloneDX SBOM, dry-run CI
-context and all five [attestation](https://github.com/mingley/pure-protobuf/attestations/65803622)
-subjects. The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42817437789/artifacts/13764887527)
-has ZIP SHA-256 `b8ecdf9fca7d3cf9b1ba2178630be22c126bc1daa0480edf9be4919958daefef`
-and expires February 8, 2027. Earlier [cab0 rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
+At `d02cf609`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
+packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42873027919)
+passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42882645797)
+checked the manifests, selected source files, CycloneDX SBOM, dry-run CI
+context and all five attestations. The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42882110957/artifacts/13794203208)
+has ZIP SHA-256 `a1d78ef5a8c65dbd66f34bdf0eaf18784068df347045801f3ebaebd66dd1ebc7`
+and expires February 8, 2027. Signed-tag verification and crates.io OIDC
+authentication were skipped; no crates were published. These checks apply to
+`d02cf609`, not later source revisions.
+
+Earlier [9ac rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
+and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492),
+[cab0 rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
 and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438),
 [5ff](https://github.com/mingley/pure-protobuf/actions/runs/42794817426) and
 [5fe](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
-remain available. Signed-tag verification and crates.io authentication were
-skipped; no crates were published. Final release evidence must match the
-release source.
+remain available. Final release evidence must match the release source.
 
 A [registry check](https://github.com/mingley/pure-protobuf/actions/runs/42863659596)
 on November 10, 2026 found published `pbrs` `0.2.0` and published
