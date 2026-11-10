@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Compare paired N/2N endpoint captures and retain losses and missing metrics."""
+"""Compare paired N/2N endpoint captures and retain losses and missing metrics.
+
+New capture patch and driver hashes detect ordinary retained-file drift.
+Older v2 reports and other v2 producers can lack those fields, so a report
+with every new field removed is indistinguishable from one without them.
+These are not cryptographic attestations.
+"""
 import argparse
 import hashlib
 import json
@@ -48,6 +54,29 @@ def load(path, allow_failed=False):
                 raise ValueError("retained build verifier differs from its digest")
         except OSError as error:
             raise ValueError("retained build verifier is missing or unreadable") from error
+    # New captures retain both checkout patches and the exact driver bytes.
+    # Older reports and other v2 producers can lack these fields; keep them readable.
+    patch_fields = ("source_patch_sha256", "harness_patch_sha256", "patch_scope", "patches_unchanged")
+    if any(field in manifest for field in patch_fields):
+        if (manifest.get("patches_unchanged") is not True
+                or not isinstance(manifest.get("patch_scope"), str)
+                or not manifest["patch_scope"]
+                or not isinstance(manifest.get("harness_head"), str)
+                or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", manifest["harness_head"])
+                or type(manifest.get("harness_dirty")) is not bool):
+            raise ValueError("invalid or changed retained capture patches")
+        for filename, field in (("source.patch", "source_patch_sha256"),
+                                ("harness.patch", "harness_patch_sha256"),
+                                ("harness.py", "harness_script_sha256")):
+            expected = manifest.get(field)
+            if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+                raise ValueError("invalid retained capture digest: " + field)
+            saved = path / filename
+            try:
+                if saved.is_symlink() or hashlib.sha256(saved.read_bytes()).hexdigest() != expected:
+                    raise ValueError("retained capture differs from its digest: " + filename)
+            except OSError as error:
+                raise ValueError("retained capture file is missing or unreadable: " + filename) from error
     n = manifest.get("rpc_count")
     if type(n) is not int or n <= 0:
         raise ValueError("a fixed positive RPC count is required")
@@ -132,6 +161,14 @@ def compare(small_path, large_path, allow_failed=False):
                   "build_verifier_sha256", "host", "cpu_affinity"]:
         if a.get(field) != b.get(field):
             raise ValueError(f"capture pin/settings mismatch: {field}")
+    a_patches = "source_patch_sha256" in a
+    b_patches = "source_patch_sha256" in b
+    if a_patches != b_patches:
+        raise ValueError("capture patch evidence presence mismatch")
+    if a_patches:
+        for field in ("source_patch_sha256", "harness_patch_sha256", "patch_scope", "harness_head", "harness_dirty"):
+            if a[field] != b[field]:
+                raise ValueError(f"capture pin/settings mismatch: {field}")
     valid_owners = {t["id"] for path in ["docs/plan/tasks.json", "docs/plan/world-class/tasks.json"]
                     for t in json.loads((ROOT / path).read_text())["tasks"]}
     rows = []

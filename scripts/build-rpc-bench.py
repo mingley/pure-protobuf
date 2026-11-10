@@ -16,7 +16,22 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def ensure_visible_index(source):
+    """Reject Git index flags that can hide tracked worktree changes."""
+    entries = subprocess.check_output(["git", "ls-files", "-v", "-z"], cwd=source)
+    # With the default cached listing, H is an ordinary tracked entry.
+    # S is skip-worktree, lowercase marks assume-unchanged, and M is
+    # unmerged. Reject unknown tags too instead of assuming they are safe.
+    if any(entry[:2] != b"H " for entry in entries.split(b"\0") if entry):
+        raise ValueError(
+            "benchmark source index has hidden or unmerged entries; "
+            "use a full checkout without assume-unchanged or skip-worktree flags"
+        )
+
+
 def source_pin():
+    ensure_visible_index(ROOT)
+
     def git(*args):
         return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
     if git("status", "--porcelain", "--untracked-files=all"):

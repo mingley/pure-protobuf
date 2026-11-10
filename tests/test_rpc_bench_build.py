@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import subprocess
+import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -276,6 +277,105 @@ class BuildRecordTests(unittest.TestCase):
                             BUILD.main()
                         self.assertEqual(cargo_calls, [])
                         self.assertTrue((output / "build.stdout.jsonl").exists())
+
+
+@unittest.skipUnless(shutil.which("git"), "requires Git")
+class SourcePinIndexTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name) / "checkout"
+        self.root.mkdir()
+        (self.root / "rpc-bench").mkdir()
+        (self.root / "excluded").mkdir()
+        (self.root / "Cargo.lock").write_text("root lock\n")
+        (self.root / "rpc-bench/Cargo.lock").write_text("benchmark lock\n")
+        (self.root / "tracked.txt").write_text("original\n")
+        (self.root / "excluded/hidden.txt").write_text("original\n")
+        # Paths with embedded newlines exercise the NUL-delimited index parser.
+        (self.root / "odd\nname.txt").write_text("original\n")
+        self.git("init", "-q")
+        self.git("add", ".")
+        self.git("-c", "user.name=Benchmark Test",
+                 "-c", "user.email=benchmark-test@example.invalid",
+                 "-c", "commit.gpgsign=false",
+                 "-c", f"core.hooksPath={self.root / '.git' / 'empty-hooks'}", "commit", "-qm", "fixture")
+
+    def git(self, *args):
+        return subprocess.check_output(["git", *args], cwd=self.root)
+
+    def source_pin(self):
+        with patch.object(BUILD, "ROOT", self.root):
+            return BUILD.source_pin()
+
+    def test_clean_index_and_odd_filenames_are_accepted(self):
+        pin = self.source_pin()
+        self.assertEqual(pin["commit"], self.git("rev-parse", "HEAD").decode().strip())
+        self.assertEqual(pin["tree"], self.git("rev-parse", "HEAD^{tree}").decode().strip())
+        self.assertEqual(set(pin["locks"]), {"Cargo.lock", "rpc-bench/Cargo.lock"})
+
+    def test_untracked_and_normal_tracked_changes_remain_rejected(self):
+        (self.root / "untracked.txt").write_text("new\n")
+        with self.assertRaisesRegex(ValueError, "must be clean"):
+            self.source_pin()
+        (self.root / "untracked.txt").unlink()
+        (self.root / "tracked.txt").write_text("changed\n")
+        with self.assertRaisesRegex(ValueError, "must be clean"):
+            self.source_pin()
+
+    def test_assume_unchanged_cannot_hide_tracked_edits(self):
+        self.git("update-index", "--assume-unchanged", "--", "tracked.txt")
+        (self.root / "tracked.txt").write_text("changed but hidden\n")
+        # The former status-only check accepted this real Git state.
+        self.assertEqual(self.git("status", "--porcelain", "--untracked-files=all"), b"")
+        with self.assertRaisesRegex(ValueError, "assume-unchanged or skip-worktree"):
+            self.source_pin()
+        self.git("update-index", "--no-assume-unchanged", "--", "tracked.txt")
+        with self.assertRaisesRegex(ValueError, "must be clean"):
+            self.source_pin()
+
+    def test_skip_worktree_cannot_hide_tracked_edits(self):
+        self.git("update-index", "--skip-worktree", "--", "tracked.txt")
+        (self.root / "tracked.txt").write_text("changed but hidden\n")
+        # The former status-only check accepted this real Git state.
+        self.assertEqual(self.git("status", "--porcelain", "--untracked-files=all"), b"")
+        with self.assertRaisesRegex(ValueError, "assume-unchanged or skip-worktree"):
+            self.source_pin()
+        self.git("update-index", "--no-skip-worktree", "--", "tracked.txt")
+        with self.assertRaisesRegex(ValueError, "must be clean"):
+            self.source_pin()
+
+    def test_clean_flagged_index_is_rejected_before_later_drift(self):
+        for flag, reset in (("--assume-unchanged", "--no-assume-unchanged"),
+                            ("--skip-worktree", "--no-skip-worktree")):
+            with self.subTest(flag=flag):
+                self.git("update-index", flag, "--", "tracked.txt")
+                with self.assertRaisesRegex(ValueError, "hidden or unmerged"):
+                    self.source_pin()
+                self.git("update-index", reset, "--", "tracked.txt")
+                self.source_pin()
+
+    def test_sparse_checkout_with_skipped_paths_is_rejected(self):
+        self.git("sparse-checkout", "init", "--cone")
+        self.git("sparse-checkout", "set", "rpc-bench")
+        self.assertFalse((self.root / "excluded/hidden.txt").exists())
+        self.assertEqual(self.git("status", "--porcelain", "--untracked-files=all"), b"")
+        with self.assertRaisesRegex(ValueError, "skip-worktree"):
+            self.source_pin()
+
+
+    def test_sparse_index_with_skipped_paths_is_rejected(self):
+        try:
+            self.git("sparse-checkout", "init", "--cone", "--sparse-index")
+        except subprocess.CalledProcessError:
+            self.skipTest("Git lacks sparse-index support")
+        self.git("sparse-checkout", "set", "rpc-bench")
+        self.assertEqual(self.git("config", "--get", "index.sparse").strip(), b"true")
+        self.assertIn(b"S excluded/\0", self.git("ls-files", "--sparse", "-v", "-z"))
+        self.assertFalse((self.root / "excluded/hidden.txt").exists())
+        self.assertEqual(self.git("status", "--porcelain", "--untracked-files=all"), b"")
+        with self.assertRaisesRegex(ValueError, "skip-worktree"):
+            self.source_pin()
 
 
 if __name__ == "__main__":

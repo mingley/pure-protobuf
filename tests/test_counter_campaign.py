@@ -4,7 +4,10 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -51,7 +54,8 @@ class CampaignFailures(unittest.TestCase):
                     '--phase', 'native', '--payloads', '0', '--load-levels', '64:1024',
                     '--count', '1', '--repeats', '1']
             with patch('sys.argv', argv), patch.object(CAMPAIGN, 'load_module',
-                    side_effect=[smoke, ledger]), contextlib.redirect_stdout(io.StringIO()):
+                    side_effect=[smoke, ledger]), patch.object(CAMPAIGN, 'ensure_visible_index'), \
+                    contextlib.redirect_stdout(io.StringIO()):
                 if interrupt:
                     with self.assertRaises(KeyboardInterrupt):
                         CAMPAIGN.main()
@@ -107,6 +111,7 @@ class CampaignFailures(unittest.TestCase):
                         "--phase", "native", "--payloads", "0", "--load-levels", "1:1",
                         "--count", "1", "--repeats", "1"]
                 with patch("sys.argv", argv), patch.object(CAMPAIGN, "load_module", side_effect=[smoke, ledger]), \
+                        patch.object(CAMPAIGN, "ensure_visible_index"), \
                         patch.object(CAMPAIGN, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
                         patch.object(CAMPAIGN, "SHAPES", ["unary"]), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(CAMPAIGN.main(), 1 if tamper else 0)
@@ -166,6 +171,7 @@ class CampaignFailures(unittest.TestCase):
                     "--phase", "native", "--payloads", "0", "--load-levels", "1:1",
                     "--count", "1", "--repeats", "1"]
             with patch("sys.argv", argv), patch.object(CAMPAIGN, "load_module", side_effect=[smoke, ledger]), \
+                        patch.object(CAMPAIGN, "ensure_visible_index"), \
                     patch.object(CAMPAIGN, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
                     patch.object(CAMPAIGN, "SHAPES", ["unary"]), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaisesRegex(ValueError, "invalid or changed build verifier evidence"):
@@ -217,6 +223,134 @@ class CampaignFailures(unittest.TestCase):
         self.assertEqual(len(partials[0]['runs']), 25)
         self.assertEqual(reports, 0)
 
+
+
+@unittest.skipUnless(shutil.which("git"), "requires Git")
+class LegacySourceIndexTests(unittest.TestCase):
+    def fixture(self, root):
+        source = root / "source"
+        source.mkdir()
+        (source / "scripts").mkdir()
+        # Model an old source verifier that only checks its own historic
+        # rules and cannot detect hidden index flags. Both modules are loaded
+        # by the actual campaign entrypoint from the selected checkout.
+        (source / "scripts/grpc-load-smoke.py").write_text("""
+import json
+import os
+from pathlib import Path
+import subprocess
+
+def verified_build(*args, **kwargs):
+    with open(os.environ["COUNTER_TEST_CALLS"], "a") as stream:
+        stream.write("v")
+    return {"schema": "pbrs.rpc-bench-build.v1", "source": {"commit": "a" * 40}}
+
+def run_cell(settings, cell, directory):
+    flag = os.environ.get("COUNTER_TEST_MUTATE")
+    if flag:
+        source = Path(__file__).resolve().parents[1]
+        subprocess.run(["git", "update-index", flag, "tracked.txt"], cwd=source, check=True)
+        (source / "tracked.txt").write_text("hidden modification")
+    directory.mkdir()
+    retained = os.environ.get("COUNTER_TEST_RETAINED")
+    if retained == "harness":
+        (directory.parent / "harness.py").write_text("changed retained harness")
+    elif retained == "controller":
+        (directory.parents[2] / "controller.py").write_text("changed retained controller")
+    result = {"passed": True}
+    (directory / "run.json").write_text(json.dumps(result))
+    return result
+""")
+        (source / "scripts/dominance-ledger.py").write_text(
+            "def compare(*args, **kwargs): return {'rows': []}\n")
+        (source / "tracked.txt").write_text("original")
+        (source / ".gitignore").write_text("__pycache__/\n")
+        self.git(source, "init", "-q")
+        self.git(source, "add", ".")
+        self.git(source, "-c", "user.name=Campaign Test", "-c", "user.email=campaign@example.invalid",
+                 "-c", "commit.gpgsign=false",
+                 "-c", f"core.hooksPath={source / '.git' / 'empty-hooks'}", "commit", "-qm", "fixture")
+        binary = root / "binary"
+        binary.write_bytes(b"fixture")
+        build = root / "build.json"
+        build.write_text("{}")
+        trace = root / "verifier-calls"
+        output = root / "output"
+        argv = ["campaign", "--source-checkout", str(source), "--binary", str(binary),
+                "--build-record", str(build), "--output", str(output), "--phase", "native",
+                "--payloads", "0", "--load-levels", "1:1", "--count", "1", "--repeats", "1"]
+        return source, trace, output, argv
+
+    @staticmethod
+    def git(source, *args):
+        return subprocess.check_output(["git", *args], cwd=source)
+
+    def test_legacy_source_hidden_index_rejected_before_verifier(self):
+        for flag in ("--assume-unchanged", "--skip-worktree"):
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as temporary:
+                source, trace, output, argv = self.fixture(Path(temporary))
+                self.git(source, "update-index", flag, "tracked.txt")
+                (source / "tracked.txt").write_text("hidden modification")
+                self.assertEqual(self.git(source, "status", "--porcelain", "--untracked-files=all"), b"")
+                with patch("sys.argv", argv), patch.dict(os.environ, {"COUNTER_TEST_CALLS": str(trace)}):
+                    with self.assertRaisesRegex(ValueError, "source index has hidden or unmerged entries"):
+                        CAMPAIGN.main()
+                self.assertFalse(trace.exists(), "legacy verifier was called")
+                self.assertFalse(output.exists())
+
+    def test_index_flags_introduced_during_capture_fail_before_reverification(self):
+        for flag in ("--assume-unchanged", "--skip-worktree"):
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as temporary:
+                source, trace, output, argv = self.fixture(Path(temporary))
+                with patch("sys.argv", argv), \
+                        patch.dict(os.environ, {"COUNTER_TEST_CALLS": str(trace), "COUNTER_TEST_MUTATE": flag,
+                                                "COUNTER_TEST_RETAINED": ""}), \
+                        patch.object(CAMPAIGN, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
+                        patch.object(CAMPAIGN, "SHAPES", ["unary"]), contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaisesRegex(ValueError, "source index has hidden or unmerged entries"):
+                        CAMPAIGN.main()
+                self.assertEqual(trace.read_text(), "v", "legacy verifier was re-invoked")
+                self.assertEqual(self.git(source, "status", "--porcelain", "--untracked-files=all"), b"")
+                state = json.loads((output / "campaign.json").read_text())
+                self.assertEqual(state["state"], "failed")
+                self.assertFalse(state["passed"])
+                self.assertEqual(state["error"]["type"], "ValueError")
+                self.assertEqual(len(list(output.rglob("partial-report.json"))), 1)
+                self.assertFalse(list(output.rglob("report.json")))
+
+    def test_clean_legacy_source_runs_with_stable_index(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source, trace, output, argv = self.fixture(Path(temporary))
+            with patch("sys.argv", argv), patch.dict(
+                    os.environ, {"COUNTER_TEST_CALLS": str(trace), "COUNTER_TEST_MUTATE": "",
+                                 "COUNTER_TEST_RETAINED": ""}), \
+                    patch.object(CAMPAIGN, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
+                    patch.object(CAMPAIGN, "SHAPES", ["unary"]), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(CAMPAIGN.main(), 0)
+            self.assertEqual(len(trace.read_text()), 9)
+            self.assertEqual(json.loads((output / "campaign.json").read_text())["state"], "finished")
+            self.assertEqual(len(list(output.rglob("report.json"))), 8)
+
+
+    def test_changed_retained_driver_copies_fail_captures(self):
+        for retained in ("harness", "controller"):
+            with self.subTest(retained=retained), tempfile.TemporaryDirectory() as temporary:
+                source, trace, output, argv = self.fixture(Path(temporary))
+                environment = {"COUNTER_TEST_CALLS": str(trace), "COUNTER_TEST_MUTATE": "",
+                               "COUNTER_TEST_RETAINED": retained}
+                with patch("sys.argv", argv), patch.dict(os.environ, environment), \
+                        patch.object(CAMPAIGN, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
+                        patch.object(CAMPAIGN, "SHAPES", ["unary"]), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(CAMPAIGN.main(), 1)
+                state = json.loads((output / "campaign.json").read_text())
+                self.assertEqual(state["state"], "finished")
+                self.assertFalse(state["passed"])
+                reports = [json.loads(path.read_text()) for path in output.rglob("report.json")]
+                self.assertEqual(len(reports), 8)
+                for report in reports:
+                    self.assertFalse(report["passed"])
+                    self.assertFalse(report["harness_script_unchanged"])
+                    self.assertIs(report["campaign_controller_unchanged"], retained == "harness")
 
 if __name__ == '__main__':
     unittest.main()

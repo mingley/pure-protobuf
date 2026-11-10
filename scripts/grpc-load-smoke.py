@@ -28,6 +28,45 @@ def file_matches(path, expected_sha256):
         return False
 
 
+def git_patch(checkout):
+    """Capture the tracked worktree's net diff from HEAD, including binary files."""
+    return subprocess.check_output(
+        ["git", "diff", "--binary", "--no-color", "--no-ext-diff", "--no-textconv", "HEAD", "--"],
+        cwd=checkout,
+    )
+
+
+def validate_verified_output_location(output, source, cell_count, *, callgrind, strace):
+    """Check known capture files will not dirty a verified source checkout."""
+    try:
+        relative = output.relative_to(source.resolve())
+    except ValueError:
+        return
+    files = ["source.patch", "harness.patch", "harness.py", "build-verifier.py",
+             "manifest.json", "report.json"]
+    cell_files = ["server.stdout", "server.stderr", "client.stdout", "client.stderr",
+                  "metrics.json", "run.json"]
+    if callgrind:
+        cell_files += ["server.callgrind", "client.callgrind"]
+    if strace:
+        cell_files += ["server.strace", "client.strace"]
+    paths = [os.fsencode((relative / name).as_posix()) for name in files]
+    paths += [os.fsencode((relative / f"cell-{index:03d}" / name).as_posix())
+              for index in range(cell_count) for name in cell_files]
+    result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "-z", "--stdin"],
+        cwd=source,
+        input=b"\0".join(paths) + b"\0",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode not in (0, 1):
+        raise ValueError("could not check whether capture outputs are ignored by Git")
+    ignored = set(result.stdout.split(b"\0"))
+    if not set(paths).issubset(ignored):
+        raise ValueError("verified capture outputs inside the measured source must be Git-ignored")
+
+
 def verified_build(path, binary, source_checkout=None, *, require_allocation_counts=True,
                    verifier_sha256=None):
     source = source_checkout or ROOT
@@ -44,6 +83,11 @@ def verified_build(path, binary, source_checkout=None, *, require_allocation_cou
     driver = types.ModuleType("rpc_bench_build_driver")
     driver.__file__ = str(helper_path)
     exec(compile(helper_bytes, str(helper_path), "exec"), driver.__dict__)
+    # A historical source helper may predate index-visibility validation.
+    ensure_index_visible = getattr(driver, "ensure_visible_index", None)
+    if not callable(ensure_index_visible):
+        raise ValueError("driver build verifier does not support index visibility checks")
+    ensure_index_visible(source)
     source_helper_path = source / "scripts/build-rpc-bench.py"
     source_helper_bytes = source_helper_path.read_bytes()
     source_helper_hash = hashlib.sha256(source_helper_bytes).hexdigest()
@@ -364,22 +408,35 @@ def main():
                  if args.build_record else None)
     except ValueError as error:
         parser.error(str(error))
-    args.output = args.output.resolve()
-    args.output.mkdir(parents=True, exist_ok=False)
-    digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
     cells = [{"pair": list(pair), "shape": shape, "payload_bytes": size,
               "tls": tls, "compression": compression, "connections": level[0], "in_flight": level[1],
               "repeat": repeat}
              for pair, shape, size, tls, compression, level, repeat in itertools.product(
                  PAIRS, SHAPES, payloads, [False, True], ["identity", "gzip"], levels, range(args.repeats))]
     random.Random(args.seed).shuffle(cells)
+    args.output = args.output.resolve()
+    source_checkout = args.source_checkout or ROOT
+    if args.build_record:
+        try:
+            validate_verified_output_location(
+                args.output, source_checkout, len(cells), callgrind=args.callgrind, strace=args.strace)
+        except ValueError as error:
+            parser.error(str(error))
+    args.output.mkdir(parents=True, exist_ok=False)
+    digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
+    harness_bytes = Path(__file__).read_bytes()
+    source_patch = git_patch(source_checkout)
+    harness_patch = source_patch if source_checkout.resolve() == ROOT.resolve() else git_patch(ROOT)
     report = {"schema": "pbrs.load-smoke.v2", "binary_sha256": digest,
               "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=args.source_checkout or ROOT, text=True).strip(),
-              "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=args.source_checkout or ROOT)),
-              "harness_script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              "dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=args.source_checkout or ROOT)),
+              "harness_script_sha256": hashlib.sha256(harness_bytes).hexdigest(),
               "harness_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-              "harness_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+              "harness_dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT)),
               "source_verified": build is not None, "build_record": build,
+              "source_patch_sha256": hashlib.sha256(source_patch).hexdigest(),
+              "harness_patch_sha256": hashlib.sha256(harness_patch).hexdigest(),
+              "patch_scope": "Git net tracked worktree diff from HEAD at capture start; subject to index flags and config; untracked files, index staging and dirty submodule contents omitted",
               "build_verifier_sha256": helper_hash,
               "build_verifier_file": "build-verifier.py" if helper_bytes is not None else None,
               "host": platform.uname()._asdict(), "clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
@@ -394,6 +451,8 @@ def main():
               "strace_version": subprocess.check_output([str(args.strace), "--version"], text=True).splitlines()[0] if args.strace else None,
               "qualification": {"qualified": False,
                   "limits": ["prebuilt binary digest is pinned; source-to-binary mapping must be checked against build records",
+                             "without a build record, source_unchanged does not validate source drift",
+                             "Git status and diff follow index flags and configuration and do not attest all checkout bytes",
                              "package artifact features record Cargo resolution, not custom Rust flags, wrappers or dependency feature unification",
                              "shared host, no verified CPU headroom or quota proof",
                              "repeats and concurrency are explicit; no claim-grade statistics",
@@ -403,8 +462,9 @@ def main():
                              "zero-filled payload bodies; not a read-all adoption corpus",
                              "saturation, cold/idle lifecycles, read-all corpora and production soak are not run"]},
               "runs": []}
-    (args.output / "source.patch").write_bytes(subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT))
-    (args.output / "harness.py").write_bytes(Path(__file__).read_bytes())
+    (args.output / "source.patch").write_bytes(source_patch)
+    (args.output / "harness.patch").write_bytes(harness_patch)
+    (args.output / "harness.py").write_bytes(harness_bytes)
     if helper_bytes is not None:
         (args.output / "build-verifier.py").write_bytes(helper_bytes)
     (args.output / "manifest.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -421,13 +481,20 @@ def main():
         except (OSError, ValueError) as error:
             report["source_unchanged"] = False
             report["source_error"] = str(error)
-    report["harness_script_unchanged"] = report["harness_script_sha256"] == hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    report["harness_script_unchanged"] = (
+        file_matches(Path(__file__), report["harness_script_sha256"])
+        and file_matches(args.output / "harness.py", report["harness_script_sha256"])
+    )
     report["build_verifier_unchanged"] = (helper_hash is None
         or (file_matches(helper_path, helper_hash)
             and file_matches(args.output / "build-verifier.py", helper_hash)))
+    report["patches_unchanged"] = (
+        file_matches(args.output / "source.patch", report["source_patch_sha256"])
+        and file_matches(args.output / "harness.patch", report["harness_patch_sha256"])
+    )
     report["passed"] = (report["binary_unchanged"] and report["source_unchanged"]
                         and report["harness_script_unchanged"] and report["build_verifier_unchanged"]
-                        and all(run["passed"] for run in report["runs"]))
+                        and report["patches_unchanged"] and all(run["passed"] for run in report["runs"]))
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0 if report["passed"] else 1
 

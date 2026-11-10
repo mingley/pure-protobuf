@@ -72,8 +72,24 @@ A newer driver can use an existing frozen build with
 `--source-checkout=/path/to/clean/benchmark-checkout` and its `--build-record`.
 The checkout must still match the build's commit, tree, and lockfiles. Reports
 record the benchmark source separately from the driver's commit, dirty state,
-script hash, and saved script. Both the executable and driver are checked for
-changes during the run.
+script hash, and saved script. `source.patch` captures tracked edits in the
+measured checkout, while `harness.patch` captures tracked edits in the driver.
+The report hashes both patches. Each is a net tracked worktree diff from HEAD;
+it omits index staging state, untracked files and dirty submodule contents.
+Git index flags and configuration can hide tracked changes, so the patches do
+not attest every checkout byte. Patch and Git status snapshots are sequential,
+so concurrent driver edits may be absent from the saved patch. Other files in
+the driver checkout are not checked for changes during a run. Verified source checkouts must not have
+`assume-unchanged` or `skip-worktree` entries, including those from typical
+sparse checkouts. Use a full checkout with those index flags cleared.
+All known output files inside a verified source checkout must be Git-ignored;
+the runner checks them before cells start and revalidates the source afterwards.
+Unexpected tool files or concurrent changes can still fail the run. Both the
+executable and driver script are checked for changes during the run.
+
+For `scripts/grpc-counter-campaign.py`, put output outside the source checkout.
+It does not preflight all campaign output paths; unignored files inside the
+source can cause revalidation to fail after cells have started.
 
 `load-server` and `load` run separate endpoints. Both native and tonic support
 pbrs and prost messages, all four RPC shapes, pipelined bidi, and identity or
@@ -424,6 +440,11 @@ still need separate coverage.
 peer for each side. It retains losses with task IDs and marks missing or
 nonpositive differentials unmeasured. Its default exit status is failure while
 full coverage remains incomplete; `--allow-partial` explicitly selects a diagnostic.
+When a capture includes the new patch hashes, the ledger rechecks the retained
+patches and driver on readback. Older reports and other v2 producers can lack
+every new field, so a report with those fields removed cannot be distinguished
+from one without them. The hashes detect ordinary retained-file drift; they are
+not attestations.
 
 ```sh
 python3 scripts/dominance-ledger.py --small target/load-N --large target/load-2N \

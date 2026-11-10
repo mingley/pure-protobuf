@@ -66,7 +66,22 @@ The build record checks the Cargo command and the benchmark package's resolved
 artifact features as well as source, binary and log hashes. The runner retains
 and hashes its build verifier when using a record. A verified plain build
 cannot be used for allocator snapshots. Use an external or ignored output
-directory so the build does not make the source checkout dirty.
+directory: for a verified run inside the measured checkout, all known output
+files must be Git-ignored. The runner checks them before starting cells and
+revalidates the source afterwards; unexpected tool files or concurrent changes
+can still fail the run. Verified source checkouts must not mark tracked files
+`assume-unchanged` or `skip-worktree`; this also excludes typical sparse
+checkouts. Use a full checkout with those index flags cleared.
+
+`source.patch` records tracked edits in the measured checkout at capture
+start; `harness.patch` records tracked edits in the driver checkout. Their
+hashes appear in the report. Each is the tracked worktree's net diff from
+HEAD; it does not preserve index staging separately, untracked files or dirty
+submodule contents. Git index flags and configuration can hide some tracked
+changes, so these are not byte-for-byte checkout attestations. `dirty` and
+`harness_dirty` request untracked files at capture start. Without a
+build record, `source_verified` is false and `source_unchanged` does not
+verify source drift.
 
 Cargo's package feature list records its resolution, not every effect on the
 executable: custom Rust flags or compiler wrappers can alter compilation, and

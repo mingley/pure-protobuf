@@ -102,6 +102,131 @@ class FailedCaptureTests(unittest.TestCase):
         (path / "report.json").write_text(json.dumps(report))
         return report
 
+    def attach_capture_patches(self, path, source=b"", harness=b"", driver=b"saved driver\n"):
+        contents = {"source.patch": source, "harness.patch": harness, "harness.py": driver}
+        for name, data in contents.items():
+            (path / name).write_bytes(data)
+        report = json.loads((path / "report.json").read_text())
+        report.update(source_patch_sha256=hashlib.sha256(source).hexdigest(),
+                      harness_patch_sha256=hashlib.sha256(harness).hexdigest(),
+                      harness_script_sha256=hashlib.sha256(driver).hexdigest(),
+                      harness_script_unchanged=True, patches_unchanged=True,
+                      patch_scope="net tracked worktree diff; untracked files omitted",
+                      harness_head="c" * 40, harness_dirty=False)
+        (path / "report.json").write_text(json.dumps(report))
+        return report
+
+    def test_new_capture_retained_files_are_verified_on_readback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8, failed=True)
+            original = self.attach_capture_patches(path, b"source", b"harness")
+            self.assertEqual(LEDGER.load(path, allow_failed=True)[0]["patch_scope"],
+                             original["patch_scope"])
+            for filename in ("source.patch", "harness.patch", "harness.py"):
+                with self.subTest(filename=filename):
+                    saved = path / filename
+                    contents = saved.read_bytes()
+                    saved.write_bytes(contents + b" changed")
+                    with self.assertRaisesRegex(ValueError, "retained capture differs"):
+                        LEDGER.load(path, allow_failed=True)
+                    saved.unlink()
+                    with self.assertRaisesRegex(ValueError, "missing or unreadable"):
+                        LEDGER.load(path, allow_failed=True)
+                    saved.symlink_to(path / "report.json")
+                    with self.assertRaisesRegex(ValueError, "retained capture differs"):
+                        LEDGER.load(path, allow_failed=True)
+                    saved.unlink()
+                    saved.write_bytes(contents)
+
+    def test_new_capture_rejects_partial_or_invalid_patch_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8)
+            original = self.attach_capture_patches(path)
+            for field in ("source_patch_sha256", "harness_patch_sha256", "patch_scope",
+                          "patches_unchanged", "harness_script_sha256", "harness_head", "harness_dirty"):
+                with self.subTest(field=field):
+                    changed = dict(original)
+                    del changed[field]
+                    (path / "report.json").write_text(json.dumps(changed))
+                    with self.assertRaises(ValueError):
+                        LEDGER.load(path, allow_failed=True)
+            for change in ({"patches_unchanged": False}, {"patch_scope": ""},
+                           {"source_patch_sha256": "A" * 64},
+                           {"harness_patch_sha256": None}, {"harness_head": ""},
+                           {"harness_head": "x" * 40}, {"harness_head": "c" * 41},
+                           {"harness_dirty": None}, {"harness_dirty": 0}):
+                with self.subTest(change=change):
+                    (path / "report.json").write_text(json.dumps({**original, **change}))
+                    with self.assertRaises(ValueError):
+                        LEDGER.load(path, allow_failed=True)
+
+    def test_new_paired_captures_require_matching_retained_patches(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            self.attach_capture_patches(small)
+            self.attach_capture_patches(large)
+            self.assertFalse(LEDGER.compare(small, large)["qualified"])
+            for name in ("source", "harness"):
+                with self.subTest(name=name):
+                    kwargs = {name: b"different"}
+                    self.attach_capture_patches(large, **kwargs)
+                    with self.assertRaisesRegex(ValueError, name + "_patch_sha256"):
+                        LEDGER.compare(small, large)
+                    self.attach_capture_patches(large)
+
+    def test_new_paired_captures_require_matching_driver_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            self.attach_capture_patches(small)
+            original = self.attach_capture_patches(large)
+            for field, value in (("harness_head", "d" * 40), ("harness_dirty", True)):
+                with self.subTest(field=field):
+                    (large / "report.json").write_text(json.dumps({**original, field: value}))
+                    with self.assertRaisesRegex(ValueError, field):
+                        LEDGER.compare(small, large)
+
+    def test_new_capture_accepts_git_sha256_driver_head(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8)
+            report = self.attach_capture_patches(path)
+            report["harness_head"] = "d" * 64
+            (path / "report.json").write_text(json.dumps(report))
+            self.assertEqual(LEDGER.load(path)[0]["harness_head"], "d" * 64)
+
+    def test_paired_captures_reject_asymmetric_patch_evidence(self):
+        for patched_side in ("small", "large"):
+            with self.subTest(patched_side=patched_side), tempfile.TemporaryDirectory() as directory:
+                small, large = Path(directory) / "small", Path(directory) / "large"
+                self.capture(small, 8)
+                self.capture(large, 16)
+                new_path, other_path = (small, large) if patched_side == "small" else (large, small)
+                new = self.attach_capture_patches(new_path)
+                other = json.loads((other_path / "report.json").read_text())
+                other.update(harness_script_sha256=new["harness_script_sha256"],
+                             harness_script_unchanged=True)
+                (other_path / "report.json").write_text(json.dumps(other))
+                with self.assertRaisesRegex(ValueError, "patch evidence presence mismatch"):
+                    LEDGER.compare(small, large)
+
+    def test_new_paired_captures_require_matching_patch_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            self.attach_capture_patches(small)
+            report = self.attach_capture_patches(large)
+            report["patch_scope"] = "a different nonempty patch scope"
+            (large / "report.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "patch_scope"):
+                LEDGER.compare(small, large)
+
     def test_legacy_reports_without_verifier_metadata_remain_compatible(self):
         with tempfile.TemporaryDirectory() as directory:
             small, large = Path(directory) / "small", Path(directory) / "large"

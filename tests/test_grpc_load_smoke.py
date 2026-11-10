@@ -4,7 +4,10 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -133,6 +136,7 @@ class CaptureGuards(unittest.TestCase):
                     SMOKE.callgrind_instructions(path)
 
 
+@unittest.skipUnless(shutil.which("git"), "requires Git")
 class BuildModeGuards(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -140,6 +144,7 @@ class BuildModeGuards(unittest.TestCase):
         self.root = Path(temporary.name)
         self.source = self.root / "checkout"
         (self.source / "scripts").mkdir(parents=True)
+        subprocess.check_output(["git", "init", "-q", str(self.source)])
         # Model a frozen verifier using the legacy validate_record interface.
         # It deliberately leaves feature inspection to the current driver.
         (self.source / "scripts/build-rpc-bench.py").write_text(
@@ -202,6 +207,14 @@ class BuildModeGuards(unittest.TestCase):
         helper = driver / "scripts/build-rpc-bench.py"
         helper.write_bytes((SMOKE.ROOT / "scripts/build-rpc-bench.py").read_bytes())
         return driver, helper
+
+    def test_driver_helper_without_index_guard_is_rejected(self):
+        self.write_record(True, legacy=True)
+        driver, helper = self.driver_checkout()
+        helper.write_text("def validate_feature_record(*args): return True\n")
+        with patch.object(SMOKE, "ROOT", driver), \
+                self.assertRaisesRegex(ValueError, "does not support index visibility"):
+            SMOKE.verified_build(self.record_path, self.binary, self.source)
 
     def test_verifier_mutation_during_validation_is_rejected(self):
         self.write_record(True, legacy=True)
@@ -280,12 +293,240 @@ class BuildModeGuards(unittest.TestCase):
                 "--build-record", str(self.record_path), "--source-checkout", str(self.source),
                 "--allocation-counts"]
         with patch("sys.argv", argv), patch.object(SMOKE.platform, "system", return_value="Linux"), \
-                patch.object(SMOKE.subprocess, "Popen") as spawn, patch("sys.stderr", new_callable=io.StringIO) as errors:
+                patch.object(SMOKE, "run_cell") as run_cell, patch("sys.stderr", new_callable=io.StringIO) as errors:
             with self.assertRaises(SystemExit):
                 SMOKE.main()
         self.assertIn("allocator snapshots require", errors.getvalue())
-        spawn.assert_not_called()
+        run_cell.assert_not_called()
         self.assertFalse(output.exists())
+
+
+@unittest.skipUnless(shutil.which("git") and hasattr(os, "sched_getaffinity"),
+                     "requires Git and Linux CPU affinity")
+class CaptureProvenanceTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.source = self.root / "source"
+        self.driver = self.root / "driver"
+        for checkout in (self.source, self.driver):
+            (checkout / "scripts").mkdir(parents=True)
+            (checkout / "tracked.txt").write_text("base\n")
+            (checkout / "tracked.bin").write_bytes(b"\x00base\xff")
+            (checkout / ".gitignore").write_text(
+                "ignored/\n!ignored/capture/report.json\n.pbrs-load-smoke-output-probe\n"
+                "partial/*\n!partial/open/\n!partial/open/report.json\n"
+                "file-only/*\nreinclude/*\n!reinclude/report.json\n"
+                "subfile/*\n!subfile/cell-000/\nsubfile/cell-000/*\n"
+                "!subfile/cell-000/run.json\n"
+                "traces/*\n!traces/cell-000/\ntraces/cell-000/*\n"
+                "!traces/cell-000/server.strace\n"
+                "calls/*\n!calls/cell-000/\ncalls/cell-000/*\n"
+                "!calls/cell-000/server.callgrind\n")
+        (self.source / "rpc-bench").mkdir()
+        (self.source / "rpc-bench/Cargo.toml").write_text("# test manifest\n")
+        (self.source / "scripts/build-rpc-bench.py").write_text(
+            "import json\n"
+            "def validate_record(path, binary):\n"
+            "    return json.loads(path.read_text())\n")
+        (self.driver / "scripts/build-rpc-bench.py").write_bytes(
+            (SMOKE.ROOT / "scripts/build-rpc-bench.py").read_bytes())
+        for checkout in (self.source, self.driver):
+            self.git(checkout, "init", "-q")
+            self.git(checkout, "add", ".")
+            self.git(checkout, "-c", "user.name=Benchmark Test",
+                     "-c", "user.email=benchmark-test@example.invalid", "-c", "commit.gpgsign=false",
+                     "-c", f"core.hooksPath={checkout / '.git' / 'empty-hooks'}", "commit", "-qm", "initial")
+
+        self.binary = self.root / "rpc-bench"
+        self.binary.write_bytes(b"frozen binary")
+        self.record = self.root / "build.json"
+        self.record.write_text(json.dumps({
+            "schema": "pbrs.rpc-bench-build.v1",
+            "command": ["cargo", "build", "--locked", "--release", "--manifest-path",
+                        "rpc-bench/Cargo.toml", "--features", "allocation-counts",
+                        "--message-format=json"],
+        }))
+        entry = {"reason": "compiler-artifact", "executable": str(self.binary),
+                 "manifest_path": str(self.source / "rpc-bench/Cargo.toml"),
+                 "target": {"name": "rpc-bench", "kind": ["bin"]},
+                 "features": ["allocation-counts", "default"]}
+        (self.root / "build.stdout.jsonl").write_text(json.dumps(entry) + "\n")
+
+    @staticmethod
+    def git(checkout, *args):
+        return subprocess.check_output(["git", *args], cwd=checkout)
+
+    def capture(self, output, mutate_patch=None):
+        argv = ["grpc-load-smoke.py", "--binary", str(self.binary), "--output", str(output),
+                "--build-record", str(self.record), "--source-checkout", str(self.source),
+                "--allocation-counts", "--payloads=0"]
+
+        def run_cell(args, cell, directory):
+            directory.mkdir()
+            if mutate_patch:
+                (output / mutate_patch).write_bytes(b"changed after capture\n")
+            return {"passed": True}
+
+        with patch("sys.argv", argv), patch.object(SMOKE, "ROOT", self.driver), \
+                patch.object(SMOKE.platform, "system", return_value="Linux"), \
+                patch.object(SMOKE, "PAIRS", [("native", "pbrs", "tonic", "prost")]), \
+                patch.object(SMOKE, "SHAPES", ["unary"]), \
+                patch.object(SMOKE, "run_cell", side_effect=run_cell), \
+                patch("sys.stdout", new_callable=io.StringIO):
+            return SMOKE.main()
+
+    def test_selected_source_and_dirty_driver_keep_distinct_patches(self):
+        tracked = self.driver / "tracked.txt"
+        tracked.write_text("staged\n")
+        self.git(self.driver, "add", "tracked.txt")
+        tracked.write_text("working tree\n")
+        (self.driver / "untracked.txt").write_text("not in a Git patch\n")
+        self.git(self.driver, "config", "status.showUntrackedFiles", "no")
+        self.git(self.driver, "config", "color.ui", "always")
+        output = self.root / "capture"
+        self.assertEqual(self.capture(output), 0)
+
+        source_patch = (output / "source.patch").read_bytes()
+        driver_patch = (output / "harness.patch").read_bytes()
+        self.assertEqual(source_patch, b"")
+        self.assertIn(b"+working tree", driver_patch)
+        self.assertNotIn(b"untracked.txt", driver_patch)
+        self.assertNotIn(b"\x1b", driver_patch)
+        report = json.loads((output / "report.json").read_text())
+        self.assertFalse(report["dirty"])
+        self.assertTrue(report["harness_dirty"])
+        self.assertTrue(report["source_verified"])
+        self.assertTrue(report["patches_unchanged"])
+        self.assertEqual(report["source_patch_sha256"], hashlib.sha256(source_patch).hexdigest())
+        self.assertEqual(report["harness_patch_sha256"], hashlib.sha256(driver_patch).hexdigest())
+        self.assertIn("untracked files", report["patch_scope"])
+
+    def test_untracked_driver_files_are_reported_even_if_git_hides_them(self):
+        self.git(self.driver, "config", "status.showUntrackedFiles", "no")
+        (self.driver / "untracked.txt").write_text("not captured\n")
+        output = self.root / "untracked-capture"
+        self.assertEqual(self.capture(output), 0)
+        report = json.loads((output / "report.json").read_text())
+        self.assertTrue(report["harness_dirty"])
+        self.assertEqual((output / "harness.patch").read_bytes(), b"")
+
+    def test_patch_scope_does_not_claim_separate_index_state(self):
+        tracked = self.driver / "tracked.txt"
+        tracked.write_text("staged only\n")
+        self.git(self.driver, "add", "tracked.txt")
+        tracked.write_text("base\n")
+        output = self.root / "staging-capture"
+        self.assertEqual(self.capture(output), 0)
+        report = json.loads((output / "report.json").read_text())
+        self.assertTrue(report["harness_dirty"])
+        self.assertEqual((output / "harness.patch").read_bytes(), b"")
+        self.assertIn("index staging", report["patch_scope"])
+
+    def test_git_patch_contains_net_tracked_worktree_and_binary_changes_only(self):
+        tracked = self.source / "tracked.txt"
+        tracked.write_text("staged\n")
+        self.git(self.source, "add", "tracked.txt")
+        tracked.write_text("working tree\n")
+        (self.source / "tracked.bin").write_bytes(b"\x00changed\xff")
+        (self.source / "untracked.txt").write_text("excluded\n")
+        result = SMOKE.git_patch(self.source)
+        self.assertIn(b"+working tree", result)
+        self.assertIn(b"GIT binary patch", result)
+        self.assertNotIn(b"untracked.txt", result)
+
+    def test_unignored_output_in_verified_source_fails_before_cells(self):
+        output = self.source / "capture"
+        with patch("sys.stderr", new_callable=io.StringIO) as errors:
+            with self.assertRaises(SystemExit) as result:
+                self.capture(output)
+        self.assertEqual(result.exception.code, 2)
+        self.assertIn("inside the measured source must be Git-ignored", errors.getvalue())
+        self.assertFalse(output.exists())
+
+    def test_nested_unignored_or_file_only_rules_fail_before_cells(self):
+        for relative in ("partial/open/capture", "reinclude", "subfile"):
+            with self.subTest(relative=relative):
+                output = self.source / relative
+                with patch("sys.stderr", new_callable=io.StringIO) as errors:
+                    with self.assertRaises(SystemExit) as result:
+                        self.capture(output)
+                self.assertEqual(result.exception.code, 2)
+                self.assertIn("inside the measured source must be Git-ignored", errors.getvalue())
+                self.assertFalse(output.exists())
+
+    def test_file_only_ignore_rules_can_cover_all_capture_files(self):
+        output = self.source / "file-only"
+        self.assertEqual(self.capture(output), 0)
+        self.assertEqual(self.git(self.source, "status", "--porcelain"), b"")
+
+    def test_optional_tracer_files_are_checked(self):
+        output = (self.source / "traces").resolve()
+        SMOKE.validate_verified_output_location(output, self.source, 1, callgrind=None, strace=None)
+        with self.assertRaisesRegex(ValueError, "must be Git-ignored"):
+            SMOKE.validate_verified_output_location(output, self.source, 1,
+                                                    callgrind=None, strace=True)
+
+    def test_optional_callgrind_files_are_checked(self):
+        output = (self.source / "calls").resolve()
+        SMOKE.validate_verified_output_location(output, self.source, 1, callgrind=None, strace=None)
+        with self.assertRaisesRegex(ValueError, "must be Git-ignored"):
+            SMOKE.validate_verified_output_location(output, self.source, 1,
+                                                    callgrind=True, strace=None)
+
+    def test_ignored_output_in_verified_source_is_allowed(self):
+        output = self.source / "ignored" / "capture"
+        self.assertEqual(self.capture(output), 0)
+        report = json.loads((output / "report.json").read_text())
+        self.assertFalse(report["dirty"])
+        self.assertTrue(report["source_unchanged"])
+        self.assertEqual(self.git(self.source, "status", "--porcelain"), b"")
+
+    def test_tampered_retained_driver_fails_capture(self):
+        output = self.root / "driver-capture"
+        self.assertEqual(self.capture(output, mutate_patch="harness.py"), 1)
+        report = json.loads((output / "report.json").read_text())
+        self.assertFalse(report["harness_script_unchanged"])
+        self.assertTrue(report["patches_unchanged"])
+        self.assertFalse(report["passed"])
+
+    def test_tampered_retained_patch_fails_capture(self):
+        for filename in ("source.patch", "harness.patch"):
+            with self.subTest(filename=filename):
+                output = self.root / (filename + "-capture")
+                self.assertEqual(self.capture(output, mutate_patch=filename), 1)
+                report = json.loads((output / "report.json").read_text())
+                self.assertFalse(report["patches_unchanged"])
+                self.assertFalse(report["passed"])
+
+
+    def test_legacy_source_verifier_cannot_hide_index_flags(self):
+        tracked = self.source / "tracked.txt"
+        for flag, reset in (("--assume-unchanged", "--no-assume-unchanged"),
+                            ("--skip-worktree", "--no-skip-worktree")):
+            with self.subTest(flag=flag):
+                self.git(self.source, "update-index", flag, "--", "tracked.txt")
+                tracked.write_text("changed but hidden\n")
+                # The legacy source verifier sees this as clean and lacks
+                # index-state validation; the newer driver must reject it.
+                self.assertEqual(
+                    self.git(self.source, "status", "--porcelain", "--untracked-files=all"),
+                    b"",
+                )
+                output = self.root / ("legacy-hidden-" + flag[2:])
+                with patch("sys.stderr", new_callable=io.StringIO) as errors:
+                    with self.assertRaises(SystemExit) as result:
+                        self.capture(output)
+                self.assertEqual(result.exception.code, 2)
+                self.assertIn("assume-unchanged or skip-worktree", errors.getvalue())
+                self.assertFalse(output.exists())
+                tracked.write_text("base\n")
+                self.git(self.source, "update-index", reset, "--", "tracked.txt")
+                self.assertEqual(
+                    self.git(self.source, "status", "--porcelain", "--untracked-files=all"),
+                    b"",
+                )
 
 
 if __name__ == "__main__":

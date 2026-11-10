@@ -39,6 +39,18 @@ def load_module(name, path):
     return module
 
 
+def ensure_visible_index(source):
+    """Reject index flags that let legacy source verifiers miss tracked edits."""
+    # The controller is retained as standalone evidence, while the selected
+    # source checkout may contain an older verifier without this check.
+    entries = subprocess.check_output(["git", "ls-files", "-v", "-z"], cwd=source)
+    if any(entry[:2] != b"H " for entry in entries.split(b"\0") if entry):
+        raise ValueError(
+            "benchmark source index has hidden or unmerged entries; "
+            "use a full checkout without assume-unchanged or skip-worktree flags"
+        )
+
+
 def levels(text):
     result = []
     for value in text.split(','):
@@ -89,6 +101,7 @@ def main():
     binary = args.binary.resolve(strict=True)
     build_record = args.build_record.resolve(strict=True)
     smoke_path = source / 'scripts/grpc-load-smoke.py'
+    ensure_visible_index(source)
     smoke = load_module('counter_smoke', smoke_path)
     ledger = load_module('counter_ledger', source / 'scripts/dominance-ledger.py')
     build = smoke.verified_build(build_record, binary, source)
@@ -180,6 +193,7 @@ def main():
                             shutil.copyfileobj(original, zipped)
                         profile.unlink()
                     print(f'{group_path.name} N={count}: {index + 1}/{len(cells)} {result["passed"]}', flush=True)
+                ensure_visible_index(source)
                 if helper_hash is None:
                     smoke.verified_build(build_record, binary, source)
                 else:
@@ -189,8 +203,11 @@ def main():
                         and digest(directory / 'build-verifier.py') == helper_hash)
                 record['binary_unchanged'] = digest(binary) == binary_hash
                 record['source_unchanged'] = True
-                record['harness_script_unchanged'] = digest(smoke_path) == harness_hash
-                record['campaign_controller_unchanged'] = digest(Path(__file__)) == state['controller_sha256']
+                record['harness_script_unchanged'] = (
+                    digest(smoke_path) == harness_hash and digest(directory / 'harness.py') == harness_hash)
+                record['campaign_controller_unchanged'] = (
+                    digest(Path(__file__)) == state['controller_sha256']
+                    and digest(controller) == state['controller_sha256'])
                 record['harness_script_unchanged'] &= record['campaign_controller_unchanged']
                 record['passed'] = (record['binary_unchanged'] and record['harness_script_unchanged']
                                     and record['campaign_controller_unchanged']
