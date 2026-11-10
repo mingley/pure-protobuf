@@ -401,6 +401,34 @@ impl Metadata {
         self.headers_mut().remove(name).is_some()
     }
 
+    /// First stored value for a non-reserved key, without decoding.
+    ///
+    /// Matching is case-insensitive. Binary metadata remains base64-encoded,
+    /// and an opaque value may contain bytes that are not valid header text.
+    /// This provides read-only access to the first stored value; reserved
+    /// protocol names and invalid or absent names return `None`.
+    ///
+    /// [`Self::mark_sensitive`] controls `Metadata` diagnostic formatting;
+    /// it does not redact or change the sensitivity flag of returned values.
+    /// Formatting or logging a raw value can reveal its contents.
+    #[must_use]
+    pub fn get_raw(&self, key: &str) -> Option<&HeaderValue> {
+        if is_reserved(key) {
+            return None;
+        }
+        self.headers().get(key)
+    }
+
+    /// Every stored value for a non-reserved key, without decoding.
+    ///
+    /// Values are returned in insertion order. Binary values are still
+    /// base64-encoded; reserved protocol names yield nothing. The values are
+    /// not redacted; see [`Self::get_raw`] before logging them.
+    pub fn get_all_raw(&self, key: &str) -> impl Iterator<Item = &HeaderValue> + '_ + use<'_> {
+        let skip = is_reserved(key);
+        self.headers().get_all(key).iter().filter(move |_| !skip)
+    }
+
     /// First value for `key` as ASCII text, matched case-insensitively.
     ///
     /// This does not enforce the `-bin` suffix. For a binary value it can
@@ -712,6 +740,74 @@ mod tests {
     use http::{HeaderMap, HeaderName, HeaderValue};
 
     #[test]
+    fn raw_reads_preserve_bytes_order_and_reserved_filtering() {
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("x-data-bin"),
+            HeaderValue::from_bytes(&[0xff]).expect("opaque header"),
+        );
+        headers.append(
+            HeaderName::from_static("x-data-bin"),
+            HeaderValue::from_static("AQ"),
+        );
+        headers.append(
+            HeaderName::from_static("grpc-status-details-bin"),
+            HeaderValue::from_static("CAU"),
+        );
+        let metadata = Metadata::from_headers(&headers);
+
+        assert_eq!(
+            metadata.get_raw("X-DATA-BIN").map(HeaderValue::as_bytes),
+            Some(&[0xff][..])
+        );
+        assert_eq!(
+            metadata
+                .get_all_raw("X-Data-Bin")
+                .map(HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            vec![&[0xff][..], &b"AQ"[..]]
+        );
+        assert!(metadata.get_raw("GRPC-STATUS-DETAILS-BIN").is_none());
+        assert_eq!(metadata.get_all_raw("grpc-status-details-bin").count(), 0);
+        assert!(metadata.get_raw("missing").is_none());
+        assert_eq!(metadata.get_all_raw("invalid key").count(), 0);
+    }
+
+    #[test]
+    fn raw_accessors_leave_existing_cross_kind_reads_permissive() {
+        let mut metadata = Metadata::new();
+        metadata.insert("x-text", "AQ").expect("ASCII");
+        metadata.insert_bin("x-data-bin", [1]).expect("binary");
+
+        assert_eq!(metadata.get("X-DATA-BIN"), Some("AQ"));
+        assert_eq!(
+            metadata.get_all("x-data-bin").collect::<Vec<_>>(),
+            vec!["AQ"]
+        );
+        assert!(metadata.contains("X-DATA-BIN"));
+        assert_eq!(metadata.get_bin("X-TEXT").as_deref(), Some(&[1][..]));
+        assert_eq!(
+            metadata.get_all_bin("x-text").collect::<Vec<_>>(),
+            vec![vec![1]]
+        );
+        assert!(metadata.contains_bin("X-TEXT"));
+    }
+
+    #[test]
+    fn raw_reads_are_not_redacted_by_metadata_sensitivity() {
+        let mut metadata = Metadata::new();
+        metadata.insert("x-private", "test-value").expect("value");
+        assert!(!metadata.get_raw("x-private").expect("raw").is_sensitive());
+        metadata.mark_sensitive("x-private");
+        assert!(metadata.is_sensitive("x-private"));
+
+        let raw = metadata.get_raw("X-PRIVATE").expect("raw");
+        assert_eq!(raw.as_bytes(), b"test-value");
+        assert!(!raw.is_sensitive());
+        assert!(!format!("{metadata:?}").contains("test-value"));
+    }
+
+    #[test]
     fn first_reads_do_not_skip_invalid_values() {
         let mut raw = HeaderMap::new();
         raw.append(
@@ -743,6 +839,21 @@ mod tests {
             metadata.get_all_bin("x-data-bin").collect::<Vec<_>>(),
             vec![vec![1]]
         );
+
+        // Tonic retains both typed values and reports the malformed value
+        // only when it is decoded; pbrs skips it in the decoded iterator.
+        #[cfg(feature = "tonic")]
+        {
+            let theirs = tonic::metadata::MetadataMap::from_headers(raw.clone());
+            let values = theirs.get_all_bin("x-data-bin");
+            let decoded = values
+                .iter()
+                .map(|value| value.to_bytes())
+                .collect::<Vec<_>>();
+            assert_eq!(decoded.len(), 2);
+            assert!(decoded[0].is_err());
+            assert_eq!(decoded[1].as_ref().expect("valid").as_ref(), &[1]);
+        }
     }
 
     #[test]

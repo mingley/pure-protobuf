@@ -47,6 +47,21 @@ let req_id = request.metadata().get("x-request-id");
 let token_bytes = request.metadata().get_bin("auth-token-bin");
 ```
 
+Read helpers currently do not enforce the `-bin` suffix: `get` can return
+encoded binary text, and `get_bin` attempts to decode ASCII keys. Use `get`
+for ASCII keys and `get_bin` for binary keys. To inspect an encoded or
+malformed header directly, use `get_raw`. For repeats, use `get_all_raw`.
+
+```rust
+let encoded = request
+    .metadata()
+    .get_raw("auth-token-bin")
+    .map(|value| value.as_bytes());
+```
+
+Raw values are not redacted by `mark_sensitive`; avoid logging them unless
+you intend to disclose their contents.
+
 ---
 
 ## 3. Client Interceptors and Outgoing Overlays

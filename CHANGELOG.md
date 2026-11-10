@@ -96,6 +96,8 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Add read-only raw metadata accessors for encoded or malformed user values;
+  reserved protocol names remain hidden.
 - Classify the `-bin` metadata suffix without regard to ASCII case for writes
   and removals. ASCII writes with mixed-case binary suffixes, previously
   accepted by mistake, now return `INVALID_ARGUMENT`.
