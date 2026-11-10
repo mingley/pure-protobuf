@@ -158,7 +158,9 @@ logging records cancellation requests after its logger is installed. A
 never-polled call or local rejection before logger setup may have no
 cancellation event. Methods excluded by the logger's filter emit no entries,
 but a configured logger still enables cancellation bookkeeping for those
-methods. A first cancellation can allocate logging state and take extra locks.
+methods. An explicit cancellation can allocate logging state and take extra
+locks. Dropping a call before its logger registers avoids initializing that
+state, but still signals cancellation and wakes waiters.
 If headers become visible only after a local reset, the client also treats them as committed
 because the reset can hide whether they ended the stream. A trailers-only
 rejection in that narrow race may therefore not be retried.

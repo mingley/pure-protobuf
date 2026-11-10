@@ -16,6 +16,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Drop-only cancellation screen](benchmarks/drop-only-cancel-screen-20261110.md) | Unary unpolled-call and endpoint CPU, controls and allocation limits, November 10 |
 | [Receive accounting candidates](benchmarks/recv-budget-rpc-screen-20261110.md) | Unmerged candidates: loopback CPU and layout with a non-default frame budget, November 10 |
 | [Small-response reserve, native server](benchmarks/response-reserve-native-server.md) | Unmerged repair: native-server CPU and allocation samples, November 10 |
 | [Small-response reserve, longer follow-up](benchmarks/response-reserve-screen-long.md) | Historical prototype: longer CPU samples and Miri failure, November 10 |

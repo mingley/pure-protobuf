@@ -19,9 +19,10 @@ request when a response wins that race.
 - The filter is resolved and a matching call logger is created only when the
   unary future is polled past local preprocessing and concurrency admission.
   A never-polled drop or earlier local failure can therefore omit a
-  cancellation event. Excluded cancellation can allocate boxed logging state
-  on first use and takes additional registry locks; reused flags can retain
-  that state for later calls.
+  cancellation event. Explicit cancellation of an excluded call can allocate
+  boxed logging state and takes additional registry locks; reused flags can
+  retain that state for later calls. Dropping a call without a registered logger
+  avoids initializing that state while preserving cancellation and wakeups.
 - The logger is registered with the call's cancellation flag. Repeated signals
   claim at most one client `Cancel` event. A cancellation ordered before
   finalization can be emitted after a trailer; a detached handle used after

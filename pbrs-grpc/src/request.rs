@@ -3374,7 +3374,7 @@ impl<T> Drop for Call<T> {
         if !self.done {
             // Wakes a client-streaming pump that still holds the send half;
             // unary RSTs when the boxed future (and its `SendStream`) drops.
-            self.cancel.signal();
+            self.cancel.signal_on_drop();
         }
     }
 }
@@ -4378,5 +4378,68 @@ mod tests {
         assert!(!call.is_cancelled());
         let shown = format!("{call:?}");
         assert!(shown.contains("terminated: true"), "{shown}");
+    }
+}
+
+#[cfg(test)]
+mod call_drop_signal_tests {
+    #![allow(
+        clippy::expect_used,
+        clippy::panic,
+        reason = "controlled call lifecycle regressions"
+    )]
+
+    use super::Call;
+    use crate::Status;
+    use crate::binlog::{BinaryLogFilter, BinaryLogger, CallLogger, EventType, Logger, VecSink};
+    use crate::rpc_cancel::{RpcCancel, UnaryCancelLog};
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::sync::Arc;
+    use std::task::{Context, Poll};
+
+    struct RegisterThenPanic {
+        cancel: RpcCancel,
+        logger: CallLogger,
+        guard: Option<UnaryCancelLog>,
+    }
+
+    impl Future for RegisterThenPanic {
+        type Output = Result<(), Status>;
+
+        fn poll(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+            let guard = self.cancel.observe_unary_cancel(&self.logger);
+            self.guard = Some(guard);
+            panic!("intentional first-poll panic");
+        }
+    }
+
+    #[test]
+    fn first_poll_panic_keeps_logging_aware_drop() {
+        let sink = Arc::new(VecSink::new());
+        let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone())
+            .start_call("/test.Service/Method", Logger::Client)
+            .expect("enabled");
+        let cancel = RpcCancel::new_unary(true);
+        let future = RegisterThenPanic {
+            cancel: cancel.clone(),
+            logger,
+            guard: None,
+        };
+        let mut call = Call::new(cancel, Box::pin(future));
+        let handle = call.handle();
+        let mut cx = Context::from_waker(std::task::Waker::noop());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _poll = Pin::new(&mut call).poll(&mut cx);
+        }));
+        assert!(result.is_err(), "future should panic on its first poll");
+        drop(call);
+        assert!(handle.is_cancelled());
+        let events: Vec<_> = sink.records().iter().map(|r| r.entry.event).collect();
+        assert_eq!(
+            events,
+            [EventType::Cancel],
+            "first-poll panic must log cancel"
+        );
     }
 }

@@ -280,6 +280,34 @@ impl RpcCancel {
         }
     }
 
+    /// Signal while dropping a call whose future cannot be polled again.
+    ///
+    /// Only `Call::drop` may use this: the future cannot be polled again.
+    /// The owning unary future is currently the only production registrar,
+    /// and it registers before spawning hedges. Once drop begins, that future
+    /// cannot be polled again, so an absent registration cannot appear later.
+    /// If streaming or a spawned task can register later, this shortcut must
+    /// be removed or revalidated with a new registration handoff.
+    pub(crate) fn signal_on_drop(&self) {
+        let inner = self.inner();
+        inner.cancelled.store(true, Ordering::Release);
+        if inner.log_capable && Self::drop_has_registration(inner) {
+            Self::signal_with_log(inner);
+        } else {
+            inner.wake_waiters();
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn drop_has_registration(inner: &Inner) -> bool {
+        let additional = inner.additional.lock().unwrap_or_else(|p| p.into_inner());
+        additional
+            .logging
+            .as_ref()
+            .is_some_and(|state| state.cancel_log.is_some())
+    }
+
     #[cold]
     #[inline(never)]
     fn signal_with_log(inner: &Inner) {
@@ -1488,5 +1516,218 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn drop_signal_without_registration_wakes_without_initializing_log_state() {
+        super::SPARE_LOGGED.with(|cache| drop(cache.take()));
+        let cancel = RpcCancel::new_unary(true);
+        let (count, waker) = waker();
+        let mut waiter = Box::pin(cancel.wait());
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending()
+        );
+        cancel.signal_on_drop();
+        assert!(cancel.is_cancelled());
+        assert_eq!(count.0.load(Ordering::SeqCst), 1, "waiter must wake");
+        let additional = cancel.inner().additional.lock().expect("registry");
+        assert!(
+            additional.logging.is_none(),
+            "drop without registration must not initialize log state"
+        );
+    }
+
+    #[test]
+    fn drop_signal_is_visible_before_registry_lock() {
+        for log_capable in [false, true] {
+            let cancel = RpcCancel::new_unary(log_capable);
+            let other = cancel.clone();
+            let (started, receiver) = std::sync::mpsc::channel();
+            let registry = cancel.inner().additional.lock().expect("registry");
+            let thread = std::thread::spawn(move || {
+                started.send(()).expect("receiver");
+                other.signal_on_drop();
+            });
+            receiver.recv().expect("cancel thread started");
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            while !cancel.is_cancelled() {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "drop cancel flag waited for registry lock"
+                );
+                std::thread::yield_now();
+            }
+            drop(registry);
+            thread.join().expect("cancel thread");
+        }
+    }
+
+    #[test]
+    fn drop_signal_without_registration_races_active_signal_and_reuses_spare() {
+        use crate::binlog::EventType;
+
+        struct BlockWake {
+            entered: std::sync::mpsc::Sender<()>,
+            release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+        }
+        impl Wake for BlockWake {
+            fn wake(self: Arc<Self>) {
+                self.entered.send(()).expect("wake entered");
+                self.release
+                    .lock()
+                    .expect("wake lock")
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .expect("release wake");
+            }
+        }
+
+        super::SPARE_LOGGED.with(|cache| drop(cache.take()));
+        let cancel = RpcCancel::new_unary(true);
+        let (entered, waking) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        let waker = Waker::from(Arc::new(BlockWake {
+            entered,
+            release: std::sync::Mutex::new(released),
+        }));
+        let mut waiter = Box::pin(cancel.wait());
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending()
+        );
+        let detached = cancel.clone();
+        let worker = std::thread::spawn(move || detached.signal());
+        waking
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("detached signal entered wake");
+        {
+            let additional = cancel.inner().additional.lock().expect("registry");
+            let state = additional
+                .logging
+                .as_ref()
+                .expect("signal initialized state");
+            assert!(state.cancel_log.is_none());
+            assert_eq!(state.active_wakes, 1);
+            assert!(!state.wake_completed);
+        }
+        cancel.signal_on_drop();
+        {
+            let additional = cancel.inner().additional.lock().expect("registry");
+            let state = additional.logging.as_ref().expect("state retained");
+            assert!(state.cancel_log.is_none());
+            assert_eq!(state.active_wakes, 1, "active wake must remain tracked");
+            assert!(!state.wake_completed);
+        }
+        release.send(()).expect("release wake");
+        worker.join().expect("detached signal");
+        drop(waiter);
+        let original = Arc::as_ptr(cancel.inner());
+        drop(cancel);
+
+        let reused = RpcCancel::new_unary(true);
+        assert_eq!(Arc::as_ptr(reused.inner()), original, "reuse logged spare");
+        assert!(!reused.is_cancelled());
+        {
+            let additional = reused.inner().additional.lock().expect("registry");
+            let state = additional.logging.as_ref().expect("allocated state reused");
+            assert!(state.cancel_log.is_none());
+            assert_eq!(state.active_wakes, 0);
+            assert!(!state.wake_completed);
+        }
+        let (sink, tap) = client_log();
+        let _guard = reused.observe_unary_cancel(&tap);
+        reused.signal();
+        assert_eq!(events(&sink), [EventType::Cancel]);
+    }
+
+    #[test]
+    fn drop_signal_registered_waits_for_active_wake() {
+        use crate::binlog::EventType;
+
+        struct BlockWake {
+            entered: std::sync::mpsc::Sender<()>,
+            release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+        }
+        impl Wake for BlockWake {
+            fn wake(self: Arc<Self>) {
+                self.entered.send(()).expect("wake entered");
+                self.release
+                    .lock()
+                    .expect("wake lock")
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .expect("release wake");
+            }
+        }
+
+        let (sink, tap) = client_log();
+        let cancel = RpcCancel::new_unary(true);
+        let _guard = cancel.observe_unary_cancel(&tap);
+        drop(cancel.begin_unary_header().expect("header"));
+        let (entered, waking) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        let waker = Waker::from(Arc::new(BlockWake {
+            entered,
+            release: std::sync::Mutex::new(released),
+        }));
+        let mut waiter = Box::pin(cancel.wait());
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending()
+        );
+        let detached = cancel.clone();
+        let worker = std::thread::spawn(move || detached.signal());
+        waking
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("detached signal entered wake");
+        cancel.signal_on_drop();
+        assert!(sink.is_empty(), "cancel must wait for active wake");
+        release.send(()).expect("release wake");
+        worker.join().expect("detached signal");
+        assert_eq!(events(&sink), [EventType::Cancel]);
+        cancel.signal_on_drop();
+        assert_eq!(events(&sink), [EventType::Cancel]);
+    }
+
+    #[test]
+    fn drop_signal_registered_survives_primary_waker_panic() {
+        use crate::binlog::EventType;
+        struct PanicOnWake;
+        impl Wake for PanicOnWake {
+            #[allow(clippy::panic, reason = "check a panicking executor callback")]
+            fn wake(self: Arc<Self>) {
+                panic!("primary waker panic");
+            }
+        }
+
+        let (sink, tap) = client_log();
+        let cancel = RpcCancel::new_unary(true);
+        let _guard = cancel.observe_unary_cancel(&tap);
+        let header = cancel.begin_unary_header().expect("header reserved");
+        tap.log_client_header(&crate::Metadata::new(), "/test.Service/Call", "host", None);
+        drop(header);
+        let mut waiter = Box::pin(cancel.wait());
+        let waker = Waker::from(Arc::new(PanicOnWake));
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending()
+        );
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cancel.signal_on_drop()))
+                .is_err()
+        );
+        assert!(cancel.is_cancelled());
+        assert_eq!(
+            events(&sink),
+            [EventType::ClientHeader, EventType::Cancel],
+            "drop must log despite waker panic"
+        );
     }
 }
