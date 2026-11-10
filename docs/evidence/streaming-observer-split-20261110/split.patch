@@ -1,0 +1,202 @@
+diff --git a/pbrs-grpc/src/client/streaming.rs b/pbrs-grpc/src/client/streaming.rs
+index df9ebed35d49846efd37fccaec42dc6767a87521..7e5aae8359f9b7664a755e5945d42622a5e41e63 100644
+--- a/pbrs-grpc/src/client/streaming.rs
++++ b/pbrs-grpc/src/client/streaming.rs
+@@ -1513,7 +1513,8 @@ impl super::Channel {
+         let channel = self.clone();
+         let state = channel.local.service_config.get();
+         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
+-        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
++        let logging_configured = self.local.binlog.is_some();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(logging_configured);
+         let cancel_rx = cancel.clone();
+         let reset = cancel.clone();
+         let wire = channel.wire_for(path, state.as_deref());
+@@ -1527,9 +1528,9 @@ impl super::Channel {
+         let md = req.metadata;
+         let compress = req.compress.unwrap_or(false);
+         let ua = req.user_agent;
+-        Call::new(
+-            cancel,
+-            Box::pin(async move {
++        macro_rules! stream_future {
++            ($observe:path, $handoff:path) => {
++                Box::pin(async move {
+                 // Labels are built per use, only when observed, so an
+                 // unobserved call neither constructs nor stores them.
+                 let labels = || {
+@@ -1593,9 +1594,7 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+-                let mut cancel_log = tap
+-                    .as_ref()
+-                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
++                let mut cancel_log = ($observe)(&cancel_rx, tap.as_ref());
+                 let retry_policy = channel
+                     .method_config_for(path)
+                     .and_then(|method| method.retry_policy);
+@@ -1738,9 +1737,7 @@ impl super::Channel {
+                                         permit,
+                                         live_socket,
+                                     );
+-                                    if let Some(log) = cancel_log.take() {
+-                                        log.handoff_to_stream();
+-                                    }
++                                    ($handoff)(&mut cancel_log);
+                                     return Ok(response);
+                                 }
+                                 Err(status) => {
+@@ -1899,8 +1896,14 @@ impl super::Channel {
+                         }
+                     }
+                 }
+-            }),
+-        )
++                })
++            };
++        }
++        if logging_configured {
++            Call::new(cancel, stream_future!(observe_stream_log, handoff_stream_log))
++        } else {
++            Call::new(cancel, stream_future!(observe_unlogged_stream, handoff_unlogged_stream))
++        }
+     }
+ 
+     /// Issue a client-streaming RPC: many request messages, one response.
+@@ -2006,7 +2009,8 @@ impl super::Channel {
+         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
+         let wire = self.wire_for(path, state.as_deref());
+         let (tx, rx) = input(wire, req.compress());
+-        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
++        let logging_configured = self.local.binlog.is_some();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(logging_configured);
+         let cancel_rx = cancel.clone();
+         let channel = self.clone();
+         let observer = self.local.observer.clone();
+@@ -2018,9 +2022,9 @@ impl super::Channel {
+         let md = req.metadata;
+         let compress = req.compress.unwrap_or(false);
+         let ua = req.user_agent;
+-        let call = Call::new(
+-            cancel,
+-            Box::pin(async move {
++        macro_rules! stream_future {
++            ($observe:path, $handoff:path) => {
++                Box::pin(async move {
+                 // Labels are built per use, only when observed, so an
+                 // unobserved call neither constructs nor stores them.
+                 let labels = || {
+@@ -2081,9 +2085,7 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+-                let _cancel_log = tap
+-                    .as_ref()
+-                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
++                let _cancel_log = ($observe)(&cancel_rx, tap.as_ref());
+                 let opened = match channel
+                     .open_retrying(
+                         cancel_rx.clone(),
+@@ -2244,8 +2246,14 @@ impl super::Channel {
+                     }
+                 }
+                 final_res
+-            }),
+-        );
++                })
++            };
++        }
++        let call = if logging_configured {
++            Call::new(cancel, stream_future!(observe_stream_log, handoff_stream_log))
++        } else {
++            Call::new(cancel, stream_future!(observe_unlogged_stream, handoff_unlogged_stream))
++        };
+         (tx, call)
+     }
+ 
+@@ -2352,7 +2360,8 @@ impl super::Channel {
+         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
+         let wire = channel.wire_for(path, state.as_deref());
+         let (tx, rx) = input(wire, req.compress());
+-        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
++        let logging_configured = self.local.binlog.is_some();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(logging_configured);
+         let cancel_rx = cancel.clone();
+         let reset = cancel.clone();
+         let observer = channel.local.observer.clone();
+@@ -2364,9 +2373,9 @@ impl super::Channel {
+         let md = req.metadata;
+         let compress = req.compress.unwrap_or(false);
+         let ua = req.user_agent;
+-        let call = Call::new(
+-            cancel,
+-            Box::pin(async move {
++        macro_rules! stream_future {
++            ($observe:path, $handoff:path) => {
++                Box::pin(async move {
+                 // Labels are built per use, only when observed, so an
+                 // unobserved call neither constructs nor stores them.
+                 let labels = || {
+@@ -2427,9 +2436,7 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+-                let mut cancel_log = tap
+-                    .as_ref()
+-                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
++                let mut cancel_log = ($observe)(&cancel_rx, tap.as_ref());
+                 let opened = match channel
+                     .open_retrying(
+                         cancel_rx.clone(),
+@@ -2596,16 +2603,45 @@ impl super::Channel {
+                     permit,
+                     channelz_socket,
+                 );
+-                if let Some(log) = cancel_log.take() {
+-                    log.handoff_to_stream();
+-                }
++                ($handoff)(&mut cancel_log);
+                 Ok(response)
+-            }),
+-        );
++                })
++            };
++        }
++        let call = if logging_configured {
++            Call::new(cancel, stream_future!(observe_stream_log, handoff_stream_log))
++        } else {
++            Call::new(cancel, stream_future!(observe_unlogged_stream, handoff_unlogged_stream))
++        };
+         (tx, call)
+     }
+ }
+ 
++// Scratch-only split guard types used to compare logged and unlogged futures.
++struct UnloggedStreamingGuard;
++
++fn observe_stream_log(
++    cancel: &crate::rpc_cancel::RpcCancel,
++    tap: Option<&CallLogger>,
++) -> Option<crate::rpc_cancel::UnaryCancelLog> {
++    tap.map(|logger| cancel.observe_unary_cancel(logger))
++}
++
++fn observe_unlogged_stream(
++    _: &crate::rpc_cancel::RpcCancel,
++    _: Option<&CallLogger>,
++) -> UnloggedStreamingGuard {
++    UnloggedStreamingGuard
++}
++
++fn handoff_stream_log(guard: &mut Option<crate::rpc_cancel::UnaryCancelLog>) {
++    if let Some(log) = guard.take() {
++        log.handoff_to_stream();
++    }
++}
++
++fn handoff_unlogged_stream(_: &mut UnloggedStreamingGuard) {}
++
+ #[cfg(test)]
+ #[allow(clippy::expect_used, clippy::panic, reason = "transport unit tests")]
+ #[path = "streaming_closed_tests.rs"]

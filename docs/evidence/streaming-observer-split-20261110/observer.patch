@@ -1,0 +1,411 @@
+diff --git a/pbrs-grpc/src/client/call.rs b/pbrs-grpc/src/client/call.rs
+index 93b6e01b99ccc4698a3c1f8e799e459af9566737..70c457fc91617c548cc72546816d02fd3264e025 100644
+--- a/pbrs-grpc/src/client/call.rs
++++ b/pbrs-grpc/src/client/call.rs
+@@ -947,7 +947,9 @@ impl super::Channel {
+             {
+                 Ok((resp_fut, send)) => {
+                     if let Some(tap) = tap {
+-                        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
++                        if let Some(_header) = cancel_rx.begin_unary_header() {
++                            tap.log_client_header(md, path, routing.authority().as_str(), timeout);
++                        }
+                     }
+                     return Ok(Opened {
+                         load,
+diff --git a/pbrs-grpc/src/client/streaming.rs b/pbrs-grpc/src/client/streaming.rs
+index 5026b09a503a5aa007810bfed9765b277c6b1b67..df9ebed35d49846efd37fccaec42dc6767a87521 100644
+--- a/pbrs-grpc/src/client/streaming.rs
++++ b/pbrs-grpc/src/client/streaming.rs
+@@ -108,11 +108,6 @@ where
+         response_committed,
+     )
+     .await;
+-    if let (Some(tap), Err(status)) = (tap, &outcome) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     outcome
+ }
+ 
+@@ -143,7 +138,9 @@ where
+ {
+     let mut commitment = AttemptCommitment::Uncommitted;
+     if let Some(tap) = tap {
+-        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
++        if let Some(_header) = cancel_rx.begin_unary_header() {
++            tap.log_client_header(md, path, routing.authority().as_str(), timeout);
++        }
+     }
+     let (mut resp_fut, mut send_stream) = match open(
+         send_req,
+@@ -479,11 +476,6 @@ where
+     };
+     send.live = false;
+     let result = prefer_deadline(result, deadline);
+-    if let (Some(tap), Err(status)) = (tap, &result) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     // Channelz: the attempt's stream ends here, like unary. Sent messages
+     // were claimed by the pump as written; the single response claims one
+     // received message on success.
+@@ -832,11 +824,6 @@ async fn await_closed_client_response<Resp: CodecMessage>(
+         result = &mut fut => result,
+     };
+     send.live = false;
+-    if let (Some(tap), Err(status)) = (tap, &result) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     note_client_stream_end(socket, &result);
+     result
+ }
+@@ -884,11 +871,6 @@ async fn send_client_rest<Resp: CodecMessage>(
+         send.stream_mut().send_reset(Reason::CANCEL);
+     }
+     send.live = false;
+-    if let (Some(tap), Err(status)) = (&tap, &result) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     note_client_stream_end(socket, &result);
+     result
+ }
+@@ -936,11 +918,6 @@ async fn wait_ready_bidi_http(
+         result = &mut response_fut => result,
+     };
+     send.live = false;
+-    if let (Some(tap), Err(status)) = (&tap, &received) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     ReadyHttp {
+         received,
+         send,
+@@ -1140,11 +1117,6 @@ where
+     };
+     send.live = false;
+     let result = prefer_deadline(result, deadline);
+-    if let (Some(tap), Err(status)) = (&tap, &result) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     match result {
+         Ok(response) => {
+             if let Some(sock) = socket {
+@@ -1459,11 +1431,6 @@ where
+         }
+     };
+     let result = prefer_deadline(result, deadline);
+-    if let (Some(tap), Err(status)) = (&tap, &result) {
+-        if status.code() == Code::Cancelled {
+-            tap.log_cancel();
+-        }
+-    }
+     // Channelz: count the attempt's stream like unary (started on every
+     // post-setup attempt, end on failure now and on success via the bound
+     // Streaming's polls/drop). Sent messages were claimed by the pump.
+@@ -1546,7 +1513,7 @@ impl super::Channel {
+         let channel = self.clone();
+         let state = channel.local.service_config.get();
+         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
+-        let cancel = crate::rpc_cancel::RpcCancel::new();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
+         let cancel_rx = cancel.clone();
+         let reset = cancel.clone();
+         let wire = channel.wire_for(path, state.as_deref());
+@@ -1626,6 +1593,9 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
++                let mut cancel_log = tap
++                    .as_ref()
++                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
+                 let retry_policy = channel
+                     .method_config_for(path)
+                     .and_then(|method| method.retry_policy);
+@@ -1760,14 +1730,18 @@ impl super::Channel {
+                                     finish_attempt(&mut attempt_guard, &Status::ok());
+                                     call_guard.finish(&Status::ok());
+                                     channel.local.retry_stats.record_committed(true);
+-                                    return Ok(pool::attach_conn(
++                                    let response = pool::attach_conn(
+                                         response,
+                                         lease,
+                                         driver,
+                                         Some(reset),
+                                         permit,
+                                         live_socket,
+-                                    ));
++                                    );
++                                    if let Some(log) = cancel_log.take() {
++                                        log.handoff_to_stream();
++                                    }
++                                    return Ok(response);
+                                 }
+                                 Err(status) => {
+                                     if cancel_rx.is_cancelled() {
+@@ -2032,7 +2006,7 @@ impl super::Channel {
+         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
+         let wire = self.wire_for(path, state.as_deref());
+         let (tx, rx) = input(wire, req.compress());
+-        let cancel = crate::rpc_cancel::RpcCancel::new();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
+         let cancel_rx = cancel.clone();
+         let channel = self.clone();
+         let observer = self.local.observer.clone();
+@@ -2107,6 +2081,9 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
++                let _cancel_log = tap
++                    .as_ref()
++                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
+                 let opened = match channel
+                     .open_retrying(
+                         cancel_rx.clone(),
+@@ -2375,7 +2352,7 @@ impl super::Channel {
+         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
+         let wire = channel.wire_for(path, state.as_deref());
+         let (tx, rx) = input(wire, req.compress());
+-        let cancel = crate::rpc_cancel::RpcCancel::new();
++        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
+         let cancel_rx = cancel.clone();
+         let reset = cancel.clone();
+         let observer = channel.local.observer.clone();
+@@ -2450,6 +2427,9 @@ impl super::Channel {
+                     .binlog
+                     .as_ref()
+                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
++                let mut cancel_log = tap
++                    .as_ref()
++                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
+                 let opened = match channel
+                     .open_retrying(
+                         cancel_rx.clone(),
+@@ -2608,14 +2588,18 @@ impl super::Channel {
+                 };
+                 finish_attempt(&mut attempt_guard, &Status::ok());
+                 call_guard.finish(&Status::ok());
+-                Ok(pool::attach_conn(
++                let response = pool::attach_conn(
+                     response,
+                     lease,
+                     driver,
+                     Some(reset),
+                     permit,
+                     channelz_socket,
+-                ))
++                );
++                if let Some(log) = cancel_log.take() {
++                    log.handoff_to_stream();
++                }
++                Ok(response)
+             }),
+         );
+         (tx, call)
+diff --git a/pbrs-grpc/src/rpc_cancel.rs b/pbrs-grpc/src/rpc_cancel.rs
+index f69bb5108ed5abcca12e281ae9dcb678015c90b4..1a6ba50487f1c6c9a5ec5cad9a495302be000017 100644
+--- a/pbrs-grpc/src/rpc_cancel.rs
++++ b/pbrs-grpc/src/rpc_cancel.rs
+@@ -65,7 +65,7 @@ fn emit_cancel(logger: Option<CallLogger>) {
+ 
+ /// Keeps unary cancel logging registered until that call finishes.
+ pub(crate) struct UnaryCancelLog {
+-    cancel: RpcCancel,
++    cancel: Option<RpcCancel>,
+ }
+ 
+ // Called with the registry locked. Claim only after cancellation wakeup has
+@@ -105,43 +105,18 @@ fn claim_cancel(
+     (event, release)
+ }
+ 
++impl UnaryCancelLog {
++    /// Hand responsibility to an already-bound response stream.
++    pub(crate) fn handoff_to_stream(mut self) {
++        drop(self.cancel.take());
++    }
++}
++
+ impl Drop for UnaryCancelLog {
+     fn drop(&mut self) {
+-        let inner = self.cancel.inner();
+-        let (emit, release) = {
+-            let mut additional = inner.additional.lock().unwrap_or_else(|p| p.into_inner());
+-            // The registry lock orders this snapshot with logger setup
+-            // and the completion of a signal's wake pass.
+-            let cancelled = inner.cancelled.load(Ordering::Acquire);
+-            if let Some(log) = additional
+-                .logging
+-                .as_mut()
+-                .and_then(|state| state.cancel_log.as_mut())
+-            {
+-                log.finished = true;
+-                if cancelled && !log.emitted {
+-                    log.pending = true;
+-                }
+-            }
+-            let (emit, release) = claim_cancel(inner, &mut additional);
+-            if release.is_some() {
+-                (emit, release)
+-            } else if let Some(log) = additional
+-                .logging
+-                .as_mut()
+-                .and_then(|state| state.cancel_log.as_mut())
+-            {
+-                if !log.pending {
+-                    (emit, log.logger.take())
+-                } else {
+-                    (emit, None)
+-                }
+-            } else {
+-                (emit, None)
+-            }
+-        };
+-        emit_cancel(emit);
+-        drop(release);
++        if let Some(cancel) = self.cancel.take() {
++            cancel.finish_observing_cancel();
++        }
+     }
+ }
+ 
+@@ -213,6 +188,46 @@ impl std::fmt::Debug for RpcCancel {
+ }
+ 
+ impl RpcCancel {
++    /// Finish a call logger after its last observable response or drop.
++    pub(crate) fn finish_observing_cancel(&self) {
++        let inner = self.inner();
++        if !inner.log_capable {
++            return;
++        }
++        let (emit, release) = {
++            let mut additional = inner.additional.lock().unwrap_or_else(|p| p.into_inner());
++            let cancelled = inner.cancelled.load(Ordering::Acquire);
++            if let Some(log) = additional
++                .logging
++                .as_mut()
++                .and_then(|state| state.cancel_log.as_mut())
++            {
++                log.finished = true;
++                if cancelled && !log.emitted {
++                    log.pending = true;
++                }
++            }
++            let (emit, release) = claim_cancel(inner, &mut additional);
++            if release.is_some() {
++                (emit, release)
++            } else if let Some(log) = additional
++                .logging
++                .as_mut()
++                .and_then(|state| state.cancel_log.as_mut())
++            {
++                if !log.pending {
++                    (emit, log.logger.take())
++                } else {
++                    (emit, None)
++                }
++            } else {
++                (emit, None)
++            }
++        };
++        emit_cancel(emit);
++        drop(release);
++    }
++
+     pub(crate) fn new() -> Self {
+         Self::new_inner::<false>()
+     }
+@@ -369,7 +384,7 @@ impl RpcCancel {
+         emit_cancel(emit);
+         drop(release);
+         UnaryCancelLog {
+-            cancel: self.clone(),
++            cancel: Some(self.clone()),
+         }
+     }
+ 
+diff --git a/pbrs-grpc/src/stream.rs b/pbrs-grpc/src/stream.rs
+index 0eb99731939fac66969f22ec96b0064348a3d122..315b9f517758ac19fd1bb0199a8609e96dba4388 100644
+--- a/pbrs-grpc/src/stream.rs
++++ b/pbrs-grpc/src/stream.rs
+@@ -494,6 +494,9 @@ impl<T> Streaming<T> {
+         }
+         let poll = self.poll_source(cx);
+         if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
++            if let Some(reset) = self.reset.as_ref() {
++                reset.finish_observing_cancel();
++            }
+             self.terminated = true;
+             self.outbound_completion.take();
+         }
+@@ -598,6 +601,9 @@ impl<T> Streaming<T> {
+                 Err(status) => break Err(status),
+             }
+         };
++        if let Some(reset) = self.reset.as_ref() {
++            reset.finish_observing_cancel();
++        }
+         self.terminated = true;
+         self.outbound_completion.take();
+         if result.is_ok() {
+@@ -617,13 +623,21 @@ impl<T> Streaming<T> {
+             #[cfg(feature = "tower")]
+             Source::External(input) => poll_fn(|cx| input.poll_many(cx, out, limit)).await,
+             Source::Channel(rx) => rx.recv_many(out, limit).await,
+-            Source::Wire(wire) => match wire.next().await.transpose() {
+-                None => 0,
+-                Some(item) => {
+-                    out.push(item);
+-                    1
++            Source::Wire(wire) => {
++                let result = wire.next().await;
++                if matches!(&result, Ok(None) | Err(_)) {
++                    if let Some(reset) = self.reset.as_ref() {
++                        reset.finish_observing_cancel();
++                    }
+                 }
+-            },
++                match result.transpose() {
++                    None => 0,
++                    Some(item) => {
++                        out.push(item);
++                        1
++                    }
++                }
++            }
+         }
+     }
+ 
+@@ -707,12 +721,22 @@ impl<T> std::fmt::Debug for Streaming<T> {
+     }
+ }
+ 
++struct FinishClientCancelLog<'a>(&'a crate::rpc_cancel::RpcCancel);
++
++impl Drop for FinishClientCancelLog<'_> {
++    fn drop(&mut self) {
++        self.0.finish_observing_cancel();
++    }
++}
++
+ impl<T> Drop for Streaming<T> {
+     fn drop(&mut self) {
+         if let Some(reset) = self.reset.take() {
++            let finish = FinishClientCancelLog(&reset);
+             if !self.finished() {
+                 reset.signal();
+             }
++            drop(finish);
+         }
+         let clean = self.channelz.as_ref().is_some_and(|state| state.clean_end);
+         self.channelz_end(clean);
