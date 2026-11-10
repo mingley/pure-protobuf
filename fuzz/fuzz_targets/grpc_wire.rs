@@ -195,10 +195,15 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
         if let (Ok(key_str), Ok(val_str)) =
             (std::str::from_utf8(k_bytes), std::str::from_utf8(v_bytes))
         {
+            // Header names are case-insensitive, including the binary suffix.
+            let is_binary_key = key_str
+                .as_bytes()
+                .last_chunk::<4>()
+                .is_some_and(|suffix| suffix.eq_ignore_ascii_case(b"-bin"));
             let mut md = Metadata::new();
             match md.insert(key_str, val_str) {
                 Ok(()) => {
-                    assert!(!key_str.ends_with("-bin"));
+                    assert!(!is_binary_key);
                     assert_eq!(md.get(key_str), Some(val_str));
                 }
                 Err(status) => {
@@ -208,7 +213,7 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
 
             match md.insert_bin(key_str, v_bytes) {
                 Ok(()) => {
-                    assert!(key_str.ends_with("-bin"));
+                    assert!(is_binary_key);
                     assert_eq!(md.get_bin(key_str).as_deref(), Some(v_bytes));
                 }
                 Err(status) => {
