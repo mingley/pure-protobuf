@@ -96,6 +96,20 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Build and test native gRPC on i686 Linux with plaintext or caller-provided
+  rustls configurations. Built-in TLS remains available on x86-64 and AArch64;
+  other architectures need a caller-provided provider and TLS configuration.
+- Allow default native clients to reserve up to 1,024 queued small DATA
+  events per connection, at most one per stream. An explicit DATA frame
+  budget disables this reserve. It is not a total transport-memory bound.
+- Use cancellation provenance for unary client binary logs and record an
+  explicit native streaming sender failure when the upload pump processes it.
+  [Known binary-log gaps](docs/release-readiness.md#retry-and-binary-log-claims)
+  remain.
+- Avoid a temporary lowercase key allocation in first-value metadata lookup
+  and a temporary vector in opt-in trace-context parsing. See the scoped
+  [component screens](docs/benchmarks.md#compare-pbrs-with-tonic-and-prost).
+
 - Prioritize ready shutdown signals over queued connections in TCP/TLS, Unix
   and custom incoming accept loops. Custom sources also consume Tokio's
   cooperative budget so a ready backlog lets other tasks signal shutdown.
