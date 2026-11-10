@@ -4,9 +4,10 @@
 //! never zero) and owns one entry per live entity. Owners hold RAII
 //! guards ([`ChannelHandle`], [`SubchannelHandle`], [`ServerHandle`],
 //! [`SocketHandle`]); dropping a guard unregisters its entity and
-//! detaches it from its parent, so memory is `O(live entities)` plus
-//! one bounded [`Trace`](super::Trace) each — flat
-//! under churn by construction.
+//! detaches it from its parent. Each live entity has one bounded
+//! [`Trace`](super::Trace). Per-thread recording caches can retain up to two
+//! socket entries after unregistration, and active streams can retain entries
+//! until their accounting ends.
 //!
 //! Hot paths (call/stream/message counters) are lock-free atomics;
 //! timestamps are millis-since-epoch atomics (0 = unset). Registry
@@ -225,6 +226,12 @@ impl SocketEntry {
                     .store(coarse_now_ms(), Ordering::Relaxed);
             }
         }
+    }
+
+    /// Count the beginning of a client stream on this retained entry.
+    #[inline]
+    pub(crate) fn add_local_stream_start(&self) {
+        self.record_stream_started(true);
     }
 
     #[inline]

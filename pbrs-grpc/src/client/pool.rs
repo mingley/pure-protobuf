@@ -176,10 +176,9 @@ pub(crate) struct LiveConn {
     /// Direct pool slot or private balanced-endpoint identity.
     pub(crate) slot: usize,
     pub(crate) r#gen: u64,
-    /// Channelz socket serving this connection, for stream/message
-    /// counters. The registry resolves it per record, so a socket
-    /// that unregistered mid-RPC (handoff, discard) silently drops
-    /// late increments instead of misattributing them.
+    /// Channelz socket serving this connection, for stream/message counters.
+    /// Most records resolve the ID when written. Hedged attempts can retain
+    /// an entry at start so their terminal count survives unregistration.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
     /// Resolver addresses and immutable balanced endpoint metadata are
     /// mutually exclusive. Own the selected identity until this attempt ends.

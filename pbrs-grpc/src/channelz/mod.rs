@@ -9,12 +9,10 @@
 //! A3 [`Trace`]: a bounded ring of timestamped events plus a
 //! total count, so memory stays flat under churn.
 //!
-//! Memory contract (the GF-03 accept gate): the registry holds one
-//! entry per *live* entity — owners hold RAII guards and dropping a
-//! guard unregisters — plus at most [`DEFAULT_MAX_TRACE_EVENTS`]
-//! truncated descriptions per trace. Closed channels, evicted
-//! subchannels, shut-down servers, and dead sockets leave nothing
-//! behind; see `tests/channelz.rs` for the churn-bound proof.
+//! The registry removes an entity when its owner drops and bounds each trace
+//! to [`DEFAULT_MAX_TRACE_EVENTS`] descriptions. A per-thread recording cache
+//! can retain up to two socket entries after unregistration until eviction or
+//! thread exit. In-flight streams may also retain an entry until accounting ends.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 #![allow(

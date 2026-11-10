@@ -345,24 +345,24 @@ type HedgeOutcome<Resp> = (u32, Result<Response<Resp>, Status>);
 // or unwinds before run_unary_frame returns. A transparent redial creates
 // a new guard for the replacement stream.
 struct HedgeStreamAccounting {
-    socket: Option<crate::channelz::SocketId>,
+    entry: Option<Arc<crate::channelz::SocketEntry>>,
 }
 
 impl HedgeStreamAccounting {
     fn start(socket: Option<crate::channelz::SocketId>) -> Self {
-        if let Some(socket) = socket {
-            crate::channelz::Registry::global().note_stream_started(socket, true);
+        let entry = socket.and_then(crate::channelz::socket_entry);
+        if let Some(entry) = &entry {
+            entry.add_local_stream_start();
         }
-        Self { socket }
+        Self { entry }
     }
 
     fn finish(&mut self, ok: bool) {
-        if let Some(socket) = self.socket.take() {
-            let registry = crate::channelz::Registry::global();
-            registry.note_stream_end(socket, ok);
+        if let Some(entry) = self.entry.take() {
+            entry.add_stream_end(ok);
             if ok {
-                registry.note_messages(socket, true, 1);
-                registry.note_messages(socket, false, 1);
+                entry.add_messages(true, 1);
+                entry.add_messages(false, 1);
             }
         }
     }
@@ -1278,5 +1278,120 @@ mod hedge_panic_priority_tests {
         .await
         .expect("losing attempt aborted");
         assert!(release.send(()).is_err(), "losing future was dropped");
+    }
+}
+
+#[cfg(test)]
+mod retained_hedge_socket_tests {
+    use super::HedgeStreamAccounting;
+    use crate::channelz::{Registry, SocketParent, SocketSecurity};
+    use std::sync::Arc;
+
+    #[test]
+    fn retains_one_owner_until_terminal_accounting() {
+        for unregister in [false, true] {
+            let registry = Registry::global_shared();
+            let channel = registry.register_channel("retained hedge socket", "test");
+            let subchannel = registry.register_subchannel(channel.id(), "test child");
+            let sub = registry.subchannel(subchannel.id()).expect("subchannel");
+            let mut socket = Some(registry.register_socket(
+                SocketParent::Subchannel(subchannel.id()),
+                None,
+                None,
+                None,
+                SocketSecurity::None,
+                false,
+            ));
+            let id = socket.as_ref().expect("socket").id();
+            let entry = registry.socket(id).expect("socket entry");
+            let weak = Arc::downgrade(&entry);
+            let before = Arc::strong_count(&entry);
+            let guard = HedgeStreamAccounting::start(Some(id));
+            assert_eq!(Arc::strong_count(&entry), before + 1);
+            assert_eq!(sub.calls_started(), 1);
+            drop(entry);
+            if unregister {
+                drop(socket.take());
+                assert!(registry.socket(id).is_none());
+            }
+            assert!(weak.upgrade().is_some(), "guard retains socket entry");
+            std::thread::spawn(move || drop(guard))
+                .join()
+                .expect("finish on fresh thread");
+            assert_eq!(sub.calls_failed(), 1);
+            if !unregister {
+                assert!(weak.upgrade().is_some(), "registry retains live socket");
+                drop(socket.take());
+            }
+            assert!(weak.upgrade().is_none(), "terminal guard releases entry");
+        }
+    }
+
+    #[test]
+    fn unregister_before_cross_thread_drop_still_balances_subchannel() {
+        let registry = Registry::global_shared();
+        let channel = registry.register_channel("cross-thread hedge", "test");
+        let subchannel = registry.register_subchannel(channel.id(), "test child");
+        let sub = registry.subchannel(subchannel.id()).expect("subchannel");
+        let socket = registry.register_socket(
+            SocketParent::Subchannel(subchannel.id()),
+            None,
+            None,
+            None,
+            SocketSecurity::None,
+            false,
+        );
+        let guard = HedgeStreamAccounting::start(Some(socket.id()));
+        drop(socket);
+        std::thread::spawn(move || drop(guard))
+            .join()
+            .expect("finish on fresh thread");
+        assert_eq!(sub.calls_started(), 1);
+        assert_eq!(sub.calls_failed(), 1, "unregistered socket still ends");
+    }
+
+    #[test]
+    fn registered_cross_thread_drop_balances_subchannel() {
+        let registry = Registry::global_shared();
+        let channel = registry.register_channel("registered hedge socket", "test");
+        let subchannel = registry.register_subchannel(channel.id(), "test child");
+        let sub = registry.subchannel(subchannel.id()).expect("subchannel");
+        let socket = registry.register_socket(
+            SocketParent::Subchannel(subchannel.id()),
+            None,
+            None,
+            None,
+            SocketSecurity::None,
+            false,
+        );
+        let guard = HedgeStreamAccounting::start(Some(socket.id()));
+        std::thread::spawn(move || drop(guard))
+            .join()
+            .expect("finish on fresh thread");
+        assert_eq!(sub.calls_started(), 1);
+        assert_eq!(sub.calls_failed(), 1, "registered socket still ends");
+        drop(socket);
+    }
+
+    #[test]
+    fn starting_after_unregister_does_not_record_a_phantom_stream() {
+        let registry = Registry::global_shared();
+        let channel = registry.register_channel("gone hedge socket", "test");
+        let subchannel = registry.register_subchannel(channel.id(), "test child");
+        let sub = registry.subchannel(subchannel.id()).expect("subchannel");
+        let socket = registry.register_socket(
+            SocketParent::Subchannel(subchannel.id()),
+            None,
+            None,
+            None,
+            SocketSecurity::None,
+            false,
+        );
+        let id = socket.id();
+        drop(socket);
+        drop(HedgeStreamAccounting::start(Some(id)));
+        drop(HedgeStreamAccounting::start(None));
+        assert_eq!(sub.calls_started(), 0);
+        assert_eq!(sub.calls_failed(), 0);
     }
 }

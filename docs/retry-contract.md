@@ -101,10 +101,11 @@ When the coordinator selects a panicking hedged attempt before cancellation,
 the deadline, or another terminal outcome, it propagates that panic to the call
 future. Dropping a pending call aborts its remaining attempt tasks.
 
-For a registered socket, hedged attempts record a channelz stream end on
-completion, cancellation, or panic. If the socket unregisters before terminal
-accounting runs on another thread, the lookup may miss it; that teardown race
-needs further testing.
+When a hedged stream's accounting starts successfully, it retains the socket
+entry and records an end on completion, cancellation, or unwinding, even if
+the socket unregisters in the meantime. If the socket entry is already missing
+at lookup, neither start nor end is recorded. An unregistered socket is no
+longer queryable; a surviving parent subchannel can still receive the end count.
 
 Streaming throttling accounting is approximate. Credit and debit tap the
 headers read because the receipt of an `OK` status is read through the
