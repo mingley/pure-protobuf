@@ -52,6 +52,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Aligned codegen settings](benchmarks/codegen-aligned-20261110.md) | Descriptor-matched generation CPU, output partition and controls, November 10 |
 | [Codegen reservation experiment](benchmarks/codegen-reservation-20261110.md) | Rejected per-target estimates: output hashes and CPU holdouts, November 10 |
 | [Repeated storage screens](benchmarks/repeated-singleton-20261110.md) | Unmerged singleton and Query-only diagnostics: allocation size tradeoffs and shifting CPU controls, November 10 |
 | [Consuming shared byte buffers](benchmarks/bytes-ownership-consume-20261110.md) | Conversion allocations and retained capacity, November 10 |

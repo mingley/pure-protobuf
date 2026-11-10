@@ -5,16 +5,17 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`713038c7`](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b), all 12 required
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42737683456),
-five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42737683458),
-the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42737683521)
-and the [stream-burst diagnostic](https://github.com/mingley/pure-protobuf/actions/runs/42737683445)
+At source [`5fe70efd`](https://github.com/mingley/pure-protobuf/commit/5fe70efdc798031badefd1a3847d8866dde352f5), all 12 required
+[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284086),
+five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284001),
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42768284231)
 passed. The optional fuzz and sanitizer jobs were skipped. The parity audit
 includes known gaps; it is not a complete parity claim. All six
-[Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42675951169)
-passed at the earlier source `6024ac88`. These checks cover their named source
-revisions; later changes need their own checks.
+[Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42763730693)
+passed at [`0685d7f6`](https://github.com/mingley/pure-protobuf/commit/0685d7f6cbc4e0ac9cdfb020bd085a8b7eb5b2be).
+Changes from 0685 through the docs-only `8e32db23` update affect documentation
+and CI setup, not runtime source. These checks cover their named revisions;
+later changes need their own checks.
 
 The earlier [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42200175988)
 at `10d94697` includes known differences as well as successful comparisons.
@@ -77,12 +78,14 @@ See the [parity summary](parity.md) and
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
 check the registry before treating them as published. The
-[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42741860995)
-at `713038c7` used that revision's successful CI in dry-run mode, packaged all
+[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+at `5fe70efd` used that revision's successful CI in dry-run mode, packaged all
 three crates, and produced a CycloneDX SBOM and a
-[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65624447).
-Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42741860995/artifacts/13729333239)
-has SHA-256 `991b4ff5659521cd9bb859de37de9d6644bb125ea8792b502d9c29c53c7d2618`
+[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65693055).
+The [archive readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
+verified the package manifests, selected source files, SBOM and CI context.
+Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42773096505/artifacts/13743130290)
+has ZIP SHA-256 `c2cba1ae8c7703e148a7b8e07cf3e1183c4d585da857655f3918c30b527ba69e`
 and expires February 8, 2027. The rehearsal skipped signed-tag verification,
 did not authenticate to crates.io and did not upload crates or create a GitHub
 Release. An eventual release needs the same checks on its final source revision.
@@ -94,6 +97,7 @@ and its [attestation](https://github.com/mingley/pure-protobuf/attestations/6558
 Its artifact expires February 8, 2027.
 
 Earlier rehearsals are available for
+[713038c7](https://github.com/mingley/pure-protobuf/actions/runs/42741860995),
 [001d0b8b](https://github.com/mingley/pure-protobuf/actions/runs/42718098243),
 [4037304c](https://github.com/mingley/pure-protobuf/actions/runs/42705533856),
 [4a2d8e26](https://github.com/mingley/pure-protobuf/actions/runs/42694074846),

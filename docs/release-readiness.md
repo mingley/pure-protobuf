@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`713038c7`](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b):
+These versions are declared at [`5fe70efd`](https://github.com/mingley/pure-protobuf/commit/5fe70efdc798031badefd1a3847d8866dde352f5):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -19,11 +19,13 @@ Both adapters require `pbrs 0.2.1` at runtime and build time. Recheck the
 manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
-The [implementation status](status.md) links the latest recorded CI, Miri and
-package rehearsal. At `713038c7`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42741860995)
-packaged all three crates after its exact-source CI passed. Signed-tag
-verification and crates.io authentication were skipped; no crates were
-published. Final release evidence must match the release source.
+The [implementation status](status.md) links the recorded CI, Miri and
+package rehearsal. At `5fe70efd`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+packaged all three crates after its exact-source CI passed. An
+[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
+verified their manifests, selected source files, SBOM and CI context.
+Signed-tag verification and crates.io authentication were skipped; no crates
+were published. Final release evidence must match the release source.
 
 ## Release checklist
 
@@ -70,6 +72,19 @@ successful native send can release its charge after HTTP/2 queues data, before
 the data is written or freed. Native receive buffers are not charged, and a
 zero charge does not mean the transport has no retained buffers. See
 [resource budgets](resource-budgets.md) for the accounting scope.
+
+A [release-mode resource preview](https://github.com/mingley/pure-protobuf/actions/runs/42771958343)
+on source `5fe70efd` completed 38 cycles in 123.1 seconds (120 requested).
+It used loopback plaintext and TLS, identity and gzip, a maximum of two active
+RPCs, 8 MiB client and server byte budgets and a 2 MiB message limit. The smoke
+validator reported no failures, but `qualified=false` and the 24-hour soak
+was not run. Fault recovery used a warmed separate plaintext connection; TLS
+reset/GOAWAY injection, independent-process attribution, allocator and kernel
+memory accounting, and dedicated-host performance were not covered. The
+[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42771958343/artifacts/13742790578)
+has ZIP SHA-256 `6cdef8c675183b4c9d5b609f0947b3c61cedb37871aeade2d58784e28e0c4899`
+and expires February 8, 2027. This short preview does not establish a memory
+bound or release qualification.
 
 A strict aggregate transport-memory bound has not been established for the
 native transport. Before claiming one, define its full scope and account for
