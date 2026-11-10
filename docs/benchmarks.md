@@ -52,6 +52,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Codegen reservation experiment](benchmarks/codegen-reservation-20261110.md) | Rejected per-target estimates: output hashes and CPU holdouts, November 10 |
 | [Repeated storage screens](benchmarks/repeated-singleton-20261110.md) | Unmerged singleton and Query-only diagnostics: allocation size tradeoffs and shifting CPU controls, November 10 |
 | [Consuming shared byte buffers](benchmarks/bytes-ownership-consume-20261110.md) | Conversion allocations and retained capacity, November 10 |
 | [Inline packed-cache experiment](benchmarks/inline-packed-cache-20261110.md) | Rejected candidates: fresh allocation savings and warm CPU losses, November 10 |
@@ -81,6 +82,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Dev-loop: 452 to 41d](benchmarks/devloop-452-to-41d-20261110.md) | 1,634 common cells, advisory proxy results and selected allocations, November 10 |
 | [Dev-loop: b245 to 09d8](benchmarks/devloop-b245-to-09d8-20261110.md) | 1,634 common cells, advisory budget overruns and selected allocations, November 10 |
 | [Dev-loop: 656 to 713](benchmarks/devloop-656-to-713-20261110.md) | 1,634 common cells; advisory exit, proxy limits and selected allocations, November 10 |
 | [Dev-loop allocation comparison](benchmarks/devloop-001d-to-1e-20261110.md) | 1,634 common cells; advisory comparison failed and selected allocation results, November 10 |
