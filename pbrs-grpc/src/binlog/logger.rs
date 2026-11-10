@@ -107,6 +107,8 @@ impl BinaryLogger {
                 sequence: AtomicU64::new(1),
                 peer: std::sync::Mutex::new(None),
                 peer_logged: AtomicBool::new(false),
+                streaming_cancel_logged: AtomicBool::new(false),
+                streaming_sender_failed: AtomicBool::new(false),
                 mask_sensitive: self.mask_sensitive,
             }),
         })
@@ -128,6 +130,8 @@ struct CallState {
     sequence: AtomicU64,
     peer: std::sync::Mutex<Option<Address>>,
     peer_logged: AtomicBool,
+    streaming_cancel_logged: AtomicBool,
+    streaming_sender_failed: AtomicBool,
     mask_sensitive: bool,
 }
 
@@ -261,6 +265,47 @@ impl CallLogger {
     /// detected on a server logger.
     pub fn log_cancel(&self) {
         self.emit(EventType::Cancel, None, false, None);
+    }
+
+    /// Share a single cancellation event between the upload pump and the
+    /// existing streaming status paths.
+    pub(crate) fn log_streaming_cancel_once(&self) {
+        if !self
+            .inner
+            .streaming_cancel_logged
+            .swap(true, Ordering::Relaxed)
+        {
+            self.log_cancel();
+        }
+    }
+
+    /// Remember a native sender failure that the ordered upload pump reached.
+    pub(crate) fn note_streaming_sender_failure(&self) {
+        self.inner
+            .streaming_sender_failed
+            .store(true, Ordering::Release);
+    }
+
+    /// Emit after the failure outcome is selected. Sink panics must not replace
+    /// the status supplied by the sender.
+    #[allow(
+        clippy::mem_forget,
+        reason = "a second panic payload may panic when dropped"
+    )]
+    pub(crate) fn log_pending_streaming_sender_failure(&self) {
+        if self.inner.streaming_sender_failed.load(Ordering::Acquire) {
+            if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.log_streaming_cancel_once();
+            })) {
+                // Dropping the caught panic payload can panic. Contain that
+                // unwind too, and forget its payload to avoid another drop.
+                if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    drop(payload);
+                })) {
+                    std::mem::forget(payload);
+                }
+            }
+        }
     }
 
     /// Which side this logger records.

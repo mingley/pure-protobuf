@@ -456,7 +456,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
                     // Do not RST here: the caller delivers this status first
                     // (in-task on client-streaming, oneshot on bidi) so the
                     // Call does not lose it to h2 UNAVAILABLE from the reset.
-                    return PumpEnd::Failed(status);
+                    return PumpEnd::Failed((*status).into_status());
                 }
             };
             if let Err(status) = batch.encode_ready(item, ready_messages) {

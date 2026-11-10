@@ -431,7 +431,7 @@ where
                 cancel_rx.clone(),
                 wire,
                 &budget,
-                tap.cloned(),
+                tap,
                 socket,
             );
             tokio::pin!(pump);
@@ -480,8 +480,9 @@ where
     send.live = false;
     let result = prefer_deadline(result, deadline);
     if let (Some(tap), Err(status)) = (tap, &result) {
+        tap.log_pending_streaming_sender_failure();
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     // Channelz: the attempt's stream ends here, like unary. Sent messages
@@ -491,17 +492,40 @@ where
     result
 }
 
+// Record only a reached native sender failure. The live pump defers the
+// callback until its outcome is selected; a closed upload has no competing
+// status selection after this synchronous function returns.
+#[cold]
+fn upload_failure_status(
+    error: crate::stream::ItemError,
+    tap: Option<&CallLogger>,
+    defer: bool,
+) -> Status {
+    match error {
+        crate::stream::ItemError::SenderFailure(status) => {
+            if let Some(tap) = tap {
+                tap.note_streaming_sender_failure();
+                if !defer {
+                    tap.log_pending_streaming_sender_failure();
+                }
+            }
+            status
+        }
+        crate::stream::ItemError::Other(status) => status,
+    }
+}
+
 async fn pump_outbound_budget<T: CodecMessage>(
     send: &mut backend::SendStream,
     mut rx: Streaming<T>,
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     budget: &ByteBudgetTracker,
-    tap: Option<CallLogger>,
+    tap: Option<&CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> PumpEnd {
     let mut batch = OutBatch::new(wire);
-    if let Some(tap) = &tap {
+    if let Some(tap) = tap {
         batch.set_tap(tap.clone());
     }
     // One map lookup for the whole upload. Each encoded message then
@@ -533,7 +557,7 @@ async fn pump_outbound_budget<T: CodecMessage>(
             }
             permits.clear();
             send.send_data(Bytes::new(), true).ok();
-            if let Some(tap) = &tap {
+            if let Some(tap) = tap {
                 tap.log_half_close();
             }
             return PumpEnd::HalfClosed;
@@ -548,7 +572,9 @@ async fn pump_outbound_budget<T: CodecMessage>(
             let ready_messages = ready.len() + 1;
             let item = match item {
                 Ok(item) => item,
-                Err(status) => return PumpEnd::Failed(status),
+                Err(error) => {
+                    return PumpEnd::Failed(upload_failure_status(*error, tap, true));
+                }
             };
             let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
             {
@@ -646,7 +672,7 @@ struct EncodedUpload {
 /// not fit in the stream buffer; nothing in `rest` has been queued.
 fn write_closed_upload<T: CodecMessage>(
     send: &mut backend::SendStream,
-    items: Vec<Result<crate::stream::Framed<T>, Status>>,
+    items: Vec<crate::stream::Item<T>>,
     wire: Wire,
     budget: &ByteBudgetTracker,
     tap: &Option<CallLogger>,
@@ -668,7 +694,10 @@ fn write_closed_upload<T: CodecMessage>(
         let ready_messages = ready.len() + 1;
         let item = match item {
             Ok(item) => item,
-            Err(status) => return Err(fail(send, status)),
+            Err(error) => {
+                send.send_reset(Reason::CANCEL);
+                return Err(upload_failure_status(*error, tap.as_ref(), false));
+            }
         };
         let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits) {
             Ok(len) => len,
@@ -834,7 +863,7 @@ async fn await_closed_client_response<Resp: CodecMessage>(
     send.live = false;
     if let (Some(tap), Err(status)) = (tap, &result) {
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     note_client_stream_end(socket, &result);
@@ -886,7 +915,7 @@ async fn send_client_rest<Resp: CodecMessage>(
     send.live = false;
     if let (Some(tap), Err(status)) = (&tap, &result) {
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     note_client_stream_end(socket, &result);
@@ -938,7 +967,7 @@ async fn wait_ready_bidi_http(
     send.live = false;
     if let (Some(tap), Err(status)) = (&tap, &received) {
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     ReadyHttp {
@@ -1142,7 +1171,7 @@ where
     let result = prefer_deadline(result, deadline);
     if let (Some(tap), Err(status)) = (&tap, &result) {
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     match result {
@@ -1362,7 +1391,7 @@ where
                                 cancel_rx.clone(),
                                 wire,
                                 &budget,
-                                tap,
+                                tap.as_ref(),
                                 socket,
                             )
                             .await
@@ -1394,7 +1423,14 @@ where
                     // and resp_fut surfaces CANCEL as UNAVAILABLE
                     // ("stream no longer needed") on the same poll.
                     fail_tx.send(status).ok();
-                    hold_rx.await.ok();
+                    // A selected failure is logged by the Call before it
+                    // acknowledges. If the Call finished or was dropped, the
+                    // pump owns the pending event before it resets the stream.
+                    if hold_rx.await.is_err() {
+                        if let Some(tap) = &tap {
+                            tap.log_pending_streaming_sender_failure();
+                        }
+                    }
                     send.stream_mut().send_reset(Reason::CANCEL);
                 }
                 Some(PumpEnd::HalfClosed) => {
@@ -1418,7 +1454,7 @@ where
             send.live = false;
         }
     });
-    let result = {
+    let (result, deadline_checked) = {
         let fut = async {
             let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
             finish_stream::<Resp>(
@@ -1443,25 +1479,37 @@ where
         loop {
             tokio::select! {
                 biased;
-                () = &mut until_deadline => break Err(Status::deadline_exceeded()),
-                _ = cancelled.wait() => break Err(Status::cancelled()),
+                () = &mut until_deadline => break (Err(Status::deadline_exceeded()), false),
+                _ = cancelled.wait() => break (Err(Status::cancelled()), false),
                 status = &mut fail_rx, if !fail_done => {
                     match status {
                         Ok(status) => {
-                            hold_tx.take();
-                            break Err(status);
+                            // Fix deadline preference before calling the sink:
+                            // the callback must not change the selected status.
+                            let result = prefer_deadline(Err(status), deadline);
+                            if let Some(tap) = &tap {
+                                tap.log_pending_streaming_sender_failure();
+                            }
+                            if let Some(hold_tx) = hold_tx.take() {
+                                hold_tx.send(()).ok();
+                            }
+                            break (result, true);
                         }
                         Err(_) => fail_done = true,
                     }
                 }
-                result = &mut fut => break result,
+                result = &mut fut => break (result, false),
             }
         }
     };
-    let result = prefer_deadline(result, deadline);
+    let result = if deadline_checked {
+        result
+    } else {
+        prefer_deadline(result, deadline)
+    };
     if let (Some(tap), Err(status)) = (&tap, &result) {
         if status.code() == Code::Cancelled {
-            tap.log_cancel();
+            tap.log_streaming_cancel_once();
         }
     }
     // Channelz: count the attempt's stream like unary (started on every

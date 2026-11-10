@@ -58,7 +58,26 @@ impl<T> Framed<T> {
     }
 }
 
-type Item<T> = Result<Framed<T>, Status>;
+/// An outbound stream failure with its origin preserved until the upload loop
+/// handles it. Only a direct call to the sender's fail API is attributed;
+/// errors yielded by external streams or by the wire have no such attribution.
+#[derive(Debug)]
+pub(crate) enum ItemError {
+    SenderFailure(Status),
+    Other(Status),
+}
+
+impl ItemError {
+    pub(crate) fn into_status(self) -> Status {
+        match self {
+            Self::SenderFailure(status) | Self::Other(status) => status,
+        }
+    }
+}
+
+// Keep provenance in the cold error allocation rather than adding a field to
+// every successful item; enum layout remains compiler and type dependent.
+pub(crate) type Item<T> = Result<Framed<T>, Box<ItemError>>;
 
 /// Where a [`Streaming`] gets its messages.
 enum Source<T> {
@@ -161,16 +180,19 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
         this.stream.poll_next(cx).map(|item| {
-            item.map(|item| {
-                item.and_then(|message| {
+            item.map(|item| match item {
+                Ok(message) => {
                     if this.limits.max_encoding().is_some() {
-                        this.limits.check_encode(message.encoded_len())?;
+                        this.limits
+                            .check_encode(message.encoded_len())
+                            .map_err(|status| Box::new(ItemError::Other(status)))?;
                     }
                     Ok(Framed {
                         message,
                         compressed: *this.compress,
                     })
-                })
+                }
+                Err(status) => Err(Box::new(ItemError::Other(status))),
             })
         })
     }
@@ -521,12 +543,14 @@ impl<T> Streaming<T> {
     fn poll_source(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
         match &mut self.source {
             #[cfg(feature = "tower")]
-            Source::External(input) => input.poll_next(cx).map(|item| item.transpose()),
+            Source::External(input) => input
+                .poll_next(cx)
+                .map(|item| item.transpose().map_err(|error| (*error).into_status())),
             Source::Channel(rx) => match rx.poll_recv(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(None) => Poll::Ready(Ok(None)),
                 Poll::Ready(Some(Ok(framed))) => Poll::Ready(Ok(Some(framed))),
-                Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
+                Poll::Ready(Some(Err(error))) => Poll::Ready(Err((*error).into_status())),
             },
             Source::Wire(wire) => {
                 // Sending RST_STREAM happens on a background task. Observe the
@@ -620,7 +644,7 @@ impl<T> Streaming<T> {
             Source::Wire(wire) => match wire.next().await.transpose() {
                 None => 0,
                 Some(item) => {
-                    out.push(item);
+                    out.push(item.map_err(|status| Box::new(ItemError::Other(status))));
                     1
                 }
             },
@@ -629,7 +653,7 @@ impl<T> Streaming<T> {
 
     /// Drain a closed in-memory channel. `None` when this stream is wire-backed
     /// or the sender is still alive, so the caller must keep the async pump.
-    pub(crate) fn drain_closed_channel(&mut self) -> Option<Vec<Result<Framed<T>, Status>>> {
+    pub(crate) fn drain_closed_channel(&mut self) -> Option<Vec<Item<T>>> {
         let Source::Channel(rx) = &mut self.source else {
             return None;
         };
@@ -835,7 +859,10 @@ impl<T> StreamSender<T> {
         // no-op then, and the drain measures again for the frame anyway.
         if self.limits.max_encoding().is_some() {
             if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
-                self.tx.send(Err(status.clone())).await.ok();
+                self.tx
+                    .send(Err(Box::new(ItemError::Other(status.clone()))))
+                    .await
+                    .ok();
                 return Err(status);
             }
         }
@@ -861,7 +888,10 @@ impl<T> StreamSender<T> {
     /// A bidi call that already has headers surfaces the reset on the
     /// received [`Streaming`] as [`crate::Code::Cancelled`], not `status`.
     pub async fn fail(self, status: Status) {
-        self.tx.send(Err(status)).await.ok();
+        self.tx
+            .send(Err(Box::new(ItemError::SenderFailure(status))))
+            .await
+            .ok();
     }
 
     /// Half-close this handle. Equivalent to dropping it.

@@ -120,12 +120,18 @@ response headers arrive: another attempt can continue or win. An outcome
 becoming ready after the coordinator polls can still race a new send. The
 receiver accepts
 redundant leading zeros; the pbrs-grpc server emits canonical decimal values.
-Client binary logs can include uncommitted retry or hedge attempts, omit an
-early rejection trailer, or report a streaming peer's `CANCELLED` status as a
-client cancellation. Unary cancellation logging starts after local validation
-and concurrency admission; a never-polled call or earlier rejection can omit
-the event. See [service-config](service-config.md) and the
-[A6/A16 coverage notes](grfc.md).
+Client binary logs can include uncommitted retry or hedge attempts or omit an
+early rejection trailer. A streaming peer or codec `CANCELLED` can be reported
+as a client cancellation, and some local streaming cancellations can be missed.
+With binary logging enabled, an explicit native `StreamSender::fail` can emit
+`Cancel` after the upload loop reaches it. A queued failure bypassed by an
+earlier error or final response does not itself emit an event. A Tower input
+error does not establish an application cancellation request; existing
+status-based inference can still emit an event for `CANCELLED`.
+
+Unary cancellation logging starts after local validation and concurrency
+admission; a never-polled call or earlier rejection can omit the event. See
+[service-config](service-config.md) and the [A6/A16 coverage notes](grfc.md).
 
 Do not claim full A6 hedging or pushback conformance, or A16 binary-log
 conformance, until the implementation is fixed and final-source tests cover

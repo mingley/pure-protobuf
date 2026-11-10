@@ -422,3 +422,307 @@ async fn terminal_failure_updates_observer_and_channelz() {
     .await
     .expect("terminal response scenarios timed out");
 }
+
+#[derive(Debug)]
+struct OwnershipCause {
+    phase: Arc<std::sync::atomic::AtomicUsize>,
+    sender: std::sync::Weak<Mutex<Option<crate::StreamSender<crate::HelloReply>>>>,
+    dropped: tokio::sync::mpsc::UnboundedSender<(usize, Option<bool>)>,
+}
+
+impl std::fmt::Display for OwnershipCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("owned-cause")
+    }
+}
+impl std::error::Error for OwnershipCause {}
+impl Drop for OwnershipCause {
+    fn drop(&mut self) {
+        let phase = self.phase.load(std::sync::atomic::Ordering::SeqCst);
+        let closed = self.sender.upgrade().and_then(|sender| {
+            let guard = sender
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.as_ref().map(crate::StreamSender::is_closed)
+        });
+        let _sent = self.dropped.send((phase, closed));
+    }
+}
+
+#[derive(Default)]
+struct WriterPollProbe {
+    waker: Mutex<Option<std::task::Waker>>,
+    armed: std::sync::atomic::AtomicBool,
+    pending: std::sync::atomic::AtomicBool,
+}
+
+async fn ownership_flush_case(reset: bool) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let (reset_tx, reset_rx) = oneshot::channel();
+    let (respond_tx, respond_rx) = oneshot::channel();
+    let _server = AbortOnDrop(tokio::spawn(async move {
+        let mut conn = backend::ServerBuilder::new()
+            .handshake(server_io)
+            .await
+            .expect("server handshake");
+        let (_request, respond) = conn
+            .accept()
+            .await
+            .expect("request")
+            .expect("request headers");
+        assert!(respond_tx.send(respond).is_ok(), "response handle");
+        while let Some(next) = conn.accept().await {
+            drop(next);
+        }
+    }));
+    let witness = ResetWitness {
+        io: client_io,
+        preface_left: 24,
+        pending: Vec::new(),
+        reset: Some(reset_tx),
+    };
+    let mut builder = h2::client::Builder::new();
+    builder.initial_window_size(1);
+    let (client, mut connection) = builder.handshake(witness).await.expect("client handshake");
+    let mut ping = connection.ping_pong().expect("ping handle");
+    let _client = AbortOnDrop(tokio::spawn(async move {
+        let _result = connection.await;
+    }));
+    let mut client = client.ready().await.expect("client ready");
+    let request = http::Request::builder()
+        .uri("http://localhost/test.Service/Stream")
+        .body(())
+        .expect("request");
+    let (response, mut send) = client.send_request(request, false).expect("open stream");
+    send.send_data(Bytes::new(), true).expect("request end");
+    let respond = tokio::time::timeout(WAIT, respond_rx)
+        .await
+        .expect("response handle timeout")
+        .expect("response handle");
+
+    let phase = Arc::new(AtomicUsize::new(0));
+    let (drop_tx, mut drop_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (tx, stream) = Streaming::<crate::HelloReply>::channel(2);
+    let probe_sender = tx.clone();
+    let sender = Arc::new(Mutex::new(Some(tx.clone())));
+    let cause = OwnershipCause {
+        phase: phase.clone(),
+        sender: Arc::downgrade(&sender),
+        dropped: drop_tx,
+    };
+    let mut status =
+        Status::with_details(Code::DataLoss, "writer-evidence", vec![2_u8, 3, 5]).with_cause(cause);
+    status
+        .metadata_mut()
+        .insert("x-owner", "still-held")
+        .expect("metadata");
+    let mut message = crate::HelloReply::new();
+    message.set_message("ok");
+    assert!(
+        crate::codec::CodecMessage::encoded_len(&message) + 5
+            < crate::wire::encode::STREAM_BATCH_BYTES,
+        "one message does not fill the batch"
+    );
+    tx.send(message).await.expect("queue message");
+    tx.fail(status).await;
+
+    let reply = Response::new(stream);
+    let wire = Wire {
+        limits: MessageLimits::default(),
+        send_buffer: 1,
+        accept_gzip: true,
+        send_codec: CompressionAlgorithm::Gzip,
+        gzip_level: 1,
+    };
+    let probe = Arc::new(WriterPollProbe::default());
+    let writer_probe = probe.clone();
+    let mut writer = AbortOnDrop(tokio::spawn(async move {
+        let labels = CallLabels::UNLABELED_SERVER;
+        let budget = ByteBudgetTracker::unlimited();
+        let flag = CancelFlag::new();
+        let future = send_stream_response(
+            reply,
+            respond,
+            wire,
+            None,
+            false,
+            true,
+            false,
+            #[cfg(feature = "zstd")]
+            false,
+            &budget,
+            None,
+            &labels,
+            None,
+            None,
+            &flag,
+        );
+        tokio::pin!(future);
+        std::future::poll_fn(|cx| {
+            *writer_probe.waker.lock().expect("writer waker") = Some(cx.waker().clone());
+            let result = std::future::Future::poll(future.as_mut(), cx);
+            if result.is_pending() && writer_probe.armed.load(Ordering::Acquire) {
+                writer_probe.pending.store(true, Ordering::Release);
+            }
+            result
+        })
+        .await
+    }));
+    let response = tokio::time::timeout(WAIT, response)
+        .await
+        .expect("headers timeout")
+        .expect("headers");
+    let mut body = response.into_body();
+    let first = tokio::time::timeout(WAIT, body.data())
+        .await
+        .expect("first byte timeout")
+        .expect("DATA")
+        .expect("DATA ok");
+    assert_eq!(
+        first.len(),
+        1,
+        "one-byte receive window witnesses a stalled flush"
+    );
+    // The original two-slot queue held the message and the error. Filling
+    // both slots proves the writer removed both before starting this flush.
+    for _ in 0..2 {
+        let mut sentinel = crate::HelloReply::new();
+        sentinel.set_message("queued later");
+        tokio::time::timeout(WAIT, probe_sender.send(sentinel))
+            .await
+            .expect("queue proof timeout")
+            .expect("queue proof");
+    }
+    probe.armed.store(true, Ordering::Release);
+    let waker = probe
+        .waker
+        .lock()
+        .expect("writer waker")
+        .clone()
+        .expect("writer was polled");
+    waker.wake();
+    tokio::time::timeout(WAIT, async {
+        while !probe.pending.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("writer must return Pending without peer credit");
+    assert!(!writer.0.is_finished(), "flush remains blocked on credit");
+    assert!(
+        matches!(
+            drop_rx.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+        ),
+        "cause must remain alive while flush is pending"
+    );
+    phase.store(2, Ordering::SeqCst);
+
+    if reset {
+        send.send_reset(h2::Reason::CANCEL);
+        tokio::time::timeout(WAIT, reset_rx)
+            .await
+            .expect("reset write timeout")
+            .expect("reset witness");
+        tokio::time::timeout(WAIT, ping.ping(h2::Ping::opaque()))
+            .await
+            .expect("ping timeout")
+            .expect("ping ack");
+        let returned = tokio::time::timeout(WAIT, &mut writer.0)
+            .await
+            .expect("writer timeout")
+            .expect("writer task");
+        assert_eq!(returned.code(), Code::Unavailable);
+        let (drop_phase, closed) = tokio::time::timeout(WAIT, drop_rx.recv())
+            .await
+            .expect("cause drop timeout")
+            .expect("cause drop");
+        assert_eq!(drop_phase, 2, "cause drops after reset is initiated");
+        assert!(closed.is_some(), "cause reentered the sender");
+    } else {
+        let mut data = first.to_vec();
+        body.flow_control()
+            .release_capacity(first.len())
+            .expect("first credit");
+        while let Some(part) = tokio::time::timeout(WAIT, body.data())
+            .await
+            .expect("DATA timeout")
+        {
+            let part = part.expect("DATA");
+            data.extend_from_slice(&part);
+            body.flow_control()
+                .release_capacity(part.len())
+                .expect("DATA credit");
+        }
+        let trailers = tokio::time::timeout(WAIT, body.trailers())
+            .await
+            .expect("trailers timeout")
+            .expect("trailers")
+            .expect("terminal trailers");
+        assert!(data.len() >= 5, "message precedes trailers");
+        assert_eq!(data[0], 0);
+        let len = usize::try_from(u32::from_be_bytes(
+            data[1..5].try_into().expect("frame length"),
+        ))
+        .expect("frame length fits usize");
+        assert_eq!(data.len(), 5 + len);
+        assert_eq!(trailers.get("grpc-status").expect("grpc-status"), "15");
+        assert_eq!(
+            trailers.get("grpc-message").expect("grpc-message"),
+            "writer-evidence"
+        );
+        assert_eq!(
+            trailers.get("grpc-status-details-bin").expect("details"),
+            "AgMF"
+        );
+        assert_eq!(trailers.get("x-owner").expect("metadata"), "still-held");
+        let returned = tokio::time::timeout(WAIT, &mut writer.0)
+            .await
+            .expect("writer timeout")
+            .expect("writer task");
+        assert_eq!(returned.code(), Code::DataLoss);
+        assert_eq!(returned.message(), "writer-evidence");
+        assert_eq!(returned.details(), &[2, 3, 5]);
+        assert_eq!(returned.metadata().get("x-owner"), Some("still-held"));
+        assert_eq!(
+            std::error::Error::source(&returned)
+                .expect("cause")
+                .to_string(),
+            "owned-cause"
+        );
+        assert!(
+            matches!(
+                drop_rx.try_recv(),
+                Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+            ),
+            "returned status still owns its cause"
+        );
+        phase.store(3, Ordering::SeqCst);
+        drop(returned);
+        let (drop_phase, closed) = tokio::time::timeout(WAIT, drop_rx.recv())
+            .await
+            .expect("cause drop timeout")
+            .expect("cause drop");
+        assert_eq!(drop_phase, 3, "cause drops only after the returned status");
+        assert!(closed.is_some(), "cause reentered the sender");
+    }
+    assert!(
+        matches!(
+            drop_rx.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected)
+        ),
+        "cause destructor runs exactly once"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ownership_flush_pending_then_trailers() {
+    ownership_flush_case(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ownership_flush_pending_then_reset() {
+    ownership_flush_case(true).await;
+}

@@ -926,6 +926,16 @@ async fn flush_batch(
     Ok(())
 }
 
+// Release the error box before awaiting the queued-message flush.
+#[allow(
+    clippy::boxed_local,
+    reason = "the box must be consumed before the asynchronous flush"
+)]
+#[inline]
+fn consume_item_error(error: Box<crate::stream::ItemError>) -> Status {
+    (*error).into_status()
+}
+
 async fn flush_queued_before_error(
     batch: &mut OutBatch,
     send: &mut backend::SendStream,
@@ -1016,6 +1026,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
             let mut item = match item {
                 Ok(item) => item,
                 Err(status) => {
+                    let status = consume_item_error(status);
                     return flush_queued_before_error(
                         &mut batch,
                         send,
