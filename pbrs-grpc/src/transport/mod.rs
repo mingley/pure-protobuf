@@ -177,7 +177,7 @@ pub(crate) trait ClientBuilder {
     fn enable_push(&mut self, enabled: bool) -> &mut Self;
     /// HPACK dynamic table size we advertise.
     fn header_table_size(&mut self, size: u32) -> &mut Self;
-    /// Outbound DATA frames in flight before backpressure.
+    /// Inbound small-DATA framing overhead budget.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
     /// Adaptive receive-window estimator and shared ping driver.
     fn adaptive_window(&mut self, config: Option<crate::bdp::Config>) -> &mut Self;
@@ -220,7 +220,7 @@ pub(crate) trait ServerBuilder {
     fn max_local_error_reset_streams(&mut self, max: Option<usize>) -> &mut Self;
     /// HPACK dynamic table size we advertise.
     fn header_table_size(&mut self, size: u32) -> &mut Self;
-    /// Outbound DATA frames in flight before backpressure.
+    /// Inbound small-DATA framing overhead budget.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
     /// Adaptive receive-window estimator and shared ping driver.
     fn adaptive_window(&mut self, config: Option<crate::bdp::Config>) -> &mut Self;

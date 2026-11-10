@@ -349,6 +349,7 @@ pub struct Builder {
     ///
     /// When this gets exhausted, we issue a GOAWAY with `ENHANCE_YOUR_CALM`.
     data_frame_budget: proto::DataFrameBudget,
+    default_small_data_reserve: bool,
 }
 
 #[derive(Debug)]
@@ -751,6 +752,7 @@ impl Builder {
             stream_id: 1.into(),
             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
             data_frame_budget: proto::DataFrameBudget::Auto,
+            default_small_data_reserve: false,
         }
     }
 
@@ -1256,6 +1258,16 @@ impl Builder {
         self
     }
 
+    pub(crate) fn default_small_data_reserve(&mut self, enabled: bool) -> &mut Self {
+        self.default_small_data_reserve = enabled;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn default_small_data_reserve_enabled(&self) -> bool {
+        self.default_small_data_reserve
+    }
+
     /// Sets the first stream ID to something other than 1.
     #[cfg(any())]
     pub fn initial_stream_id(&mut self, stream_id: u32) -> &mut Self {
@@ -1449,6 +1461,7 @@ where
                 data_frame_budget: builder
                     .data_frame_budget
                     .resolve(builder.initial_target_connection_window_size),
+                default_small_data_reserve: builder.default_small_data_reserve,
             },
         );
         let send_request = SendRequest {

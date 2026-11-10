@@ -1649,6 +1649,7 @@ where
                                 .builder
                                 .data_frame_budget
                                 .resolve(self.builder.initial_target_connection_window_size),
+                            default_small_data_reserve: false,
                         },
                     );
 

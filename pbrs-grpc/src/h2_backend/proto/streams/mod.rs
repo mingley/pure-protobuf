@@ -106,6 +106,7 @@ pub struct Config {
     ///
     /// Default 25600 bytes
     pub data_frame_budget: usize,
+    pub default_small_data_reserve: bool,
 }
 
 trait DebugStructExt<'a, 'b> {

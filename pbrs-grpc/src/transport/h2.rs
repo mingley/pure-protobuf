@@ -598,6 +598,18 @@ pub(crate) struct ClientBuilder {
     adaptive: Option<bdp::Config>,
 }
 
+impl ClientBuilder {
+    pub(crate) fn default_small_data_reserve(&mut self, enabled: bool) -> &mut Self {
+        self.inner.default_small_data_reserve(enabled);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn default_small_data_reserve_enabled(&self) -> bool {
+        self.inner.default_small_data_reserve_enabled()
+    }
+}
+
 impl fmt::Debug for ClientBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ClientBuilder").finish_non_exhaustive()

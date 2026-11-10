@@ -90,6 +90,7 @@ pub(super) enum Event {
 pub(super) struct DataEvent {
     pub(super) payload: Bytes,
     pub(super) is_budgeted: bool,
+    pub(super) is_reserved: bool,
 }
 
 #[derive(Debug)]
@@ -904,7 +905,8 @@ impl Recv {
         frame: frame::Data,
         stream: &mut store::Ptr,
         slot: *mut Stream,
-    ) -> Result<(), Error> {
+        is_reserved: bool,
+    ) -> Result<bool, Error> {
         // One length for the window and the padding check. Padding is the
         // gap between the flow-controlled size and the payload the user sees.
         let payload_len = frame.payload().len();
@@ -931,7 +933,7 @@ impl Recv {
 
             if is_ignoring_frame {
                 let id = stream.id;
-                return self.ignore_reset_data(sz, id);
+                return self.ignore_reset_data(sz, id).map(|()| false);
             }
 
             // Ensure that there is enough capacity on the connection before acting
@@ -968,7 +970,7 @@ impl Recv {
             // Received a frame, but no one cared about it. fix issue#648
             if !stream.is_recv {
                 let id = stream.id;
-                return self.release_unwatched_data(sz, id);
+                return self.release_unwatched_data(sz, id).map(|()| false);
             }
 
             // Update stream level flow control
@@ -992,13 +994,14 @@ impl Recv {
         // message. Padding has already been accounted for and released above,
         // so there is no event to pass to the user.
         if payload_len == 0 && !frame.is_end_stream() {
-            return Ok(());
+            return Ok(false);
         }
 
         let is_budgeted = !frame.is_end_stream();
         let event = Event::Data(DataEvent {
             payload: frame.into_payload(),
             is_budgeted,
+            is_reserved,
         });
 
         // Releasing padding can reborrow this same slot through Ptr. Resolve
@@ -1014,7 +1017,7 @@ impl Recv {
             (*slot).notify_recv();
         }
 
-        Ok(())
+        Ok(true)
     }
 
     #[cold]
@@ -1235,7 +1238,9 @@ impl Recv {
         let mut to_release: WindowSize = 0;
         while let Some(event) = stream.pending_recv.pop_front(&mut self.buffer) {
             if let Event::Data(data) = &event {
-                if data.is_budgeted {
+                if data.is_reserved {
+                    counts.release_small_response(stream);
+                } else if data.is_budgeted {
                     counts.release_data_frame(data.payload.len());
                 }
                 to_release = to_release
@@ -1689,6 +1694,7 @@ mod tests {
             remote_max_initiated: None,
             local_max_error_reset_streams: None,
             data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
+            default_small_data_reserve: false,
         };
         let mut recv = Recv::new(
             peer::Dyn::Server,
@@ -1708,6 +1714,7 @@ mod tests {
                 Event::Data(DataEvent {
                     payload: data.clone(),
                     is_budgeted: true,
+                    is_reserved: false,
                 }),
             );
         }

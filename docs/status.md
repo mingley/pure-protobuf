@@ -345,9 +345,44 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Rich status**: packed `google.rpc.Status` is supported on `grpc-status-details-bin`. When ASCII `grpc-status` headers and binary status details disagree, wire ASCII trailers take precedence.
 - **Defensive caps**: rapid reset (CVE-2023-44487) defense uses `ServerConfig::max_pending_accept_reset_streams`; CONTINUATION flood prevention uses `max_header_list_size` (16 KiB); connection recycling uses `max_connection_age` (plus or minus 10% jitter).
 
-- **Small-response burst:** On source [713038c7](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b), a [wire test](https://github.com/mingley/pure-protobuf/actions/runs/42735589419) using the default client budget parked 103 non-final, 9-byte response DATA frames; the 104th caused `ENHANCE_YOUR_CALM` / `too_many_data_frames`. A larger `ChannelConfig::data_frame_budget` gives more headroom with a resource tradeoff and does not guarantee arbitrary bursts.
-- **Discarded non-final DATA:** With a configured budget of 512 units, a [wire test](https://github.com/mingley/pure-protobuf/actions/runs/42736051229) discarded two 9-byte non-final DATA frames after either a local reset or a response-body drop. In each case, the later valid 9-byte frame on another stream triggered `too_many_data_frames`. The cases were run separately on source 713.
-- **Reset-discard accounting:** The same source's [receive path](https://github.com/mingley/pure-protobuf/blob/713038c7f2d60da41824531a7b81920183c7510b/pbrs-grpc/src/h2_backend/proto/streams/streams.rs#L1103) does not charge final DATA. In a separate [bounded wire witness](https://github.com/mingley/pure-protobuf/actions/runs/42748889811), after a local reset and at a configured budget of zero, 1,024 repeated 9-byte final DATA frames were accepted; a separate probe accepted 101 empty final DATA frames. These finite test counts do not establish a rate, a lifetime bound or total memory usage.
+- **Small-response burst:** On source
+  [713038c7](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b),
+  a [wire test](https://github.com/mingley/pure-protobuf/actions/runs/42735589419)
+  using the default client budget parked 103 non-final, 9-byte response DATA
+  frames; the 104th caused `ENHANCE_YOUR_CALM` / `too_many_data_frames`.
+  Default clients now have up to 1,024 extra queued small-response slots per
+  connection, one per stream. Their maximum visible payload is 261,120 bytes;
+  event and stream metadata and potentially larger shared backing allocations
+  are additional, so this is not a peak-heap bound. On source
+  [3cfc1311](https://github.com/mingley/pure-protobuf/commit/3cfc13110f960ac963df2b6a44391c18208fc7d4),
+  [wire tests](https://github.com/mingley/pure-protobuf/actions/runs/42749098354)
+  covered bursts through 1,024 and the 1,127/1,128 boundary for 9-byte frames;
+  a [separate Channel test](https://github.com/mingley/pure-protobuf/actions/runs/42749129779)
+  covered 1,024 parked responses after a transparent redial. Explicitly
+  setting `ChannelConfig::data_frame_budget` disables the reserve, including
+  when set to the default value. These tests do not establish a total-memory
+  bound.
+- **Discarded non-final DATA:** With a configured budget of 512 units, a
+  [wire test](https://github.com/mingley/pure-protobuf/actions/runs/42736051229)
+  on source 713 discarded two 9-byte non-final DATA frames after either a
+  local reset or a response-body drop; the later valid 9-byte frame on another
+  stream triggered `too_many_data_frames`. That no-read saturation behavior
+  remains with the shared configured budget. A successful small DATA read can
+  now credit previously discarded charges in overhead units; clearing a queue
+  adds no read credit. See [resource budgets](resource-budgets.md) for the
+  per-read limit and tradeoff.
+- **Reset-discard final DATA:** The
+  [receive path](../pbrs-grpc/src/h2_backend/proto/streams/streams.rs) does
+  not charge final DATA. In a
+  [bounded wire witness](https://github.com/mingley/pure-protobuf/actions/runs/42748889811),
+  both source 713 and 3cfc accepted 1,024 repeated 9-byte final DATA frames
+  after a local reset at a configured budget of zero; a separate probe accepted
+  101 empty final DATA frames. These finite counts do not establish a rate,
+  lifetime bound or total memory usage.
+- **DATA after local GOAWAY:** DATA on untracked streams above the local
+  GOAWAY cutoff takes a separate shutdown path. It bypasses the small-DATA
+  budget and empty-frame lifetime counter; connection-level flow control
+  still applies.
 
 ### Observability, ORCA, and Authorization
 

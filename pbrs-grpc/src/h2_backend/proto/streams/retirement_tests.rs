@@ -151,6 +151,7 @@ fn engine_config(window: u32) -> Config {
         remote_max_initiated: Some(100),
         local_max_error_reset_streams: Some(100),
         data_frame_budget: 25_600,
+        default_small_data_reserve: false,
     }
 }
 

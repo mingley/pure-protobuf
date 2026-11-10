@@ -87,6 +87,7 @@ pub(crate) struct Config {
     pub local_error_reset_streams_max: Option<usize>,
     pub settings: frame::Settings,
     pub data_frame_budget: usize,
+    pub default_small_data_reserve: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -148,6 +149,7 @@ where
                     .map(|max| max as usize),
                 local_max_error_reset_streams: config.local_error_reset_streams_max,
                 data_frame_budget: config.data_frame_budget,
+                default_small_data_reserve: config.default_small_data_reserve,
             }
         }
         let streams = Streams::new(streams_config(&config));

@@ -40,10 +40,11 @@ pub const DEFAULT_HEADER_TABLE_SIZE: u32 = 4096;
 /// Default per-connection HTTP/2 DATA framing budget: 25,600 overhead units.
 ///
 /// On tracked streams, nonempty, non-final DATA smaller than 256 payload
-/// bytes consumes this budget. Queued charges return when read or cleared;
-/// larger non-final DATA can replenish it. Empty non-final DATA has a separate
-/// lifetime cap. This budget is not a total-memory or frame-rate bound and
-/// does not grow with receive windows. Distinct from [`DEFAULT_WINDOW_SIZE`].
+/// bytes consumes this budget unless admitted to the default client response
+/// reserve. Queued charges return when read or cleared; larger non-final DATA
+/// can replenish it. Empty non-final DATA has a separate lifetime cap. See
+/// [`ChannelConfig::data_frame_budget`] for the reserve. This is not a
+/// total-memory or frame-rate bound and does not grow with receive windows.
 pub const DEFAULT_DATA_FRAME_BUDGET: usize = 25_600;
 
 /// Default queue depth between a client-streaming caller and the wire.
@@ -414,14 +415,25 @@ impl ServerConfig {
 
     /// Set the per-connection framing budget for inbound DATA on tracked streams.
     ///
-    /// Nonempty, non-final DATA smaller than 256 payload bytes consumes
-    /// `256 - payload_len` units. Queued charges return when read or cleared;
-    /// larger non-final DATA can replenish the budget. Empty non-final DATA
-    /// has a separate lifetime cap, and final DATA is not charged.
+    /// A nonempty frame smaller than 256 bytes consumes `256 - size` units;
+    /// a larger frame adds `size - 256` units, up to the budget. Final DATA is
+    /// not charged. Empty non-final frames have a separate per-connection
+    /// lifetime limit.
     ///
-    /// The default is 25,600 units. Exceeding the budget closes the connection
-    /// with `ENHANCE_YOUR_CALM` (`too_many_data_frames`). It does not grow with
-    /// receive windows and is not a total-memory or frame-rate bound.
+    /// The default budget is 25,600 units. Exceeding it closes the connection
+    /// with `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Queued and discarded
+    /// frames share the budget. A successful read of nonempty DATA smaller
+    /// than 256 bytes, including a final frame, can credit up to `256 - size`
+    /// units of previously discarded charges. This uses overhead units, not
+    /// one frame or payload byte per read. Clearing a queue returns only its
+    /// queued charges.
+    ///
+    /// A small frame can still be rejected if the shared budget is insufficient
+    /// before a read. Continued reads or large non-final frames can renew
+    /// allowance, so this is not a nonempty-frame rate or lifetime limit. The
+    /// budget does not grow with receive windows, and does not bound shared
+    /// backing allocations or total memory. Untracked DATA above the local
+    /// GOAWAY cutoff bypasses this budget.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
@@ -1050,6 +1062,7 @@ pub struct ChannelConfig {
     max_header_list_size: u32,
     header_table_size: u32,
     data_frame_budget: usize,
+    data_frame_budget_explicit: bool,
     max_pending_accept_reset_streams: usize,
     max_local_error_reset_streams: usize,
     max_concurrent_reset_streams: usize,
@@ -1094,6 +1107,7 @@ impl Default for ChannelConfig {
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             header_table_size: DEFAULT_HEADER_TABLE_SIZE,
             data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
+            data_frame_budget_explicit: false,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
             max_concurrent_reset_streams: DEFAULT_MAX_CONCURRENT_RESET_STREAMS,
@@ -1277,17 +1291,38 @@ impl ChannelConfig {
 
     /// Set the per-connection framing budget for inbound DATA on tracked streams.
     ///
-    /// Nonempty, non-final DATA smaller than 256 payload bytes consumes
-    /// `256 - payload_len` units. Queued charges return when read or cleared;
-    /// larger non-final DATA can replenish the budget. Empty non-final DATA
-    /// has a separate lifetime cap, and final DATA is not charged.
+    /// A nonempty frame smaller than 256 bytes consumes `256 - size` units;
+    /// a larger frame adds `size - 256` units, up to the budget. Final DATA is
+    /// not charged. Empty non-final frames have a separate per-connection
+    /// lifetime limit.
     ///
-    /// The default is 25,600 units. Exceeding the budget closes the connection
-    /// with `ENHANCE_YOUR_CALM` (`too_many_data_frames`). It does not grow with
-    /// receive windows and is not a total-memory or frame-rate bound.
+    /// The default base budget is 25,600 units. Default clients also reserve
+    /// up to 1,024 queued non-final small DATA frames per connection, at most
+    /// one per stream. They hold at most 261,120 visible payload bytes, plus
+    /// event and stream metadata and potentially larger shared backing
+    /// allocations; this is not a peak-heap bound. Reading or clearing an
+    /// event returns its slot; a reset may retain the event while its handles
+    /// remain alive.
+    ///
+    /// Calling this method disables that reserve, even when `bytes` is 25,600,
+    /// and enforces the requested budget alone. Queued and discarded small
+    /// DATA share that budget. A successful read of nonempty DATA smaller
+    /// than 256 bytes, including a final frame, can credit up to `256 - size`
+    /// units of previously discarded charges. This uses overhead units, not
+    /// one frame or payload byte per read. Clearing a queue returns only its
+    /// queued charges.
+    ///
+    /// A small frame can still be rejected if the shared budget is insufficient
+    /// before a read. Continued reads or large non-final frames can renew
+    /// allowance, so this is not a nonempty-frame rate or lifetime limit.
+    /// Exceeding the budget closes the connection with `ENHANCE_YOUR_CALM`
+    /// (`too_many_data_frames`). These are framing limits, not a bound on
+    /// shared backing allocations or total memory. Untracked DATA above the
+    /// local GOAWAY cutoff bypasses this budget.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
+        self.data_frame_budget_explicit = true;
         self
     }
 
@@ -1778,7 +1813,10 @@ impl ChannelConfig {
         self.header_table_size
     }
 
-    /// HTTP/2 small-DATA framing budget. See [`Self::data_frame_budget`].
+    /// The base HTTP/2 small-DATA framing budget.
+    ///
+    /// Default clients also have a separate queued-response reserve; see
+    /// [`Self::data_frame_budget`].
     #[must_use]
     pub fn data_budget(self) -> usize {
         self.data_frame_budget
@@ -1962,6 +2000,7 @@ impl ChannelConfig {
             // which is when the peer's SETTINGS has been applied.
             .initial_max_send_streams(0)
             .adaptive_window(adaptive);
+        builder.default_small_data_reserve(!self.data_frame_budget_explicit);
         builder
     }
 }
@@ -1970,6 +2009,22 @@ impl ChannelConfig {
 mod tests {
     use super::{ChannelConfig, ServerConfig};
     use std::time::Duration;
+
+    #[test]
+    fn explicit_default_disables_automatic_response_reserve() {
+        let defaults = ChannelConfig::new();
+        assert!(!defaults.data_frame_budget_explicit);
+        let first_connection_builder = defaults.h2_builder();
+        let later_connection_builder = defaults.h2_builder();
+        assert!(first_connection_builder.default_small_data_reserve_enabled());
+        assert!(later_connection_builder.default_small_data_reserve_enabled());
+        let explicit = defaults.data_frame_budget(super::DEFAULT_DATA_FRAME_BUDGET);
+        assert!(explicit.data_frame_budget_explicit);
+        assert!(!explicit.h2_builder().default_small_data_reserve_enabled());
+        let zero = defaults.data_frame_budget(0);
+        assert!(zero.data_frame_budget_explicit);
+        assert!(!zero.h2_builder().default_small_data_reserve_enabled());
+    }
 
     #[test]
     fn socket_and_idle_ping_policies_preserve_defaults_and_remain_independent() {

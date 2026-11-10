@@ -78,6 +78,10 @@ pub(super) struct Counts {
 
     /// connection-level budget for DATA framing overhead.
     data_frame_budget: Budget,
+    /// Conservative discarded debt, bounded by the spent portion of the budget.
+    discarded_data_frame_debt: usize,
+    /// Slots for one queued small response frame on each eligible stream.
+    small_data_reserve_remaining: u16,
 
     /// Number of empty, non-final DATA frames received over the lifetime of
     /// the connection.
@@ -122,6 +126,12 @@ impl Counts {
             max_local_error_reset_streams: config.local_max_error_reset_streams,
             num_local_error_reset_streams: 0,
             data_frame_budget: Budget::new(config.data_frame_budget),
+            discarded_data_frame_debt: 0,
+            small_data_reserve_remaining: if config.default_small_data_reserve {
+                1024
+            } else {
+                0
+            },
             num_recv_empty_data_frames: 0,
             streams_open: Arc::new(AtomicBool::new(false)),
             owners: 1,
@@ -142,6 +152,34 @@ impl Counts {
         self.streams_open.clone()
     }
 
+    /// Check without reborrowing the stream on server and explicit-budget paths.
+    #[inline]
+    pub(super) fn has_small_response_reserve(&self) -> bool {
+        self.small_data_reserve_remaining != 0
+    }
+
+    /// Reserve one bounded response slot while this stream has no reserved frame queued.
+    pub(super) fn reserve_small_response(&mut self, stream: &mut Stream) -> bool {
+        if self.small_data_reserve_remaining == 0
+            || stream.has_reserved_small_data
+            || !stream.is_recv
+            || stream.state.is_local_error()
+        {
+            return false;
+        }
+        self.small_data_reserve_remaining -= 1;
+        stream.has_reserved_small_data = true;
+        true
+    }
+
+    /// Release the stream's reserved slot after dequeue, drop, or rejected admission.
+    pub(super) fn release_small_response(&mut self, stream: &mut Stream) {
+        debug_assert!(stream.has_reserved_small_data);
+        stream.has_reserved_small_data = false;
+        self.small_data_reserve_remaining += 1;
+        debug_assert!(self.small_data_reserve_remaining <= 1024);
+    }
+
     /// Records the framing overhead of a DATA frame.
     pub fn record_data_frame(&mut self, payload_len: usize) -> Result<(), BudgetExhausted> {
         if payload_len == 0 {
@@ -157,19 +195,63 @@ impl Counts {
             self.data_frame_budget
                 .consume(DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD - payload_len)
         } else {
-            self.data_frame_budget
-                .replenish(payload_len - DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD);
+            self.replenish_data_frame_budget(payload_len - DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD);
             Ok(())
         }
     }
 
-    /// Releases the framing overhead of a DATA frame that is no longer
-    /// buffered internally.
+    /// Charge a frame that produced no event using the same aggregate budget.
+    pub fn record_discarded_data_frame(
+        &mut self,
+        payload_len: usize,
+    ) -> Result<(), BudgetExhausted> {
+        self.record_data_frame(payload_len)?;
+        if payload_len != 0 && payload_len < DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD {
+            let charge = DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD - payload_len;
+            // The invariant debt <= max - available held before consumption,
+            // so this successful charge cannot make the addition overflow.
+            self.discarded_data_frame_debt += charge;
+            debug_assert!(
+                self.discarded_data_frame_debt
+                    <= self.data_frame_budget.max - self.data_frame_budget.available
+            );
+        }
+        Ok(())
+    }
+
+    /// Return a queued frame's charge without crediting discarded work.
     pub fn release_data_frame(&mut self, payload_len: usize) {
         if payload_len != 0 && payload_len < DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD {
-            self.data_frame_budget
-                .replenish(DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD - payload_len);
+            self.replenish_data_frame_budget(DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD - payload_len);
         }
+    }
+
+    /// Keep debt within the units still spent after any ordinary credit.
+    fn replenish_data_frame_budget(&mut self, amount: usize) {
+        self.data_frame_budget.replenish(amount);
+        if self.discarded_data_frame_debt != 0 {
+            self.discarded_data_frame_debt = self
+                .discarded_data_frame_debt
+                .min(self.data_frame_budget.max - self.data_frame_budget.available);
+        }
+    }
+
+    /// Real reads repay at most the discarded small-frame charge they represent.
+    /// Credit is in overhead units, not a frame or byte rate. Clearing a queue
+    /// does not call this method.
+    pub fn credit_discarded_for_consumed_data(&mut self, payload_len: usize) {
+        if self.discarded_data_frame_debt == 0
+            || payload_len == 0
+            || payload_len >= DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD
+        {
+            return;
+        }
+        let credit = self
+            .discarded_data_frame_debt
+            .min(DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD - payload_len);
+        // Credit cannot saturate: debt is at most the spent budget.
+        self.data_frame_budget.replenish(credit);
+        self.discarded_data_frame_debt -= credit;
     }
 
     /// Returns true when the next opened stream will reach capacity of outbound streams
@@ -556,6 +638,7 @@ mod tests {
                 remote_max_initiated: None,
                 local_max_error_reset_streams: None,
                 data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
+                default_small_data_reserve: false,
             },
             Arc::new(AtomicBool::new(false)),
         )
@@ -626,5 +709,127 @@ mod tests {
                 .unwrap();
         }
         assert!(counts.record_data_frame(0).is_err());
+    }
+    #[test]
+    fn discarded_debt_stays_in_the_one_aggregate_budget() {
+        let mut c = counts();
+        c.data_frame_budget = Budget::new(512);
+        c.record_discarded_data_frame(9).unwrap(); // 247
+        c.record_data_frame(9).unwrap(); // 247
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (18, 247)
+        );
+        assert!(c.record_discarded_data_frame(9).is_err());
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (18, 247)
+        );
+
+        c.record_data_frame(356).unwrap(); // 100 large-frame credit
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (118, 247)
+        );
+        c.release_data_frame(9); // queue refund, debt clamps to outstanding units
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (365, 147)
+        );
+        c.credit_discarded_for_consumed_data(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (512, 0)
+        );
+    }
+
+    #[test]
+    fn large_credit_cannot_leave_debt_that_can_be_credited_twice() {
+        let mut c = counts();
+        c.data_frame_budget = Budget::new(512);
+        c.record_discarded_data_frame(9).unwrap();
+        c.record_data_frame(503).unwrap();
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (512, 0)
+        );
+        c.record_data_frame(9).unwrap();
+        c.credit_discarded_for_consumed_data(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (265, 0)
+        );
+    }
+
+    #[test]
+    fn consumed_small_frame_credit_is_bounded_by_both_debt_and_frame_cost() {
+        let mut c = counts();
+        c.data_frame_budget = Budget::new(512);
+        c.record_discarded_data_frame(9).unwrap();
+        c.record_discarded_data_frame(9).unwrap();
+        c.credit_discarded_for_consumed_data(100); // credit 156, not all 494
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (174, 338)
+        );
+        c.credit_discarded_for_consumed_data(0);
+        c.credit_discarded_for_consumed_data(256);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (174, 338)
+        );
+        c.credit_discarded_for_consumed_data(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (421, 91)
+        );
+        c.credit_discarded_for_consumed_data(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (512, 0)
+        );
+    }
+
+    #[test]
+    fn discarded_debt_handles_maximum_configured_budget_without_overflow() {
+        let mut c = counts();
+        c.data_frame_budget = Budget::new(usize::MAX);
+        c.record_discarded_data_frame(1).unwrap();
+        assert_eq!(c.discarded_data_frame_debt, 255);
+        c.record_data_frame(usize::MAX).unwrap();
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (usize::MAX, 0)
+        );
+    }
+
+    #[test]
+    fn each_queue_refund_clamps_previously_replenished_debt() {
+        let mut c = counts();
+        c.data_frame_budget = Budget::new(1024);
+        c.record_discarded_data_frame(9).unwrap();
+        c.record_data_frame(9).unwrap();
+        c.record_data_frame(9).unwrap();
+        c.record_data_frame(556).unwrap(); // 300 credit
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (583, 247)
+        );
+        c.release_data_frame(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (830, 194)
+        );
+        c.release_data_frame(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (1024, 0)
+        );
+        c.record_data_frame(9).unwrap();
+        c.credit_discarded_for_consumed_data(9);
+        assert_eq!(
+            (c.data_frame_budget.available, c.discarded_data_frame_debt),
+            (777, 0)
+        );
     }
 }

@@ -107,6 +107,9 @@ pub(super) struct Stream {
     /// When the RecvStream drop occurs, no data should be received.
     pub is_recv: bool,
 
+    /// One queued small response frame may use the client-default reserve.
+    pub has_reserved_small_data: bool,
+
     /// Task tracking receiving frames
     pub recv_task: Option<Waker>,
 
@@ -220,6 +223,7 @@ impl Stream {
             std::ptr::addr_of_mut!((*slot).next_reset_expire).write(None);
             std::ptr::addr_of_mut!((*slot).pending_recv).write(buffer::Deque::new());
             std::ptr::addr_of_mut!((*slot).is_recv).write(true);
+            std::ptr::addr_of_mut!((*slot).has_reserved_small_data).write(false);
             std::ptr::addr_of_mut!((*slot).recv_task).write(None);
             std::ptr::addr_of_mut!((*slot).push_task).write(None);
             std::ptr::addr_of_mut!((*slot).pending_push_promises).write(store::Queue::new());

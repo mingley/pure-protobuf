@@ -1122,6 +1122,10 @@ mod tests {
     fn reused_slot_initializes_a_complete_stream() {
         let mut slots = StreamSlots::new();
         let first = slots.insert(Stream::new(StreamId::from(1), 0, 0));
+        slots
+            .get_mut(first as usize)
+            .expect("first stream")
+            .has_reserved_small_data = true;
         slots.remove_in_place(first, StreamId::from(1));
         let reused = slots.insert_new(StreamId::from(3), 64, 128);
         let Some(got) = slots.get(reused as usize) else {
@@ -1130,6 +1134,7 @@ mod tests {
         assert_eq!(got.id, StreamId::from(3));
         assert_eq!(got.ref_count, 0);
         assert!(got.is_recv);
+        assert!(!got.has_reserved_small_data);
     }
 
     #[test]

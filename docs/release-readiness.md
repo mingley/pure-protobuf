@@ -82,12 +82,21 @@ under the existing [QG-06](plan/world-class/tasks.json) and
 The core protobuf profile has no transport requirement; the profile-specific
 gates in the checklist remain in effect.
 
-Known native transport limits include a demonstrated small-response burst
-failure under the default client DATA budget, discarded non-final frames that
-retain charges, and a reset-discard path that does not charge final DATA. The
-[source-pinned witnesses](status.md#messaging-and-protocol-limits) are finite
-tests, not rate or total-memory bounds. Validate behavior and any fix on the
-release source and retain the resulting evidence.
+A [source-pinned witness](status.md#messaging-and-protocol-limits) on 713038c7
+showed that the default client budget rejected the 104th parked 9-byte
+response. Default clients now have a bounded reserve of up to 1,024 queued
+small responses per connection, one per stream. Tests on 3cfc1311 covered
+bursts through 1,024, the 1,127/1,128 frame boundary, and 1,024 parked
+responses after a Channel redial. An explicit client DATA budget disables
+the reserve.
+
+Queued and discarded non-final small DATA still share the configured budget.
+Successful reads can credit previous discarded charges in overhead units, but
+a saturated budget can reject a new frame before any read. Repeated late final
+DATA after a local reset is not charged, and untracked DATA above the local
+GOAWAY cutoff bypasses these framing counters. The finite witnesses do not
+establish a rate, lifetime-frame or total-memory bound. Validate the final
+release source and retain its evidence.
 
 ## Retry and binary-log claims
 

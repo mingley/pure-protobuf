@@ -1102,15 +1102,48 @@ impl Inner {
             let sz = frame.flow_controlled_len();
             let is_end_stream = frame.is_end_stream();
             let payload_len = frame.payload().len();
-            let mut res = actions.recv.recv_data(frame, stream, slot);
-            // A stream can receive at most one final DATA frame, so it cannot
-            // be used to create unbounded framing overhead on that stream.
-            if res.is_ok() && !is_end_stream {
-                res = counts.record_data_frame(payload_len).map_err(|_| {
-                    tracing::debug!("too many small DATA frames");
-                    Error::library_go_away_data(Reason::ENHANCE_YOUR_CALM, "too_many_data_frames")
-                });
+            // A reserve slot represents one queued small response on this
+            // stream. Under the connection lock, a live receiver and
+            // non-reset stream either queues this nonempty frame or errors.
+            let consider_reserve = !is_end_stream
+                && payload_len > 0
+                && payload_len < proto::DEFAULT_DATA_FRAME_OVERHEAD_THRESHOLD
+                && counts.has_small_response_reserve();
+            let (reserved, slot) = if consider_reserve {
+                let reserved = counts.reserve_small_response(stream);
+                // Eligibility reborrows the stream through Ptr. A stable slab
+                // address does not preserve the old raw pointer's provenance.
+                (reserved, stream.stream_ptr())
+            } else {
+                (false, slot)
+            };
+            let received = actions.recv.recv_data(frame, stream, slot, reserved);
+            let reserved_queued = reserved && matches!(&received, Ok(true));
+            if reserved && !reserved_queued {
+                counts.release_small_response(stream);
             }
+            // Non-final, nonempty small DATA shares the configured budget
+            // whether queued or discarded, except for reserved queued frames.
+            // Final DATA bypasses this accounting, including ignored frames
+            // on locally reset streams.
+            let res = match received {
+                Ok(queued) if !is_end_stream && !reserved_queued => {
+                    let recorded = if queued {
+                        counts.record_data_frame(payload_len)
+                    } else {
+                        counts.record_discarded_data_frame(payload_len)
+                    };
+                    recorded.map_err(|_| {
+                        tracing::debug!("too many small DATA frames");
+                        Error::library_go_away_data(
+                            Reason::ENHANCE_YOUR_CALM,
+                            "too_many_data_frames",
+                        )
+                    })
+                }
+                Ok(_) => Ok(()),
+                Err(err) => Err(err),
+            };
 
             // Any stream error after receiving a DATA frame means
             // we won't give the data to the user, and so they can't
@@ -2470,9 +2503,13 @@ impl OpaqueStreamRef {
             .poll_data(cx, &mut stream)
             .map(|result| match result {
                 Some(Ok(data)) => {
-                    if data.is_budgeted {
+                    if data.is_reserved {
+                        me.counts.release_small_response(&mut stream);
+                    } else if data.is_budgeted {
                         me.counts.release_data_frame(data.payload.len());
                     }
+                    me.counts
+                        .credit_discarded_for_consumed_data(data.payload.len());
                     Some(Ok(data.payload))
                 }
                 Some(Err(err)) => Some(Err(err)),
@@ -2496,7 +2533,9 @@ impl OpaqueStreamRef {
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
             Poll::Ready(Some(Ok(data))) => {
-                if data.is_budgeted {
+                if data.is_reserved {
+                    me.counts.release_small_response(&mut stream);
+                } else if data.is_budgeted {
                     me.counts.release_data_frame(data.payload.len());
                 }
                 let n = data.payload.len();
@@ -2511,6 +2550,7 @@ impl OpaqueStreamRef {
                         Reason::INTERNAL_ERROR,
                     ))));
                 }
+                me.counts.credit_discarded_for_consumed_data(n);
                 Poll::Ready(Some(Ok(data.payload)))
             }
         }

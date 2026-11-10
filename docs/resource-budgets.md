@@ -54,7 +54,7 @@ owner, limit and release point.
 | **HTTP/2 Connection Driver** | Transport (`h2::server::Connection` / client driver) | 8 KiB – 32 KiB per conn | Tokio task allocation, stream table trees | Connection termination |
 | **HPACK Dynamic Tables** | Transport (`h2`) | $2 \times 4096$ octets default | `ServerConfig::header_table_size` (`DEFAULT_HEADER_TABLE_SIZE`) | Connection termination |
 | **Stream Send Buffer** | Transport (`h2`) | 1 MiB capacity threshold per stream | `ServerConfig::max_send_buffer_size` (`DEFAULT_MAX_SEND_BUFFER_SIZE`) | Capacity returns as bytes are written to the connection |
-| **Small-DATA Framing Budget** | Transport (`h2`) | 25,600 overhead units per connection by default | `ServerConfig::data_frame_budget` / `ChannelConfig::data_frame_budget` (`DEFAULT_DATA_FRAME_BUDGET`) | Queued small-frame charges return on read or clear; larger non-final DATA can replenish the budget |
+| **Small-DATA Framing Budget** | Transport (`h2`) | Base 25,600 units per connection; default clients also reserve up to 1,024 queued small response frames, one per stream | `ServerConfig::data_frame_budget` / `ChannelConfig::data_frame_budget`; explicitly setting the client budget disables its extra reserve | A queued charge or reserve slot returns when data is read or its queue is cleared; reads can also credit previously discarded work |
 | **Reset Stream Tracking** | Transport (`h2`) | ~1 KiB – 10 KiB per conn | `max_concurrent_reset_streams`, `max_local_error_reset_streams` | Purged after `reset_stream_duration` (1s) |
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Default payload cap: 4 MiB; allocation capacity can be larger | `MessageLimits::max_decoding` bounds frame payload length, not backing capacity | Carry can retain capacity between frames; a yielded payload or decoded message may keep its backing alive |
@@ -71,17 +71,41 @@ owner, limit and release point.
 | **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original backing allocation, which can exceed the visible chunk | Application or transport holding a shared slice | Released when the last owner of the allocation drops |
 
 The small-DATA budget tracks framing overhead, not live bytes. On tracked
-streams, each nonempty, non-final DATA frame below 256 payload bytes consumes
-`256 - payload_len` units; larger non-final frames replenish the budget up to
-its configured maximum.
-Empty non-final DATA has a separate lifetime cap, and final DATA is not charged.
-A queued charge returns when the frame is read or its receive queue is cleared;
-discarded non-final DATA can consume budget without a queued charge to return.
+streams, each nonempty, non-final DATA frame below 256 visible payload bytes
+consumes `256 - payload_len` units unless admitted to the default client
+reserve described below. Larger non-final frames replenish the base budget up
+to its configured maximum. Queued and discarded charges share that budget.
+Empty non-final DATA has a separate per-connection lifetime limit; final DATA
+is not charged.
+
+Default clients also reserve up to 1,024 queued non-final small DATA events,
+at most one per stream. These slots hold at most `1,024 × 255 = 261,120`
+visible payload bytes, plus event and stream metadata and potentially larger
+shared backing allocations. This is a logical-payload bound, not a peak-heap
+bound. Reading an event or clearing its queue returns its reserve slot.
+Calling `ChannelConfig::data_frame_budget` disables the reserve, even when the
+configured value is 25,600; servers do not use it.
+
+A successful read of nonempty DATA under 256 bytes can credit up to that
+read's overhead units against previously discarded charges. Clearing a queue
+returns its queued charges but does not add a read credit. These credits
+count overhead units, not frames or payload bytes: a 1-byte read can credit
+up to 255 units, enough room for 255 discarded 255-byte frames at one unit
+each, if that much discarded charge remains.
+
+A separate allowance for discarded frames could isolate queued traffic from
+cancellation bursts, but would increase the combined allowance. Server
+budgets and explicitly configured client budgets keep both kinds of charge
+in one aggregate limit. If it has too little room, a small frame can still
+be rejected before a read occurs. Continued reads or large non-final DATA
+can renew allowance, so this does not limit the rate or lifetime count of
+nonempty frames.
+
 DATA on an untracked stream above the local GOAWAY cutoff uses a separate
-shutdown path that bypasses this accounting. The budget is neither a
-total-memory limit nor a frame-rate limit. See the
-[known transport limits](status.md#messaging-and-protocol-limits) for observed
-burst and reset-discard behavior.
+shutdown path that bypasses the small-DATA budget and empty-frame limit,
+although connection-level flow control still applies. The framing budget is
+not a total-memory bound. See [known transport limits](status.md#messaging-and-protocol-limits)
+for the source-pinned burst, reset and shutdown boundaries.
 
 Compressed streams can retain decoded storage only after successful decoding,
 when the codec has consumed the input and its backing allocation has one owner.
