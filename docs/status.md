@@ -5,12 +5,19 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd), all 12
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790264957),
+At source [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618),
+all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163563),
+five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163478),
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42810163526)
+passed. Optional fuzz and sanitizer jobs were skipped; the parity audit includes
+known gaps. All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42797917914)
+passed at `cab0e580`; that run did not test 9ac.
+
+Earlier, all 12 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790264957),
 five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790265148)
 and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42790265038)
-passed. Optional fuzz and sanitizer jobs were skipped; the parity audit includes
-known gaps. Changes from [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f)
+passed at [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd).
+Changes from [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f)
 to 5ff were documentation only. All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42783426107)
 passed at f73; focused [streaming ownership checks](https://github.com/mingley/pure-protobuf/actions/runs/42782758596)
 also passed using a test-only overlay.
@@ -50,8 +57,8 @@ The current source selects built-in TLS on x86-64 and AArch64. On other
 architectures, built-in TLS constructors return `UNIMPLEMENTED` once
 preliminary checks succeed; provider-dependent key, certificate and verifier
 checks do not run. Callers can supply their own rustls config. The
-[required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
-passed on `cab0e580` with Rust 1.85 and stable, covering plaintext RPC,
+[required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
+passed on `9acfc0b6` with Rust 1.85 and stable, covering plaintext RPC,
 built-in TLS errors, and caller-configured mTLS and rejection cases. Ring was
 used only in the test application. The
 [earlier prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
@@ -111,6 +118,13 @@ origins, TLS and hostname lookup remain unsupported. The
 how configured channel getters differ from selected wire routing.
 See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
+
+At `9acfc0b6`, the [release dry run](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
+packaged all three candidates after its exact-source CI passed. The
+[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492)
+checked the archives, SBOM, CI context and all five attested subjects. The
+[release checklist](release-readiness.md#candidate-versions) records the
+artifact and limits. No crate was published; later source needs its own checks.
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
 check the registry before treating them as published. The [5ff release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)

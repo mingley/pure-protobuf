@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd):
+These versions are declared at [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -20,20 +20,31 @@ manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
 The [implementation status](status.md) links the recorded CI and Miri checks.
-At `cab0e580`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
-packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
-passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438)
+At `9acfc0b6`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
+packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
+passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492)
 checked their manifests, selected source files, CycloneDX SBOM, dry-run CI
-context and archive digest. The run produced a
-[five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65772679),
-[verified for each subject](https://github.com/mingley/pure-protobuf/actions/runs/42805948814).
-The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42805278973/artifacts/13758351985)
-has ZIP SHA-256 `708df80c12f3339597ad406a170860ce015f69b0bad0b6c104079e1bea2387a6`
-and expires February 8, 2027. Earlier rehearsals at
+context and all five [attestation](https://github.com/mingley/pure-protobuf/attestations/65803622)
+subjects. The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42817437789/artifacts/13764887527)
+has ZIP SHA-256 `b8ecdf9fca7d3cf9b1ba2178630be22c126bc1daa0480edf9be4919958daefef`
+and expires February 8, 2027. Earlier [cab0 rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
+and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438),
 [5ff](https://github.com/mingley/pure-protobuf/actions/runs/42794817426) and
-[5fe](https://github.com/mingley/pure-protobuf/actions/runs/42773096505) remain
-available. Signed-tag verification and crates.io authentication were skipped;
-no crates were published. Final release evidence must match the release source.
+[5fe](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+remain available. Signed-tag verification and crates.io authentication were
+skipped; no crates were published. Final release evidence must match the
+release source.
+
+A [registry check](https://github.com/mingley/pure-protobuf/actions/runs/42863659596)
+on November 10, 2026 found published `pbrs` `0.2.0` and published
+`pbrs-grpc` and `protobuf-tonic` `0.1.0-alpha.2`. A
+[published-package smoke check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
+generated and ran one unary greeter with those published core and native gRPC
+versions on x86-64 Linux, Rust 1.85.0 and 1.99.1, and protoc 3.21.12. It
+retains the resolved [1.85](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13786960624)
+and [1.99](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13785613505)
+lockfiles until February 8, 2027. This one example does not qualify the source
+candidates or other workloads.
 
 ## Release checklist
 
@@ -78,12 +89,12 @@ At `f73b85d`, [clean i686 checks](https://github.com/mingley/pure-protobuf/actio
 failed on Rust 1.85 and 1.99 with default and no-default features because the
 unconditional `graviola` dependency rejected that architecture.
 
-At `cab0e580`, the built-in TLS provider is selected on x86-64 and AArch64.
+At `9acfc0b6`, the built-in TLS provider is selected on x86-64 and AArch64.
 On other architectures, its built-in TLS constructors return `UNIMPLEMENTED`
 after preliminary checks; provider-dependent key, certificate and verifier
 checks do not run. Plaintext and caller-owned rustls configurations remain
 available where the target and chosen provider support them. On that revision,
-the [required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
+the [required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
 passed with Rust 1.85 and stable. They cover plaintext RPC, built-in TLS error
 behavior, and caller-configured mTLS and rejection cases; the ring provider is
 confined to the test application. The earlier

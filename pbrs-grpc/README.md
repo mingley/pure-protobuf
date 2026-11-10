@@ -9,11 +9,16 @@ It supports all four RPC shapes, generated [`pbrs`](../README.md) messages,
 TLS, and optional Prost and Tower integration. The transport uses an embedded
 `h2` backend and Tokio; the default TLS provider is rustls with Graviola.
 
-At `f73b85d`, [i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
-for `pbrs-grpc` failed on Rust 1.85 and 1.99 with default and no-default
-features: the unconditional Graviola dependency rejected `i686-unknown-linux-gnu`.
-Disabling default features did not remove it. The `pbrs` core alloc-only
-profile and i686 tests do not cover the gRPC transport.
+The published `pbrs-grpc` `0.1.0-alpha.2` failed to build for
+`i686-unknown-linux-gnu` with default and no-default features in the
+[published-package check](https://github.com/mingley/pure-protobuf/actions/runs/42864221138).
+On Rust 1.85 and 1.99.1, the resolved Graviola 0.2.1 dependency rejected that
+target. The separate `pbrs` core alloc-only profile and i686 tests do not
+cover the gRPC transport.
+
+At source `9acfc0b6`, the required [i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
+passed plaintext and caller-configured mTLS tests on Rust 1.85 and stable.
+Those checks cover this checkout, not the published alpha.
 
 This checkout selects the built-in TLS provider on x86-64 and AArch64. On
 other architectures, built-in TLS constructors return `UNIMPLEMENTED` once
@@ -132,6 +137,11 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 [build-dependencies]
 pbrs = "0.2"
 ```
+
+A [published-package check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
+built and ran one unary greeter on x86-64 Linux with Rust 1.85.0 and 1.99.1;
+the run retains its resolved lockfiles. This checks the published `pbrs`
+`0.2.0` and `pbrs-grpc` `0.1.0-alpha.2`, not this checkout's candidate.
 
 From `0.1.0-alpha.2` on, `pbrs-grpc` builds from checked descriptor sets
 without `protoc`. The older `0.1.0-alpha.1` archive still needs `protoc` for

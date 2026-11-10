@@ -253,6 +253,9 @@ of **Protocol Buffers Edition 2024**.
 - Architectures other than x86-64 and AArch64 do not have the native gRPC
   built-in TLS provider in this checkout. See the [target and caller-config scope](docs/status.md)
   for i686 checks and caller-owned TLS.
+- Published `pbrs-grpc` `0.1.0-alpha.2` failed to build for i686 Linux
+  with the dependencies in the recorded check; the checkout's i686 support
+  is separate. See the [native crate guide](pbrs-grpc/README.md).
 - Windows CI is **untested**.
 
 ## Performance and stack selection
