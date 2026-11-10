@@ -1810,8 +1810,8 @@ impl super::Channel {
 
     /// Record RPCs as `grpc.binarylog.v1` entries via `logger`.
     ///
-    /// Applies to every call shape. Methods the logger's filter excludes
-    /// cost one branch and log nothing. Credential headers are omitted and
+    /// Applies to every call shape. Methods excluded by the filter emit no
+    /// records. Credential headers are omitted and
     /// sensitive metadata values masked; see
     /// [`BinaryLogger`](crate::binlog::BinaryLogger).
     /// Distinct from [`Self::observer`]: that reports lifecycle events to

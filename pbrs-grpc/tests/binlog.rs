@@ -965,6 +965,508 @@ async fn exclusion_skips_one_method() {
     assert!(!server_sink.records().is_empty());
 }
 
+/// A peer cancellation is a server status, not an app-requested cancellation.
+/// The split variant waits for the client to log the initial response header
+/// before sending trailers, so the two response forms cannot collapse together.
+async fn check_peer_cancelled_log(split: bool, logging: bool) {
+    use std::time::Duration;
+
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let (release, mut released) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let mut conn = h2::server::handshake(socket).await.expect("handshake");
+        let (request, mut respond) = conn
+            .accept()
+            .await
+            .expect("request")
+            .expect("request headers");
+        let mut body = request.into_body();
+        loop {
+            tokio::select! {
+                chunk = body.data() => match chunk {
+                    Some(Ok(_)) => {}
+                    Some(Err(error)) => panic!("request body: {error}"),
+                    None => break,
+                },
+                accepted = conn.accept() => panic!("unexpected second request: {accepted:?}"),
+            }
+        }
+        let mut builder = http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header(http::header::CONTENT_TYPE, "application/grpc");
+        if !split {
+            builder = builder
+                .header("grpc-status", "1")
+                .header("grpc-message", "peer-cancelled");
+        }
+        let response = builder.body(()).expect("response");
+        if split {
+            let mut send = respond.send_response(response, false).expect("headers");
+            tokio::select! {
+                result = &mut released => result.expect("release trailers"),
+                accepted = conn.accept() => panic!("unexpected second request: {accepted:?}"),
+            }
+            let mut trailers = http::HeaderMap::new();
+            trailers.insert("grpc-status", http::HeaderValue::from_static("1"));
+            trailers.insert(
+                "grpc-message",
+                http::HeaderValue::from_static("peer-cancelled"),
+            );
+            send.send_trailers(trailers).expect("trailers");
+        } else {
+            respond
+                .send_response(response, true)
+                .expect("trailers-only");
+        }
+        while let Some(result) = conn.accept().await {
+            result.expect("drive response");
+        }
+    });
+
+    let channel = Channel::connect(addr).await.expect("connect");
+    let channel = if logging {
+        channel.binary_logger(logger)
+    } else {
+        channel
+    };
+    let client = GreeterClient::new(channel);
+    let call = client.say_hello(Request::new(hello_request("peer")));
+    let handle = call.handle();
+    let rpc = tokio::spawn(call);
+    if split {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if events_of(&sink.records()).contains(&EventType::ServerHeader) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("initial headers observed before trailers");
+        release.send(()).expect("release peer");
+    } else {
+        drop(release);
+    }
+    let status = tokio::time::timeout(Duration::from_secs(5), rpc)
+        .await
+        .expect("RPC completed")
+        .expect("join")
+        .expect_err("peer rejected call");
+    assert_eq!(status.code(), Code::Cancelled);
+    assert_eq!(status.message(), "peer-cancelled");
+    // A handle used after the winning result cannot change its provenance.
+    handle.cancel();
+    let records = sink.records();
+    if logging {
+        let events = events_of(&records);
+        assert!(
+            !events.contains(&EventType::Cancel),
+            "client log: {events:?}"
+        );
+        let trailers: Vec<_> = records
+            .iter()
+            .filter(|record| record.entry.event == EventType::ServerTrailer)
+            .collect();
+        assert_eq!(trailers.len(), 1, "client log: {events:?}");
+        match trailers[0].entry.payload.as_ref() {
+            Some(Payload::Trailer(trailer)) => {
+                assert_eq!(trailer.status_code, 1);
+                assert_eq!(trailer.status_message, "peer-cancelled");
+            }
+            other => panic!("expected server trailer, got {other:?}"),
+        }
+    } else {
+        assert!(records.is_empty());
+    }
+    server.abort();
+}
+
+#[tokio::test]
+async fn unary_peer_cancelled_response_does_not_log_cancel() {
+    check_peer_cancelled_log(false, true).await;
+    check_peer_cancelled_log(true, true).await;
+    check_peer_cancelled_log(false, false).await;
+}
+
+#[tokio::test]
+async fn unary_cancel_during_blocked_upload_logs_once() {
+    use std::time::Duration;
+
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let (accepted, accepted_rx) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let mut conn = h2::server::handshake(socket).await.expect("handshake");
+        let (request, _respond) = conn.accept().await.expect("request").expect("headers");
+        accepted.send(()).expect("report headers");
+        let _body = request.into_body();
+        while let Some(Ok(_)) = conn.accept().await {}
+    });
+    let channel = Channel::connect_with(
+        addr,
+        pbrs_grpc::ChannelConfig::new()
+            .connections(1)
+            .max_send_buffer_size(1024),
+    )
+    .await
+    .expect("connect")
+    .byte_budget(256 * 1024)
+    .binary_logger(logger);
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(hello_request(&"x".repeat(128 * 1024)));
+    request.set_timeout(Duration::from_secs(3));
+    let call = client.say_hello(request);
+    let handle = call.handle();
+    let task = tokio::spawn(call);
+    tokio::time::timeout(Duration::from_secs(2), accepted_rx)
+        .await
+        .expect("request headers reached peer")
+        .expect("server accepted request");
+    handle.cancel();
+    let status = tokio::time::timeout(Duration::from_secs(2), task)
+        .await
+        .expect("cancel interrupts upload")
+        .expect("join")
+        .expect_err("cancelled call");
+    assert_eq!(status.code(), Code::Cancelled);
+    let events = events_of(&sink.records());
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| **event == EventType::Cancel)
+            .count(),
+        1,
+        "client log: {events:?}"
+    );
+    server.abort();
+}
+
+static REUSED_LOCAL_CANCEL: std::sync::OnceLock<Status> = std::sync::OnceLock::new();
+#[allow(
+    clippy::disallowed_types,
+    reason = "short test lock never crosses await"
+)]
+static CANCEL_DURING_DECODE: std::sync::Mutex<Option<pbrs_grpc::CallHandle>> =
+    std::sync::Mutex::new(None);
+
+#[derive(Debug)]
+struct ReturnPreviousCancellation;
+
+impl pbrs_grpc::codec::CodecMessage for ReturnPreviousCancellation {
+    fn encoded_len(&self) -> usize {
+        0
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, _out: &mut W) -> Result<(), Status> {
+        Ok(())
+    }
+
+    fn decode_payload(_payload: bytes::Bytes) -> Result<Self, Status> {
+        let handle = CANCEL_DURING_DECODE.lock().expect("handle lock").take();
+        if let Some(handle) = handle {
+            // Cancel races with the response while the codec is being polled.
+            handle.cancel();
+        }
+        Err(REUSED_LOCAL_CANCEL.get().expect("previous status").clone())
+    }
+
+    fn empty() -> Self {
+        Self
+    }
+}
+
+#[tokio::test]
+async fn unary_reused_status_and_cancel_during_decode_have_distinct_logs() {
+    use std::time::Duration;
+
+    let (started, mut started_rx) = tokio::sync::mpsc::unbounded_channel();
+    let blocker_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind blocker");
+    let blocker_addr = blocker_listener.local_addr().expect("address");
+    let blocker = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Blocker { started }))
+            .serve_listener(blocker_listener)
+            .await
+            .ok();
+    });
+    let first_sink = Arc::new(VecSink::new());
+    let first_logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), first_sink);
+    let first = GreeterClient::new(
+        Channel::connect(blocker_addr)
+            .await
+            .expect("connect blocker")
+            .binary_logger(first_logger),
+    );
+    let call = first.say_hello(Request::new(hello_request("blocked")));
+    let handle = call.handle();
+    let task = tokio::spawn(call);
+    tokio::time::timeout(Duration::from_secs(5), started_rx.recv())
+        .await
+        .expect("handler starts")
+        .expect("handler signal");
+    handle.cancel();
+    let previous = tokio::time::timeout(Duration::from_secs(5), task)
+        .await
+        .expect("first call completes")
+        .expect("join")
+        .expect_err("first call is cancelled");
+    assert_eq!(previous.code(), Code::Cancelled);
+    REUSED_LOCAL_CANCEL
+        .set(previous)
+        .expect("set previous status");
+    blocker.abort();
+
+    let echo_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind echo");
+    let echo_addr = echo_listener.local_addr().expect("address");
+    let echo = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .serve_listener(echo_listener)
+            .await
+            .ok();
+    });
+    for cancel_during_decode in [false, true] {
+        let sink = Arc::new(VecSink::new());
+        let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+        let channel = Channel::connect(echo_addr)
+            .await
+            .expect("connect echo")
+            .binary_logger(logger);
+        let call = channel.unary::<HelloRequest, ReturnPreviousCancellation>(
+            "/helloworld.Greeter/SayHello",
+            Request::new(hello_request("echo")),
+        );
+        if cancel_during_decode {
+            *CANCEL_DURING_DECODE.lock().expect("handle lock") = Some(call.handle());
+        }
+        let status = tokio::time::timeout(Duration::from_secs(5), call)
+            .await
+            .expect("second call completes")
+            .expect_err("codec returns previous status");
+        assert_eq!(status.code(), Code::Cancelled);
+        let events = events_of(&sink.records());
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| **event == EventType::Cancel)
+                .count(),
+            usize::from(cancel_during_decode),
+            "only an actual cancel request is logged: {events:?}"
+        );
+        if cancel_during_decode {
+            let header = events
+                .iter()
+                .position(|event| *event == EventType::ClientHeader)
+                .expect("header event");
+            let cancel = events
+                .iter()
+                .position(|event| *event == EventType::Cancel)
+                .expect("cancel event");
+            assert!(header < cancel, "header precedes cancel: {events:?}");
+        }
+    }
+    echo.abort();
+}
+
+#[tokio::test]
+async fn unary_cancel_before_poll_logs_no_header_after_cancel() {
+    let (client, sink, _server_sink, _guard) = logged_pair("*").await;
+    let call = client.say_hello(Request::new(hello_request("cancelled")));
+    call.cancel();
+    let status = call.await.expect_err("cancelled before poll");
+    assert_eq!(status.code(), Code::Cancelled);
+    assert_eq!(events_of(&sink.records()), [EventType::Cancel]);
+}
+
+/// A sink can request cancellation while receiving a header. Its callback
+/// must run outside the cancellation registry lock.
+#[allow(
+    clippy::disallowed_types,
+    reason = "short test lock never crosses await"
+)]
+#[derive(Debug)]
+struct CancelOnHeader {
+    sink: VecSink,
+    handle: std::sync::Mutex<Option<pbrs_grpc::CallHandle>>,
+}
+
+impl Sink for CancelOnHeader {
+    fn emit(&self, record: &LogRecord) {
+        self.sink.emit(record);
+        if record.entry.event == EventType::ClientHeader {
+            let handle = self.handle.lock().expect("handle lock").take();
+            if let Some(handle) = handle {
+                handle.cancel();
+            }
+        }
+    }
+}
+
+#[allow(
+    clippy::disallowed_types,
+    reason = "short test lock never crosses await"
+)]
+#[tokio::test]
+async fn unary_cancel_from_header_sink_follows_header() {
+    use std::time::Duration;
+
+    let sink = Arc::new(CancelOnHeader {
+        sink: VecSink::new(),
+        handle: std::sync::Mutex::new(None),
+    });
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::connect(addr)
+            .await
+            .expect("connect")
+            .binary_logger(logger),
+    );
+    let call = client.say_hello(Request::new(hello_request("cancel")));
+    *sink.handle.lock().expect("handle lock") = Some(call.handle());
+    let status = tokio::time::timeout(Duration::from_secs(5), call)
+        .await
+        .expect("callback did not deadlock")
+        .expect_err("callback cancelled");
+    assert_eq!(status.code(), Code::Cancelled);
+    assert_eq!(
+        events_of(&sink.sink.records()),
+        [EventType::ClientHeader, EventType::Cancel]
+    );
+    server.abort();
+}
+
+#[tokio::test]
+async fn unary_dropped_call_logs_one_cancel() {
+    use std::time::Duration;
+
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let (started, mut started_rx) = tokio::sync::mpsc::unbounded_channel();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Blocker { started }))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::connect(addr)
+            .await
+            .expect("connect")
+            .binary_logger(logger),
+    );
+    let task = tokio::spawn(client.say_hello(Request::new(hello_request("blocked"))));
+    tokio::time::timeout(Duration::from_secs(5), started_rx.recv())
+        .await
+        .expect("handler starts")
+        .expect("handler signal");
+    task.abort();
+    let joined = task.await.expect_err("task aborted");
+    assert!(joined.is_cancelled());
+    let events = events_of(&sink.records());
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| **event == EventType::Cancel)
+            .count(),
+        1,
+        "dropping the active call logs one cancel: {events:?}"
+    );
+    server.abort();
+}
+
+#[tokio::test]
+async fn unpolled_unary_drop_has_no_binary_log() {
+    let (client, sink, _server_sink, _guard) = logged_pair("*").await;
+    let call = client.say_hello(Request::new(hello_request("never-polled")));
+    drop(call);
+    assert!(
+        sink.is_empty(),
+        "a never-polled call does not install a logger"
+    );
+    let next = client.say_hello(Request::new(hello_request("next")));
+    next.cancel();
+    assert_eq!(next.await.expect_err("cancelled").code(), Code::Cancelled);
+    let records = sink.records();
+    assert_eq!(events_of(&records), [EventType::Cancel]);
+    assert_eq!(
+        records[0].entry.call_id, 1,
+        "unpolled calls must not consume call ids"
+    );
+}
+
+#[tokio::test]
+async fn unary_local_rejection_precedes_cancel_logger_registration() {
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = Channel::connect(addr)
+        .await
+        .expect("connect")
+        .binary_logger(logger)
+        .intercept(|_: &mut pbrs_grpc::Outgoing<'_>| {
+            Err(Status::unauthenticated("local rejection"))
+        });
+    let call = channel.unary::<HelloRequest, HelloReply>(
+        "/helloworld.Greeter/SayHello",
+        Request::new(hello_request("rejected")),
+    );
+    call.cancel();
+    let status = call.await.expect_err("local rejection wins");
+    assert_eq!(status.code(), Code::Unauthenticated);
+    assert!(
+        sink.is_empty(),
+        "early rejection precedes logger registration"
+    );
+    server.abort();
+}
+
+#[tokio::test]
+async fn filtered_unary_cancellation_has_no_binary_log() {
+    let (client, sink, _server_sink, _guard) = logged_pair("*,-helloworld.Greeter/SayHello").await;
+    let call = client.say_hello(Request::new(hello_request("filtered")));
+    call.cancel();
+    let status = call.await.expect_err("cancelled");
+    assert_eq!(status.code(), Code::Cancelled);
+    assert!(sink.is_empty(), "excluded method must not emit records");
+}
+
 /// Blocks unary handlers until the test releases them, signalling entry.
 struct Blocker {
     started: tokio::sync::mpsc::UnboundedSender<()>,
@@ -1019,8 +1521,12 @@ async fn cancel_logs_both_sides() {
     assert_eq!(outcome.expect_err("cancelled").code(), Code::Cancelled);
 
     let client_kinds = events_of(&client_sink.records());
-    assert!(
-        client_kinds.contains(&EventType::Cancel),
+    assert_eq!(
+        client_kinds
+            .iter()
+            .filter(|event| **event == EventType::Cancel)
+            .count(),
+        1,
         "client log: {client_kinds:?}"
     );
     // The server notices the reset asynchronously; wait for it.

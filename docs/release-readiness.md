@@ -87,8 +87,10 @@ becoming ready after the coordinator polls can still race a new send. The
 receiver accepts
 redundant leading zeros; the pbrs-grpc server emits canonical decimal values.
 Client binary logs can include uncommitted retry or hedge attempts, omit an
-early rejection trailer, or report a peer `CANCELLED` status as a client
-cancellation. See [service-config](service-config.md) and the
+early rejection trailer, or report a streaming peer's `CANCELLED` status as a
+client cancellation. Unary cancellation logging starts after local validation
+and concurrency admission; a never-polled call or earlier rejection can omit
+the event. See [service-config](service-config.md) and the
 [A6/A16 coverage notes](grfc.md).
 
 Do not claim full A6 hedging or pushback conformance, or A16 binary-log

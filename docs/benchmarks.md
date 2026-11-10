@@ -17,6 +17,10 @@ performance claim.
 | Read | Scope |
 |---|---|
 | [Identity frame staging screen](benchmarks/identity-frame-staging-20261110.md) | Rejected chunk staging, whole-frame timing losses and synthetic backing retention, November 10 |
+| [Unary cancellation on 713](benchmarks/unary-cancel-713-screen-20261110.md) | Matched endpoint and unpolled-call CPU, allocations and controls, November 10 |
+| [Unary filter state and allocations](benchmarks/unary-filter-layout-20261110.md) | Future and cancellation-flag sizes, warmed and retained-call allocations, November 10 |
+| [No-capture unary filter experiment](benchmarks/unary-filter-no-capture-screen-20261110.md) | Unselected early-filter draft: construction, endpoints and controls, November 10 |
+| [Rebased unary cancellation screens](benchmarks/rebased-unary-cancel-screen-20261110.md) | Unrefined 1e-based no-logger and excluded-method endpoint results, November 10 |
 | [Unary filter refinement screen](benchmarks/unary-filter-refinement-screen-20261110.md) | Unmerged early-filter draft, mixed CPU and higher requested bytes, November 10 |
 | [Integrated unary cancellation screen](benchmarks/integrated-unary-cancel-screen-20261109.md) | Unmerged no-logger endpoint draft; mixed CPU results across shared-host screens, November 9 |
 | [Unlogged cancellation screen](benchmarks/unlogged-cancel-screen-20261109.md) | Standalone primitive: two unmerged drafts and signal/lifecycle CPU losses, November 9 |

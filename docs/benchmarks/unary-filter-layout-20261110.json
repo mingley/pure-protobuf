@@ -1,0 +1,3538 @@
+{
+  "schema": "unary-filter-layout-evidence/1",
+  "run": "https://github.com/mingley/pure-protobuf/actions/runs/42734016136",
+  "scratch_commit": "f42f2c3f2dc62bf0c7238fc54be65ce77101b873",
+  "machine": "shared AMD EPYC 9V45, x86-64, pinned logical CPU 0",
+  "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+  "artifact": "https://github.com/mingley/pure-protobuf/actions/runs/42734016136/artifacts/13727105497",
+  "artifact_sha256": "8e969c630cac5fc904dcbd6653a915f473e2c0810fe7499d61a8619c0801085e",
+  "artifact_expires_utc": "2026-11-24T01:23:17Z",
+  "layouts": {
+    "adjusted": {
+      "cancel_inner_bytes": 80,
+      "unary_future_bytes": 5632
+    },
+    "baseline": {
+      "cancel_inner_bytes": 72,
+      "unary_future_bytes": 5632
+    },
+    "captured": {
+      "cancel_inner_bytes": 80,
+      "unary_future_bytes": 5640
+    },
+    "old": {
+      "cancel_inner_bytes": 80,
+      "unary_future_bytes": 5632
+    }
+  },
+  "allocations": {
+    "adjusted": "ecc5c436a9c3c151923cc3ce5b2e81ef27555b43",
+    "baseline": "1e6174f2c6463f29488bcfbd432525e0cd9f94f1",
+    "binary_sha256": {
+      "adjusted": "2573bf9e38ec2371642bd3216870087186c0155356163bdfb338385344343a0e",
+      "baseline": "96151c0ce1006bb2dcbb7636dce04f922322a8df9ca06d039ffae88561782ac2",
+      "captured": "78797cebb835ae5fed31f4838e718168bef3bde6654bb305ef40692df257a9dd",
+      "old": "4b5b9f02390d05b4c6dff710e61e1a46613a7a5ba8559c8eb3938cf5f12149f8"
+    },
+    "captured": "a0ba54970b38d1157fbefaf98613c1d6ad84eb5b",
+    "cpu": 0,
+    "old": "9449f8e8cabd05451edf460a0e30a9a73097ef29",
+    "probe_blob": "316551107b682d361b69416ee7811a04301bea2b",
+    "results": {
+      "enabled.cancel": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9616091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4808591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19230
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9616091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4808591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19230
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9616591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4808602
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19231.956
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612091
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806591
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19222
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9616591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4808841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19231
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9616591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4808841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19231
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 19001,
+                "reallocations": 7500,
+                "requested_bytes": 9612591
+              },
+              "n": {
+                "allocations": 9501,
+                "reallocations": 3750,
+                "requested_bytes": 4806841
+              },
+              "per_added_rpc": {
+                "allocations": 38,
+                "reallocations": 15,
+                "requested_bytes": 19223
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      },
+      "enabled.ok": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8555655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4273673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17127.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8555655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4273673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17127.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8555655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4273673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17127.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8555655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4273673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17127.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551171
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17117.992
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8555655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4273673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17127.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 15002,
+                "reallocations": 10500,
+                "requested_bytes": 8551655
+              },
+              "n": {
+                "allocations": 7500,
+                "reallocations": 5250,
+                "requested_bytes": 4271673
+              },
+              "per_added_rpc": {
+                "allocations": 30.008,
+                "reallocations": 21,
+                "requested_bytes": 17119.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      },
+      "excluded.cancel": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      },
+      "excluded.ok": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      },
+      "none.cancel": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9286168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4643668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18570
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 13001,
+                "reallocations": 0,
+                "requested_bytes": 9282168
+              },
+              "n": {
+                "allocations": 6501,
+                "reallocations": 0,
+                "requested_bytes": 4641668
+              },
+              "per_added_rpc": {
+                "allocations": 26,
+                "reallocations": 0,
+                "requested_bytes": 18562
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      },
+      "none.ok": {
+        "n": 250,
+        "pairs": [
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "adjusted",
+              "captured",
+              "old",
+              "baseline"
+            ]
+          },
+          {
+            "adjusted": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "baseline": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "captured": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7977232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3984500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15970.928
+              }
+            },
+            "old": {
+              "2n": {
+                "allocations": 5502,
+                "reallocations": 0,
+                "requested_bytes": 7973232
+              },
+              "n": {
+                "allocations": 2750,
+                "reallocations": 0,
+                "requested_bytes": 3982500
+              },
+              "per_added_rpc": {
+                "allocations": 11.008,
+                "reallocations": 0,
+                "requested_bytes": 15962.928
+              }
+            },
+            "order": [
+              "baseline",
+              "old",
+              "captured",
+              "adjusted"
+            ]
+          }
+        ]
+      }
+    },
+    "schema": "unary-filter-capability-allocations/1",
+    "scope": "separate counting-allocator binaries; process-wide successful allocation/reallocation requests and requested bytes from both native endpoints over loopback; warmed N/2N differences; enabled uses a no-op sink; excluded checks its sink is empty; not timing or cold-call/peak-memory data"
+  },
+  "cold_construction": {
+    "run": "https://github.com/mingley/pure-protobuf/actions/runs/42736645471",
+    "scratch_commit": "856e069255dc0a1791b1b2aa585c3e1611ce2b00",
+    "machine": "shared AMD EPYC 9V74, x86-64, pinned logical CPU 0",
+    "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+    "artifact": "https://github.com/mingley/pure-protobuf/actions/runs/42736645471/artifacts/13727072695",
+    "artifact_sha256": "b8559936d03559a70c4d131975df094afc4f3f8a0e76d2841c963d46f43254c1",
+    "artifact_expires_utc": "2026-11-24T01:39:09Z",
+    "data": {
+      "adjusted": "ecc5c436a9c3c151923cc3ce5b2e81ef27555b43",
+      "baseline": "1e6174f2c6463f29488bcfbd432525e0cd9f94f1",
+      "binary_sha256": {
+        "adjusted": "0abf2b139f1c500433476281f97fac93895dc11b75e77e486d9c827c9302d8ab",
+        "baseline": "ce546919606dc65c2c187b7bbe6de875506f77d96f431bcd9b38850fe7c39272",
+        "captured": "fb931f9904c69d3fd6796b1358d3a4c28ddff14ae264517c6a0ced1b5a6147dd",
+        "old": "b860c9e214d3b92c7665514ad4fbef2eae25bd4441e0a4229a227a2dbb4cc9f6"
+      },
+      "captured": "a0ba54970b38d1157fbefaf98613c1d6ad84eb5b",
+      "cpu": 0,
+      "old": "9449f8e8cabd05451edf460a0e30a9a73097ef29",
+      "probe_blob": "7e77777297db15e9a23321f9ebae78956c2e9539",
+      "results": {
+        "enabled": {
+          "n": 250,
+          "pairs": [
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            }
+          ]
+        },
+        "excluded": {
+          "n": 250,
+          "pairs": [
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            }
+          ]
+        },
+        "none": {
+          "n": 250,
+          "pairs": [
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "adjusted",
+                "captured",
+                "old",
+                "baseline"
+              ]
+            },
+            {
+              "adjusted": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "baseline": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2859912
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1429912
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5720
+                }
+              },
+              "captured": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2867904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1433904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5736
+                }
+              },
+              "old": {
+                "2n": {
+                  "allocations": 999,
+                  "reallocations": 0,
+                  "requested_bytes": 2863904
+                },
+                "n": {
+                  "allocations": 499,
+                  "reallocations": 0,
+                  "requested_bytes": 1431904
+                },
+                "per_added_call": {
+                  "allocations": 2,
+                  "reallocations": 0,
+                  "requested_bytes": 5728
+                }
+              },
+              "order": [
+                "baseline",
+                "old",
+                "captured",
+                "adjusted"
+              ]
+            }
+          ]
+        }
+      },
+      "schema": "unary-cold-construction-allocations/1",
+      "scope": "separate counting-allocator binaries; 50 construct/drop warmups, then N or 2N unpolled calls are retained simultaneously; vector capacity allocated before counting, counts read before calls are dropped; process-wide successful allocation/reallocation requests, not peak memory or timing; included calls use no-op sink; not a tonic comparison"
+    }
+  }
+}

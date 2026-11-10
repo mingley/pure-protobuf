@@ -69,7 +69,7 @@ impl UnaryFailure {
 /// Run a unary attempt, retaining commitment information for retry decisions.
 #[allow(
     clippy::too_many_arguments,
-    reason = "thin cancel-logging wrapper over run_unary_inner"
+    reason = "thin commitment wrapper over run_unary_inner"
 )]
 pub(crate) async fn run_unary_frame<Resp>(
     send_req: backend::SendRequest,
@@ -90,7 +90,7 @@ pub(crate) async fn run_unary_frame<Resp>(
 where
     Resp: CodecMessage + Send,
 {
-    let outcome = run_unary_inner(
+    run_unary_inner(
         send_req,
         routing,
         path,
@@ -106,13 +106,7 @@ where
         tap,
         policy_dispatch,
     )
-    .await;
-    if let (Some(tap), Err(failure)) = (tap, &outcome) {
-        if failure.status.code() == Code::Cancelled {
-            tap.log_cancel();
-        }
-    }
-    outcome
+    .await
 }
 
 #[allow(
@@ -140,7 +134,9 @@ where
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
-        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+        if let Some(_header) = cancel_rx.begin_unary_header() {
+            tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+        }
     }
     let (mut resp_fut, mut send_stream) = match open(
         send_req,
@@ -423,7 +419,7 @@ impl super::Channel {
     {
         let state = self.local.service_config.get();
         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
-        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
         let cancel_rx = cancel.clone();
         let channel = self.clone();
         let wire = self.wire_for(path, state.as_deref());
@@ -503,6 +499,9 @@ impl super::Channel {
                     .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+                let _cancel_log = tap
+                    .as_ref()
+                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
                 let (retry_policy, hedging_policy) = channel
                     .method_config_for(path)
                     .map(|method| (method.retry_policy, method.hedging_policy))

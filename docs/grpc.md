@@ -152,9 +152,14 @@ to cancellation and deadlines. An initial `grpc-status: 0` does not complete
 an unfinished upload. Non-200 responses remain committed for retry. Binary
 logging may omit the response-trailer event when a peer rejects a call before
 the request upload completes. Retry and hedge logs can also include events from
-uncommitted attempts, contrary to A16's committed-stream rule. A peer
-`CANCELLED` status can be logged as a client cancellation. If headers become
-visible only after a local reset, the client also treats them as committed
+uncommitted attempts, contrary to A16's committed-stream rule. For streaming
+calls, a peer `CANCELLED` status can be logged as a client cancellation. Unary
+logging records cancellation requests after its logger is installed. A
+never-polled call or local rejection before logger setup may have no
+cancellation event. Methods excluded by the logger's filter emit no entries,
+but a configured logger still enables cancellation bookkeeping for those
+methods. A first cancellation can allocate logging state and take extra locks.
+If headers become visible only after a local reset, the client also treats them as committed
 because the reset can hide whether they ended the stream. A trailers-only
 rejection in that narrow race may therefore not be retried.
 
