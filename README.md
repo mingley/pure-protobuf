@@ -240,7 +240,7 @@ of **Protocol Buffers Edition 2024**.
 | Crate | Declared MSRV | CI checks | `protoc` | Stub default |
 |---|---|---|---|---|
 | [`pbrs`](.) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Native kernel (`compile_protos` default) |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, `grpc-i686` 1.85 + stable, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Native kernel (`compile_protos` default) |
 | [`protobuf-tonic`](protobuf-tonic) | 1.88 | `msrv-tonic` 1.88 | Current source builds from the checked FileDescriptorSet. Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
 | [`examples/greeter`](examples/greeter) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
@@ -250,6 +250,9 @@ of **Protocol Buffers Edition 2024**.
 - Protocol Buffers Edition 2024 has descriptor and generated-consumer coverage
   for a [defined subset](docs/edition-2024.md); complete conformance beyond
   Edition 2023 is **not qualified**.
+- Architectures other than x86-64 and AArch64 do not have the native gRPC
+  built-in TLS provider in this checkout. See the [target and caller-config scope](docs/status.md)
+  for i686 checks and caller-owned TLS.
 - Windows CI is **untested**.
 
 ## Performance and stack selection

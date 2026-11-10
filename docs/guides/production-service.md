@@ -8,6 +8,18 @@ the build, a [checked descriptor set](codegen.md#generating-from-a-checked-descr
 can avoid invoking `protoc` during the application build. Choose your own
 credentials and capacity limits for deployment.
 
+**Architecture:** In this checkout, the demos use the built-in TLS provider,
+which is available on x86-64 and AArch64. On other architectures the built-in
+constructors return `UNIMPLEMENTED` after preliminary checks, so the TLS demos
+cannot run as written. Plaintext remains available on targets where the native
+transport builds. For TLS on another target,
+supply an application-owned rustls configuration with a provider that supports
+that target via `ClientTls::from_rustls` and `ServerTls::from_rustls`. Both
+configs must advertise `h2`. Configure server authentication on the client and
+choose whether the server requires client authentication. The [i686 caller fixture](../../pbrs-grpc/tests/portable-caller/README.md)
+tests plaintext and caller-configured mTLS; provider build requirements depend
+on the application.
+
 The executable [greeter TLS service and client](../../examples/greeter/src/production.rs)
 uses generated stubs, `rustls` TLS, health, and a finite drain. Its
 [binary entry point](../../examples/greeter/src/main.rs) runs the service and
@@ -81,7 +93,9 @@ Production trust is separate from this sample:
   reviewed trust policy for that client.
 - Restrict access to private keys.
 - Define issuance, renewal, and connection-restart procedures.
-- Do not expect a live certificate-rotation or secret-provisioning API here.
+- The built-in PEM constructors do not rotate credentials. See
+  [certificate replacement and caller-owned resolvers](operations.md#credential-refresh).
+- Provision secrets separately.
 - Use `ServerTls::key_log_file()` / `ClientTls::key_log_file()` only for local
   packet-decryption diagnostics with `SSLKEYLOGFILE`; key logs expose traffic
   secrets and must not be enabled in production.

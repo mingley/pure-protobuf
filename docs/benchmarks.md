@@ -12,6 +12,23 @@ Historical results retain their dated source and raw captures where available.
 Read the [benchmark contract](benchmark-contract.md) before making a broader
 performance claim.
 
+## Compare pbrs with tonic and Prost
+
+Start with the workload closest to yours. These are measurements of the named
+revisions on shared hosts, not results for every version or workload. The run
+guides show similar tests; each result describes its own exact setup.
+
+| Question | Recorded comparison | Run similar tests |
+|---|---|---|
+| How many allocations does a unary RPC request? | [Query RPC at `41d94325`](benchmarks/devloop-452-to-41d-20261110.md#selected-allocation-cells): native pbrs used more allocations but fewer requested bytes than tonic/Prost. Both endpoints ran in one process. | [Development loop](benchmarks/running.md#development-loop-comparisons) |
+| How much CPU does a unary server use? | [1 KiB unary at `933bf877`](benchmarks/grpc-20261024.md#shipping-build-loss), Linux x86-64: native server CPU was 1.18–1.46× tonic/Prost in four pairs. | [gRPC client and server](benchmarks/running.md#grpc-client-and-server) |
+| How many allocations does the codec request? | [Query and EntityList at `713038c7`](benchmarks/devloop-656-to-713-20261110.md#codec-allocations): pbrs used more for the selected Query operations; EntityList results vary. | [Message codecs](benchmarks/running.md#message-codecs) |
+| How long does generation take? | [Aligned generation at `5fe70efd`](benchmarks/codegen-aligned-20261110.md), AMD EPYC 9V74: pbrs lean used more CPU in every pair for three synthetic schemas. Generated APIs and output sizes differ. | [Code generation](benchmarks/running.md#code-generation-and-consumer-builds) |
+
+Requested allocation bytes are cumulative requests, not peak live memory.
+For broader claims, check the [qualification scoreboard](scoreboard.md) and
+the controls and limitations in each record.
+
 ## Transport, Web and cancellation
 
 | Read | Scope |

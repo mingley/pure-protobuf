@@ -70,23 +70,25 @@ release source.
    release artifacts identify the qualified source. Follow
    [same-tag recovery](RELEASE.md#recovery) after a partial upload.
 
-Native gRPC on `i686-unknown-linux-gnu` is outside the verified support scope.
-At `f73b85d`, [clean checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
-failed on Rust 1.85 and 1.99 with default and no-default features. The
-unconditional `rustls-graviola` dependency pulls in `graviola` 0.2.1, which
-rejects that architecture. Any
-proposal to support this target needs a buildable transport/provider
-configuration and checks on the release source. The core `pbrs` alloc-only
-profile and i686 alloc-cell Miri evidence do not cover the gRPC crate.
+At `f73b85d`, [clean i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
+failed on Rust 1.85 and 1.99 with default and no-default features because the
+unconditional `graviola` dependency rejected that architecture.
 
-The current source selects built-in TLS on x86-64 and AArch64. On other
-architectures its built-in TLS constructors return `UNIMPLEMENTED` once
-preliminary checks succeed; provider-dependent key, certificate and verifier
-checks do not run. Callers can provide their own rustls configs where supported. An
-[i686 prototype check](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
-exercised plaintext and caller-configured mTLS; its ring provider was confined
-to the test application. Repeat the relevant checks on release source before
-claiming support for this target.
+At `cab0e580`, the built-in TLS provider is selected on x86-64 and AArch64.
+On other architectures, its built-in TLS constructors return `UNIMPLEMENTED`
+after preliminary checks; provider-dependent key, certificate and verifier
+checks do not run. Plaintext and caller-owned rustls configurations remain
+available where the target and chosen provider support them. On that revision,
+the [required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
+passed with Rust 1.85 and stable. They cover plaintext RPC, built-in TLS error
+behavior, and caller-configured mTLS and rejection cases; the ring provider is
+confined to the test application. The earlier
+[prototype check](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
+also exercised plaintext and caller-configured mTLS.
+
+These checks do not establish full platform or deployment qualification. The
+core `pbrs` alloc-only profile and i686 alloc-cell Miri evidence do not cover
+the gRPC crate. Required checks must pass again on the final release SHA.
 
 ## Native transport memory
 

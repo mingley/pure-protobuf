@@ -49,11 +49,15 @@ establish gRPC support for other targets.
 The current source selects built-in TLS on x86-64 and AArch64. On other
 architectures, built-in TLS constructors return `UNIMPLEMENTED` once
 preliminary checks succeed; provider-dependent key, certificate and verifier
-checks do not run. Callers can supply their own rustls config. A
-[source-pinned prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
-exercised i686 Linux plaintext and caller-configured mTLS with Rust 1.85 and
-1.99. The caller used ring only in the test application. These checks do not
-qualify a later release source or establish support for other targets.
+checks do not run. Callers can supply their own rustls config. The
+[required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
+passed on `cab0e580` with Rust 1.85 and stable, covering plaintext RPC,
+built-in TLS errors, and caller-configured mTLS and rejection cases. Ring was
+used only in the test application. The
+[earlier prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
+exercised plaintext and caller-configured mTLS with Rust 1.85 and 1.99. These
+checks do not qualify a later release source or establish support for other
+targets.
 
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)

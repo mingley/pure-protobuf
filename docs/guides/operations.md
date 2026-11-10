@@ -2,8 +2,9 @@
 
 Use this guide to add readiness checks, reflection, keepalive, error details,
 and telemetry to a generated service. Start with health and resource limits;
-enable other diagnostics as your deployment needs them. Replace TLS material
-by constructing new server/client objects.
+enable other diagnostics as your deployment needs them. For the built-in
+PEM-based TLS constructors, replace TLS material by constructing new
+server/client objects.
 
 The named Rust recipes below use the generated types and `MyGreeter` from
 the [greeter example](../../examples/greeter/src/lib.rs). The
@@ -330,14 +331,18 @@ credential values into messages.
 <a id="credential-refresh"></a>
 ## 6. Certificate and Trust Replacement
 
-Do not edit PEM files and expect live TLS state to change. There is no live
-certificate or certificate authority (CA) reload on `ServerTls`, `ClientTls`,
-or an existing `Channel`.
+The built-in PEM-based TLS constructors do not watch or reload files. Editing a
+PEM file later does not change the configuration, and a `Channel` created with
+it keeps that configuration across reconnects. An already negotiated TLS
+connection is not reverified. Use the bounded replacement procedure below.
 
-The `rustls` configuration is built from the supplied identity and trust
-material. Editing a PEM file later does not change that configuration. An
-already negotiated TLS connection is not reverified. Use a bounded replacement
-procedure instead:
+Applications using `from_rustls` can supply a custom server certificate
+resolver that changes the certificate selected for future full handshakes.
+Existing connections and resumed sessions have their own state, so the
+application must manage trust and resumption as well. See the
+[caller-config contract](../decisions/caller-rustls-config.md).
+
+For the built-in constructors:
 
 1. Set health to `NOT_SERVING`, let upstream routing observe it, then drain and
    stop the old TLS listener with `serve_tls_with_shutdown`. A readiness update

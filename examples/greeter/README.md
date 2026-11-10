@@ -27,7 +27,9 @@ interceptors, cancellation, and error details.
 
 The [RPC-shape guide](../../docs/guides/rpc-shapes.md) walks through each method.
 The [TLS guide](../../docs/guides/production-service.md) explains how to run the
-certificate fixtures and choose deployment settings.
+certificate fixtures and choose deployment settings. In this checkout, the
+TLS/mTLS demos use the built-in provider and need x86-64 or AArch64; the guide
+also links a caller-owned TLS configuration for other targets.
 
 ## Errors and interceptors
 
