@@ -27,7 +27,9 @@ guides show similar tests; each result describes its own exact setup.
 
 Requested allocation bytes are cumulative requests, not peak live memory.
 For broader claims, check the [qualification scoreboard](scoreboard.md) and
-the controls and limitations in each record.
+the controls and limitations in each record. For smaller component screens,
+see [metadata lookup](benchmarks/metadata-lookup-20261110.md) and
+[trace-context extraction](benchmarks/traceparent-screen-20261110.md).
 
 ## Transport, Web and cancellation
 

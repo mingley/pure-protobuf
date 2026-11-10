@@ -20,16 +20,20 @@ manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
 The [implementation status](status.md) links the recorded CI and Miri checks.
-At `5ff80d57`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)
-packaged all three crates after its exact-source CI passed. An
-[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42795147276)
-verified their manifests, selected source files, CycloneDX SBOM and CI context.
-The run also produced a [five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65745378).
-The [earlier 5fe dry run](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
-and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
-remain available. Signed-tag verification and crates.io authentication were
-skipped; no crates were published. Final release evidence must match the
-release source.
+At `cab0e580`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
+packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42797918218)
+passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438)
+checked their manifests, selected source files, CycloneDX SBOM, dry-run CI
+context and archive digest. The run produced a
+[five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65772679),
+[verified for each subject](https://github.com/mingley/pure-protobuf/actions/runs/42805948814).
+The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42805278973/artifacts/13758351985)
+has ZIP SHA-256 `708df80c12f3339597ad406a170860ce015f69b0bad0b6c104079e1bea2387a6`
+and expires February 8, 2027. Earlier rehearsals at
+[5ff](https://github.com/mingley/pure-protobuf/actions/runs/42794817426) and
+[5fe](https://github.com/mingley/pure-protobuf/actions/runs/42773096505) remain
+available. Signed-tag verification and crates.io authentication were skipped;
+no crates were published. Final release evidence must match the release source.
 
 ## Release checklist
 
@@ -98,18 +102,25 @@ the data is written or freed. Native receive buffers are not charged, and a
 zero charge does not mean the transport has no retained buffers. See
 [resource budgets](resource-budgets.md) for the accounting scope.
 
-A [release-mode resource preview](https://github.com/mingley/pure-protobuf/actions/runs/42771958343)
-on source `5fe70efd` completed 38 cycles in 123.1 seconds (120 requested).
-It used loopback plaintext and TLS, identity and gzip, a maximum of two active
-RPCs, 8 MiB client and server byte budgets and a 2 MiB message limit. The smoke
-validator reported no failures, but `qualified=false` and the 24-hour soak
-was not run. Fault recovery used a warmed separate plaintext connection; TLS
-reset/GOAWAY injection, independent-process attribution, allocator and kernel
-memory accounting, and dedicated-host performance were not covered. The
-[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42771958343/artifacts/13742790578)
-has ZIP SHA-256 `6cdef8c675183b4c9d5b609f0947b3c61cedb37871aeade2d58784e28e0c4899`
-and expires February 8, 2027. This short preview does not establish a memory
-bound or release qualification.
+A [release-mode resource preview](https://github.com/mingley/pure-protobuf/actions/runs/42803320936)
+on source `cab0e580` completed 186 cycles in 601.3 seconds (600 requested).
+The shared-host run covered plaintext and TLS with identity and gzip, a maximum
+of two active RPCs, 8 MiB client and server byte trackers, and a 2 MiB message
+limit. The process had a 1 GiB address-space limit and a limit of 128 file
+descriptors.
+Fault recovery used a separate warmed plaintext connection to the same server.
+
+The smoke validator reported no failures, but `qualified=false` and the
+24-hour soak was not run. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805486784)
+checked the source and archive digest and reran the validator. The
+[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42803320936/artifacts/13758136824)
+has ZIP SHA-256 `b33bfe05fd8cc34f3d1dc08cd880c0036d303d80faa6381effda12fad3966f14`
+and expires February 8, 2027. Independent endpoint attribution, allocator
+high-water, kernel socket memory, TLS reset/GOAWAY injection, dedicated-host
+performance and other release gates were not covered. This preview does not
+establish a memory bound or release qualification. An
+[earlier 120-second preview](https://github.com/mingley/pure-protobuf/actions/runs/42771958343)
+ran on source `5fe70efd`.
 
 A strict aggregate transport-memory bound has not been established for the
 native transport. Before claiming one, define its full scope and account for
