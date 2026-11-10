@@ -131,20 +131,17 @@ impl TextMapPropagator for W3CPropagator {
 /// Parse `traceparent` (+ optional `tracestate`) into a remote span context.
 fn extract_remote(extractor: &dyn Extractor) -> Option<opentelemetry::trace::SpanContext> {
     let header = extractor.get(header::TRACEPARENT)?;
-    let parts: Vec<&str> = header.split('-').collect();
-    let version = *parts.first()?;
+    let mut parts = header.split('-');
+    let version = parts.next()?;
     if version.len() != 2 || !is_hex(version) || version.eq_ignore_ascii_case("ff") {
         return None;
     }
-    if version == "00" && parts.len() != 4 {
+    let trace_hex = parts.next()?;
+    let span_hex = parts.next()?;
+    let flags_hex = parts.next()?;
+    if version == "00" && parts.next().is_some() {
         return None;
     }
-    if parts.len() < 4 {
-        return None;
-    }
-    let trace_hex = parts.get(1)?;
-    let span_hex = parts.get(2)?;
-    let flags_hex = parts.get(3)?;
     if trace_hex.len() != 32 || !is_hex(trace_hex) {
         return None;
     }
@@ -155,7 +152,7 @@ fn extract_remote(extractor: &dyn Extractor) -> Option<opentelemetry::trace::Spa
         if flags_hex.len() != 2 {
             return None;
         }
-        *flags_hex
+        flags_hex
     } else {
         flags_hex.get(0..2)?
     };

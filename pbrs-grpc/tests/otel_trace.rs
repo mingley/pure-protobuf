@@ -459,6 +459,124 @@ fn trace_w3c_vectors() {
     assert_eq!(remote.trace_state().get("BAD KEY"), None);
 }
 
+// Reference for the original parser's acceptance and decoded values. This
+// keeps the streaming implementation compatible even for malformed inputs.
+fn legacy_traceparent(value: &str) -> Option<(TraceId, SpanId, TraceFlags)> {
+    let parts: Vec<&str> = value.split('-').collect();
+    let version = *parts.first()?;
+    let hex = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_hexdigit());
+    if version.len() != 2 || !hex(version) || version.eq_ignore_ascii_case("ff") {
+        return None;
+    }
+    if version == "00" && parts.len() != 4 {
+        return None;
+    }
+    if parts.len() < 4 {
+        return None;
+    }
+    let trace_hex = parts.get(1)?;
+    let span_hex = parts.get(2)?;
+    let flags_hex = parts.get(3)?;
+    if trace_hex.len() != 32 || !hex(trace_hex) {
+        return None;
+    }
+    if span_hex.len() != 16 || !hex(span_hex) {
+        return None;
+    }
+    let flags_field = if version == "00" {
+        if flags_hex.len() != 2 {
+            return None;
+        }
+        *flags_hex
+    } else {
+        flags_hex.get(0..2)?
+    };
+    if !hex(flags_field) {
+        return None;
+    }
+    let trace_id = TraceId::from_hex(trace_hex).ok()?;
+    let span_id = SpanId::from_hex(span_hex).ok()?;
+    if trace_id == TraceId::INVALID || span_id == SpanId::INVALID {
+        return None;
+    }
+    let flags = u8::from_str_radix(flags_field, 16).ok()?;
+    Some((trace_id, span_id, TraceFlags::new(flags)))
+}
+
+struct RawTraceparent<'a>(&'a str);
+
+impl opentelemetry::propagation::Extractor for RawTraceparent<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        (key == "traceparent").then_some(self.0)
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        vec!["traceparent"]
+    }
+}
+
+/// Exercise accepted and rejected fields, delimiters, case, and future versions
+/// against the previous public extraction behavior.
+#[test]
+fn traceparent_extraction_preserves_legacy_input_behavior() {
+    let propagator = W3CPropagator::new();
+    let versions = ["00", "01", "ff", "FF", "0A", "", "000", "é", "a0"];
+    let trace_ids = [
+        "4bf92f3577b34da6a3ce929d0e0e4736",
+        "00000000000000000000000000000000",
+        "4BF92F3577B34DA6A3CE929D0E0E4736",
+        "zzf92f3577b34da6a3ce929d0e0e4736",
+        "é",
+        "",
+    ];
+    let span_ids = [
+        "00f067aa0ba902b7",
+        "0000000000000000",
+        "00F067AA0BA902B7",
+        "x",
+        "",
+    ];
+    let flags = ["00", "01", "ff", "0", "0g", "0100", "é", "-", ""];
+    let extras = ["", "-ignored", "-", "--more", "-a-b-c"];
+    for version in versions {
+        for trace_id in trace_ids {
+            for span_id in span_ids {
+                for flag in flags {
+                    for extra in extras {
+                        let header = format!("{version}-{trace_id}-{span_id}-{flag}{extra}");
+                        let context = propagator.extract(&RawTraceparent(&header));
+                        let actual = context.span().span_context().clone();
+                        match legacy_traceparent(&header) {
+                            Some((trace, span, flags)) => {
+                                assert!(actual.is_valid(), "{header:?}");
+                                assert!(actual.is_remote(), "{header:?}");
+                                assert_eq!(actual.trace_id(), trace, "{header:?}");
+                                assert_eq!(actual.span_id(), span, "{header:?}");
+                                assert_eq!(actual.trace_flags(), flags, "{header:?}");
+                            }
+                            None => assert!(!actual.is_valid(), "{header:?}"),
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn traceparent_repeated_metadata_uses_first_value() {
+    let mut md = Metadata::new();
+    let first = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+    let second = "00-4bf92f3577b34da6a3ce929d0e0e4736-1111111111111111-01";
+    md.insert("traceparent", first).expect("first");
+    md.insert("traceparent", second).expect("second");
+    let context = W3CPropagator::new().extract(&MetadataExtractor(&md));
+    assert_eq!(
+        context.span().span_context().span_id(),
+        SpanId::from_hex("00f067aa0ba902b7").expect("valid")
+    );
+}
+
 /// Inject writes exact W3C bytes and round-trips through extract.
 #[test]
 fn trace_inject_round_trip() {
