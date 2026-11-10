@@ -51,7 +51,8 @@ constructed and dropped in the timed loop.
 
 The configured-logger lifecycle medians improved on this runner, but the
 control ranges are wide. Held construction provides a separate control and
-does not measure drop. A longer construction/drop repeat is tracked separately.
+does not measure drop. The [longer construction/drop repeat](drop-only-construction-repeat-20261110.md)
+used exact 452-to-41d sources.
 
 ## Endpoint repeat
 

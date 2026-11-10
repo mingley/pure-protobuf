@@ -1,0 +1,297 @@
+diff --git a/src/repeated.rs b/src/repeated.rs
+--- a/src/repeated.rs
++++ b/src/repeated.rs
+@@ -10,13 +10,15 @@ use alloc::{boxed::Box, vec::Vec};
+ use core::fmt;
+ use core::ops::{Deref, DerefMut};
+ 
+-/// Empty is an 8-byte null. `Box<Vec<_>>` so unused TAT collections stay off the struct.
+-#[expect(
+-    clippy::box_collection,
+-    reason = "Option<Box<Vec<T>>> is the 8-byte empty TAT layout"
+-)]
++/// Empty is an 8-byte null. A single collected element shares one box.
++#[derive(Clone)]
++pub struct Repeated<T>(Option<Box<RepeatedStorage<T>>>);
++
+ #[derive(Clone)]
+-pub struct Repeated<T>(Option<Box<Vec<T>>>);
++enum RepeatedStorage<T> {
++    One(T),
++    Many(Vec<T>),
++}
+ 
+ impl<T> Default for Repeated<T> {
+     #[inline]
+@@ -64,17 +66,37 @@ impl<T> Repeated<T> {
+         if values.is_empty() {
+             Self(None)
+         } else {
+-            Self(Some(Box::new(values)))
++            Self(Some(Box::new(RepeatedStorage::Many(values))))
+         }
+     }
+ 
+     #[inline]
+     fn ensure(&mut self) -> &mut Vec<T> {
+-        self.0.get_or_insert_with(|| Box::new(Vec::new()))
++        let storage = self
++            .0
++            .get_or_insert_with(|| Box::new(RepeatedStorage::Many(Vec::new())));
++        if matches!(storage.as_ref(), RepeatedStorage::One(_)) {
++            // Allocate before moving the singleton so a capacity panic
++            // leaves the existing element in place.
++            let mut values = Vec::with_capacity(2);
++            let old = core::mem::replace(storage.as_mut(), RepeatedStorage::Many(Vec::new()));
++            if let RepeatedStorage::One(value) = old {
++                values.push(value);
++                *storage.as_mut() = RepeatedStorage::Many(values);
++            }
++        }
++        match storage.as_mut() {
++            RepeatedStorage::Many(values) => values,
++            RepeatedStorage::One(_) => unreachable!("singleton was materialized"),
++        }
+     }
+ 
+     pub fn push(&mut self, value: T) {
+-        self.ensure().push(value);
++        if self.0.is_none() {
++            self.0 = Some(Box::new(RepeatedStorage::One(value)));
++        } else {
++            self.ensure().push(value);
++        }
+     }
+ 
+     pub fn reserve(&mut self, additional: usize) {
+@@ -86,20 +108,28 @@ impl<T> Repeated<T> {
+ 
+     #[inline]
+     pub fn len(&self) -> usize {
+-        self.0.as_ref().map_or(0, |v| v.len())
++        match self.0.as_deref() {
++            None => 0,
++            Some(RepeatedStorage::One(_)) => 1,
++            Some(RepeatedStorage::Many(values)) => values.len(),
++        }
+     }
+ 
+     #[inline]
+     pub fn is_empty(&self) -> bool {
+-        self.0.as_ref().is_none_or(|v| v.is_empty())
++        self.len() == 0
+     }
+ 
+     pub fn get(&self, index: usize) -> Option<&T> {
+-        self.0.as_ref().and_then(|v| v.get(index))
++        self.as_slice().get(index)
+     }
+ 
+     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+-        self.0.as_mut().and_then(|v| v.get_mut(index))
++        match self.0.as_deref_mut() {
++            None => None,
++            Some(RepeatedStorage::One(value)) => (index == 0).then_some(value),
++            Some(RepeatedStorage::Many(values)) => values.get_mut(index),
++        }
+     }
+ 
+     pub fn clear(&mut self) {
+@@ -112,15 +142,31 @@ impl<T> Repeated<T> {
+ 
+     #[inline]
+     pub fn as_slice(&self) -> &[T] {
+-        self.0.as_deref().map_or(&[], |v| v.as_slice())
++        match self.0.as_deref() {
++            None => &[],
++            Some(RepeatedStorage::One(value)) => core::slice::from_ref(value),
++            Some(RepeatedStorage::Many(values)) => values.as_slice(),
++        }
+     }
+ 
+     pub fn as_mut_slice(&mut self) -> &mut [T] {
+-        self.ensure().as_mut_slice()
++        match self.0.as_deref_mut() {
++            None => &mut [],
++            Some(RepeatedStorage::One(value)) => core::slice::from_mut(value),
++            Some(RepeatedStorage::Many(values)) => values.as_mut_slice(),
++        }
+     }
+ 
+     pub fn into_vec(self) -> Vec<T> {
+-        self.0.map(|b| *b).unwrap_or_default()
++        match self.0.map(|storage| *storage) {
++            None => Vec::new(),
++            Some(RepeatedStorage::One(value)) => {
++                let mut values = Vec::with_capacity(1);
++                values.push(value);
++                values
++            }
++            Some(RepeatedStorage::Many(values)) => values,
++        }
+     }
+ }
+ 
+@@ -151,7 +197,21 @@ impl<T> From<Vec<T>> for Repeated<T> {
+ 
+ impl<T> FromIterator<T> for Repeated<T> {
+     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+-        Self::from_vec(iter.into_iter().collect())
++        let mut iter = iter.into_iter();
++        if iter.size_hint().1 == Some(1) {
++            if let Some(first) = iter.next() {
++                if let Some(second) = iter.next() {
++                    let mut values = Vec::with_capacity(2);
++                    values.push(first);
++                    values.push(second);
++                    values.extend(iter);
++                    return Self::from_vec(values);
++                }
++                return Self(Some(Box::new(RepeatedStorage::One(first))));
++            }
++            return Self(None);
++        }
++        Self::from_vec(iter.collect())
+     }
+ }
+ 
+@@ -853,3 +913,139 @@ mod tests {
+         values.set(0, 7);
+     }
+ }
++
++#[cfg(test)]
++mod singleton_storage_tests {
++    use super::Repeated;
++    use std::sync::{
++        Arc,
++        atomic::{AtomicUsize, Ordering},
++    };
++
++    #[test]
++    fn singleton_proxy_mutation_and_owned_vec() {
++        let mut values: Repeated<i32> = [7].into_iter().collect();
++        assert_eq!(values.as_slice(), &[7]);
++        assert_eq!(values.as_view().len(), 1);
++        assert_eq!(values.get(0), Some(&7));
++        *values.get_mut(0).unwrap() = 8;
++        values.as_mut_slice()[0] = 9;
++        {
++            let mut proxy = values.as_mut();
++            assert_eq!(proxy.len(), 1);
++            proxy.push(10);
++            proxy.set(0, 11);
++        }
++        assert_eq!(values.as_slice(), &[11, 10]);
++        assert_eq!(values.into_vec(), vec![11, 10]);
++
++        let mut first = Repeated::new();
++        first.push(1);
++        first.push(2);
++        first.reserve(7);
++        assert_eq!(first.as_slice(), &[1, 2]);
++        first.clear();
++        assert!(first.is_empty());
++    }
++
++    #[test]
++    fn non_clone_elements_drop_once_through_transitions() {
++        struct Value(Arc<AtomicUsize>);
++        impl Drop for Value {
++            fn drop(&mut self) {
++                self.0.fetch_add(1, Ordering::SeqCst);
++            }
++        }
++        let count = Arc::new(AtomicUsize::new(0));
++        let mut values: Repeated<Value> = [Value(count.clone())].into_iter().collect();
++        assert_eq!(values.len(), 1);
++        assert_eq!(values.as_mut().len(), 1);
++        values.push(Value(count.clone()));
++        let owned = values.into_vec();
++        assert_eq!(count.load(Ordering::SeqCst), 0);
++        drop(owned);
++        assert_eq!(count.load(Ordering::SeqCst), 2);
++
++        let values: Repeated<Value> = [Value(count.clone())].into_iter().collect();
++        drop(values.into_vec());
++        assert_eq!(count.load(Ordering::SeqCst), 3);
++    }
++
++    #[test]
++    fn aligned_and_zero_sized_values_keep_layout_and_drops() {
++        #[repr(align(128))]
++        struct Aligned(u8);
++        let mut values: Repeated<Aligned> = [Aligned(3)].into_iter().collect();
++        assert_eq!((values.as_slice().as_ptr() as usize) % 128, 0);
++        assert_eq!(values.as_mut_slice()[0].0, 3);
++        values.push(Aligned(4));
++        assert_eq!((values.as_slice().as_ptr() as usize) % 128, 0);
++        assert_eq!(
++            values.into_vec().iter().map(|v| v.0).collect::<Vec<_>>(),
++            [3, 4]
++        );
++        assert_eq!(
++            core::mem::size_of::<Repeated<Aligned>>(),
++            core::mem::size_of::<usize>()
++        );
++
++        static DROPPED: AtomicUsize = AtomicUsize::new(0);
++        struct Zst;
++        impl Drop for Zst {
++            fn drop(&mut self) {
++                DROPPED.fetch_add(1, Ordering::SeqCst);
++            }
++        }
++        DROPPED.store(0, Ordering::SeqCst);
++        let mut zst: Repeated<Zst> = [Zst].into_iter().collect();
++        zst.push(Zst);
++        drop(zst.into_vec());
++        assert_eq!(DROPPED.load(Ordering::SeqCst), 2);
++    }
++
++    #[test]
++    fn lying_size_hint_still_collects_every_element() {
++        struct Liar(core::ops::Range<i32>);
++        impl Iterator for Liar {
++            type Item = i32;
++            fn next(&mut self) -> Option<Self::Item> {
++                self.0.next()
++            }
++            fn size_hint(&self) -> (usize, Option<usize>) {
++                (0, Some(1))
++            }
++        }
++        let values: Repeated<i32> = Liar(0..3).collect();
++        assert_eq!(values.as_slice(), &[0, 1, 2]);
++    }
++
++    #[test]
++    fn panicking_iterator_drops_the_yielded_value_once() {
++        struct Value(Arc<AtomicUsize>);
++        impl Drop for Value {
++            fn drop(&mut self) {
++                self.0.fetch_add(1, Ordering::SeqCst);
++            }
++        }
++        struct Panics(Option<Value>);
++        impl Iterator for Panics {
++            type Item = Value;
++            fn next(&mut self) -> Option<Value> {
++                if let Some(value) = self.0.take() {
++                    Some(value)
++                } else {
++                    panic!("iterator test panic")
++                }
++            }
++            fn size_hint(&self) -> (usize, Option<usize>) {
++                (0, Some(1))
++            }
++        }
++        let count = Arc::new(AtomicUsize::new(0));
++        let caught = std::panic::catch_unwind(|| {
++            let _: Repeated<Value> = Panics(Some(Value(count.clone()))).collect();
++        });
++        assert!(caught.is_err());
++        assert_eq!(count.load(Ordering::SeqCst), 1);
++    }
++}

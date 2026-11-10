@@ -1,0 +1,17 @@
+diff --git a/src/string.rs b/src/string.rs
+--- a/src/string.rs
++++ b/src/string.rs
+@@ -339,6 +339,12 @@ impl ProtoBytes {
+     pub fn as_shared(&self) -> bytes::Bytes {
+         self.0.clone()
+     }
+ 
++    /// Diagnostic-only direct ownership probe; removed with scratch branch.
++    #[doc(hidden)]
++    pub fn __diagnostic_into_vec_reuse(self) -> Vec<u8> {
++        self.0.into()
++    }
++
+     /// Owned copy of the contents. The escape hatch when a value must not
+     /// retain a shared buffer (PK-09 `detach`).
+     pub fn into_vec(self) -> Vec<u8> {

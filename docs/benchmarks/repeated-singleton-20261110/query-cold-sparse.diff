@@ -1,0 +1,66 @@
+--- baseline/pbrs/sparse.rs
++++ candidate/pbrs/sparse.rs
+@@ -1690,16 +1690,13 @@
+ }
+ ::pbrs::impl_typed_message!(Predicate, PredicateView, PredicateMut, __pbrs_merge_prevalidated);
+ // BEGIN QUERY COLD A/B
++#[derive(::core::default::Default)]
+ #[derive(::core::clone::Clone, ::core::fmt::Debug, ::core::cmp::PartialEq)]
+ struct QueryCold {
+-    children: ::pbrs::Repeated<Query>,
+-    predicates: ::pbrs::Repeated<Predicate>,
+-    subqueries: ::pbrs::Repeated<Query>,
+-    traversals: ::pbrs::Repeated<EdgeTraversal>,
+-}
+-impl ::core::default::Default for QueryCold {
+-    #[inline(always)]
+-    fn default() -> Self { unsafe { ::pbrs::rt::zeroed_message() } }
++    children: ::std::vec::Vec<Query>,
++    predicates: ::std::vec::Vec<Predicate>,
++    subqueries: ::std::vec::Vec<Query>,
++    traversals: ::std::vec::Vec<EdgeTraversal>,
+ }
+ /// The `adoption.Query` protobuf message.
+ #[derive(::core::clone::Clone, ::core::fmt::Debug)]
+@@ -1745,33 +1742,33 @@
+     /// Field `children` (number 2).
+     ///
+     /// Repeated field of `Query`. Empty by default.
+-    pub fn children(&self) -> ::pbrs::RepeatedView<'_, Query> { self.cold.as_ref().map(|c| c.children.as_view()).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
++    pub fn children(&self) -> ::pbrs::RepeatedView<'_, Query> { self.cold.as_ref().map(|c| ::pbrs::RepeatedView::from_slice(c.children.as_slice())).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
+     /// Returns a mutable view of field `children`.
+-    pub fn children_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Query> { self.cached_size.dirty(); self.cold_mut().children.as_mut() }
++    pub fn children_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Query> { self.cached_size.dirty(); ::pbrs::RepeatedMut::from_vec(&mut self.cold_mut().children) }
+     /// Sets the value of `children`.
+     pub fn set_children(&mut self, v: impl ::core::iter::IntoIterator<Item = Query>) { self.cached_size.dirty(); self.cold_mut().children = v.into_iter().collect(); }
+     /// Field `predicates` (number 3).
+     ///
+     /// Repeated field of `Predicate`. Empty by default.
+-    pub fn predicates(&self) -> ::pbrs::RepeatedView<'_, Predicate> { self.cold.as_ref().map(|c| c.predicates.as_view()).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
++    pub fn predicates(&self) -> ::pbrs::RepeatedView<'_, Predicate> { self.cold.as_ref().map(|c| ::pbrs::RepeatedView::from_slice(c.predicates.as_slice())).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
+     /// Returns a mutable view of field `predicates`.
+-    pub fn predicates_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Predicate> { self.cached_size.dirty(); self.cold_mut().predicates.as_mut() }
++    pub fn predicates_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Predicate> { self.cached_size.dirty(); ::pbrs::RepeatedMut::from_vec(&mut self.cold_mut().predicates) }
+     /// Sets the value of `predicates`.
+     pub fn set_predicates(&mut self, v: impl ::core::iter::IntoIterator<Item = Predicate>) { self.cached_size.dirty(); self.cold_mut().predicates = v.into_iter().collect(); }
+     /// Field `subqueries` (number 4).
+     ///
+     /// Repeated field of `Query`. Empty by default.
+-    pub fn subqueries(&self) -> ::pbrs::RepeatedView<'_, Query> { self.cold.as_ref().map(|c| c.subqueries.as_view()).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
++    pub fn subqueries(&self) -> ::pbrs::RepeatedView<'_, Query> { self.cold.as_ref().map(|c| ::pbrs::RepeatedView::from_slice(c.subqueries.as_slice())).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
+     /// Returns a mutable view of field `subqueries`.
+-    pub fn subqueries_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Query> { self.cached_size.dirty(); self.cold_mut().subqueries.as_mut() }
++    pub fn subqueries_mut(&mut self) -> ::pbrs::RepeatedMut<'_, Query> { self.cached_size.dirty(); ::pbrs::RepeatedMut::from_vec(&mut self.cold_mut().subqueries) }
+     /// Sets the value of `subqueries`.
+     pub fn set_subqueries(&mut self, v: impl ::core::iter::IntoIterator<Item = Query>) { self.cached_size.dirty(); self.cold_mut().subqueries = v.into_iter().collect(); }
+     /// Field `traversals` (number 5).
+     ///
+     /// Repeated field of `EdgeTraversal`. Empty by default.
+-    pub fn traversals(&self) -> ::pbrs::RepeatedView<'_, EdgeTraversal> { self.cold.as_ref().map(|c| c.traversals.as_view()).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
++    pub fn traversals(&self) -> ::pbrs::RepeatedView<'_, EdgeTraversal> { self.cold.as_ref().map(|c| ::pbrs::RepeatedView::from_slice(c.traversals.as_slice())).unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[])) }
+     /// Returns a mutable view of field `traversals`.
+-    pub fn traversals_mut(&mut self) -> ::pbrs::RepeatedMut<'_, EdgeTraversal> { self.cached_size.dirty(); self.cold_mut().traversals.as_mut() }
++    pub fn traversals_mut(&mut self) -> ::pbrs::RepeatedMut<'_, EdgeTraversal> { self.cached_size.dirty(); ::pbrs::RepeatedMut::from_vec(&mut self.cold_mut().traversals) }
+     /// Sets the value of `traversals`.
+     pub fn set_traversals(&mut self, v: impl ::core::iter::IntoIterator<Item = EdgeTraversal>) { self.cached_size.dirty(); self.cold_mut().traversals = v.into_iter().collect(); }
+     #[inline(always)] pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {

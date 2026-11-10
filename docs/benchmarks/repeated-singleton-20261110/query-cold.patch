@@ -1,0 +1,75 @@
+diff --git a/src/codegen/messages.rs b/src/codegen/messages.rs
+--- a/src/codegen/messages.rs
++++ b/src/codegen/messages.rs
+@@ -13,7 +13,10 @@ pub(crate) fn emit_fields_struct<'a>(
+     fields: impl Iterator<Item = &'a FieldDescriptor>,
+ ) {
+     let runtime = runtime_crate_path();
+-    let safe_defaults = safe_message_defaults_enabled() || selected_bytes;
++    // Scratch-only: the Query cold struct below contains Vec fields, which
++    // must use their actual Default rather than the zeroed-message path.
++    let safe_defaults =
++        safe_message_defaults_enabled() || selected_bytes || message == "adoption.Query";
+     if safe_defaults {
+         let _ = writeln!(src, "#[derive(::core::default::Default)]");
+     }
+@@ -33,7 +36,17 @@ pub(crate) fn emit_fields_struct<'a>(
+         if field_attributes {
+             emit_field_attributes(src, message, &f.name, "    ");
+         }
+-        let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
++        if message == "adoption.Query"
++            && f.cardinality == Cardinality::Repeated
++            && !f.is_map
++            && !is_packed_scalar(f)
++        {
++            let vec = runtime_path("::std::vec::Vec");
++            let t = scalar_type(f);
++            let _ = writeln!(src, "    {}: {vec}<{t}>,", field_id(f));
++        } else {
++            let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
++        }
+     }
+     let _ = writeln!(src, "}}");
+     if !safe_defaults {
+@@ -797,8 +810,17 @@ pub(crate) fn emit_accessors(
+     if f.cardinality == Cardinality::Repeated {
+         let t = scalar_type(f);
+         let st = cold.store_mut(f);
++        let query_inline = desc.full_name == "adoption.Query"
++            && desc.file_name == "adoption.proto"
++            && cold.stored_cold(f)
++            && !is_packed_scalar(f);
+         emit_field_getter_doc(src, desc, f);
+-        if cold.stored_cold(f) {
++        if query_inline {
++            let _ = writeln!(
++                src,
++                "    pub fn {id}(&self) -> {runtime}::RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| {runtime}::RepeatedView::from_slice(c.{id}.as_slice())).unwrap_or_else(|| {runtime}::RepeatedView::from_slice(&[])) }}"
++            );
++        } else if cold.stored_cold(f) {
+             let _ = writeln!(
+                 src,
+                 "    pub fn {id}(&self) -> {runtime}::RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(|| {runtime}::RepeatedView::from_slice(&[])) }}"
+@@ -810,10 +832,17 @@ pub(crate) fn emit_accessors(
+             );
+         }
+         emit_mut_doc(src, f, false);
+-        let _ = writeln!(
+-            src,
+-            "    pub fn {id}_mut(&mut self) -> {runtime}::RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+-        );
++        if query_inline {
++            let _ = writeln!(
++                src,
++                "    pub fn {id}_mut(&mut self) -> {runtime}::RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {runtime}::RepeatedMut::from_vec(&mut {st}) }}"
++            );
++        } else {
++            let _ = writeln!(
++                src,
++                "    pub fn {id}_mut(&mut self) -> {runtime}::RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
++            );
++        }
+         emit_set_doc(src, desc, f);
+         if is_packed_scalar(f) {
+             let _ = writeln!(

@@ -17,6 +17,7 @@ performance claim.
 | Read | Scope |
 |---|---|
 | [Drop-only cancellation screen](benchmarks/drop-only-cancel-screen-20261110.md) | Unary unpolled-call and endpoint CPU, controls and allocation limits, November 10 |
+| [Drop-only construction repeat](benchmarks/drop-only-construction-repeat-20261110.md) | Matched unpolled lifecycle and held-call CPU with controls, November 10 |
 | [Receive accounting candidates](benchmarks/recv-budget-rpc-screen-20261110.md) | Unmerged candidates: loopback CPU and layout with a non-default frame budget, November 10 |
 | [Small-response reserve, native server](benchmarks/response-reserve-native-server.md) | Unmerged repair: native-server CPU and allocation samples, November 10 |
 | [Small-response reserve, longer follow-up](benchmarks/response-reserve-screen-long.md) | Historical prototype: longer CPU samples and Miri failure, November 10 |
@@ -48,6 +49,8 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Repeated storage screens](benchmarks/repeated-singleton-20261110.md) | Unmerged singleton and Query-only diagnostics: allocation size tradeoffs and shifting CPU controls, November 10 |
+| [Consuming shared byte buffers](benchmarks/bytes-ownership-consume-20261110.md) | Conversion allocations and retained capacity, November 10 |
 | [Inline packed-cache experiment](benchmarks/inline-packed-cache-20261110.md) | Rejected candidates: fresh allocation savings and warm CPU losses, November 10 |
 | [Query field placement](benchmarks/query-field-placement-20261109.md) | Unmerged Query layout, allocation gains, larger objects and mixed CPU, November 9 |
 | [Query and mixed-byte allocations](evidence/query-mixed-allocations-20261109.md) | Component allocation counts, November 9 |
@@ -75,6 +78,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Dev-loop: b245 to 09d8](benchmarks/devloop-b245-to-09d8-20261110.md) | 1,634 common cells, advisory budget overruns and selected allocations, November 10 |
 | [Dev-loop: 656 to 713](benchmarks/devloop-656-to-713-20261110.md) | 1,634 common cells; advisory exit, proxy limits and selected allocations, November 10 |
 | [Dev-loop allocation comparison](benchmarks/devloop-001d-to-1e-20261110.md) | 1,634 common cells; advisory comparison failed and selected allocation results, November 10 |
 | [1,634-cell hosted run](https://github.com/mingley/pure-protobuf/actions/runs/42685722680) | `4a2d8e26`; advisory comparison exited 1 and instruction counts were unavailable, November 9 |
