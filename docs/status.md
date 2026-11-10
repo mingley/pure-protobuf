@@ -5,9 +5,9 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`001d0b8b`](https://github.com/mingley/pure-protobuf/commit/001d0b8bc9e89a098047695c3ba73401ba330ea3), all 12 required
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42712834480)
-and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42712834747)
+At source [`1e6174f2`](https://github.com/mingley/pure-protobuf/commit/1e6174f2c6463f29488bcfbd432525e0cd9f94f1), all 12 required
+[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42720697407)
+and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42720697242)
 passed. The optional fuzz and sanitizer jobs were skipped. All six
 [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42675951169)
 passed at the earlier source `6024ac88`. These checks cover their named source
@@ -74,17 +74,18 @@ See the [parity summary](parity.md) and
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
 check the registry before treating them as published. The
-[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42718098243)
-at `001d0b8b` used that revision's successful CI in dry-run mode, packaged all
+[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42726308637)
+at `1e6174f2` used that revision's successful CI in dry-run mode, packaged all
 three crates, and produced a CycloneDX SBOM and a
-[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65571095).
-Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42718098243/artifacts/13719007800)
-has SHA-256 `5fda6b966238654c4d7ef8bb1a9d497bdede6608932aa5f6935156684e52bff5`
-and expires February 7, 2027. The rehearsal did not authenticate to crates.io
+[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65589785).
+Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42726308637/artifacts/13722132862)
+has SHA-256 `8c9ce25b8d9a5c776c6bc2a8ca448383e5e67e5ec6448e71e46d431088de1be3`
+and expires February 8, 2027. The rehearsal did not authenticate to crates.io
 or upload the crates. An eventual release needs the same checks on its final
 source revision.
 
 Earlier rehearsals are available for
+[001d0b8b](https://github.com/mingley/pure-protobuf/actions/runs/42718098243),
 [4037304c](https://github.com/mingley/pure-protobuf/actions/runs/42705533856),
 [4a2d8e26](https://github.com/mingley/pure-protobuf/actions/runs/42694074846),
 [6024ac88](https://github.com/mingley/pure-protobuf/actions/runs/42682463666),

@@ -16,6 +16,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Integrated unary cancellation screen](benchmarks/integrated-unary-cancel-screen-20261109.md) | Unmerged no-logger endpoint draft; mixed CPU results across shared-host screens, November 9 |
 | [Unlogged cancellation screen](benchmarks/unlogged-cancel-screen-20261109.md) | Standalone primitive: two unmerged drafts and signal/lifecycle CPU losses, November 9 |
 | [gRPC-Web text encoder repeat](benchmarks/web-text-encoder-repeat-20261109.md) | Unmerged variants, allocation gains and aligned CPU losses, November 9 |
 | [Buffered gRPC-Web text encoder holdout](benchmarks/web-text-encoder-buffered-20261109.md) | Unmerged candidate gains and short-fragment losses, November 9 |
