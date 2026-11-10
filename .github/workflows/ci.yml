@@ -56,8 +56,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Check bounded apt setup
+        run: bash scripts/test-ci-install-apt.sh
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - run: protoc --version
       - run: cargo fmt --check
       - name: Validate task dependencies and contributor queue
@@ -191,7 +193,7 @@ jobs:
         with:
           go-version-file: tests/interop/go/go.mod
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - name: Official interop cases, three ways
         run: ./scripts/grpc-interop.sh
       - name: HTTP/2 negative and recovery adapters
@@ -250,8 +252,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cmake and C++ compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++ protobuf-compiler
+          bash scripts/ci-install-apt.sh cmake g++ protobuf-compiler
           cmake --version
           g++ --version
       - name: Cache C++ reference peer binaries
@@ -296,8 +297,7 @@ jobs:
           components: rustfmt
       - name: Install cmake (not protobuf-compiler)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++
+          bash scripts/ci-install-apt.sh cmake g++
           cmake --version
       - name: Cache protobuf pin source
         uses: actions/cache@v4
@@ -335,7 +335,7 @@ jobs:
         with:
           targets: thumbv7em-none-eabi
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - run: cargo test --locked -p pbrs --lib
       - name: Alloc-only runtime at the core MSRV
         run: |
@@ -356,7 +356,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88.0
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - run: cargo test -p protobuf-tonic
       - name: Native tonic adapters without upstream gzip
         run: cargo test --locked -p pbrs-grpc --features tonic --test tonic_opaque_transport
@@ -391,7 +391,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - run: cargo fetch
       - run: cargo test --test package_consumer -- --nocapture
       - name: Validate source-pinned RPC benchmark build modes
@@ -428,7 +428,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
       - name: Hello/WKT copies and stub flavours
         run: |
           set -euo pipefail
