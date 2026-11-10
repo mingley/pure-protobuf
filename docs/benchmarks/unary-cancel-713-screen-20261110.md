@@ -85,5 +85,7 @@ and binary hash. The workflow's
 [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42739333128)
 has ID `13728378449`, SHA-256
 `19380dc9b482d6b4478a252e6cc08efc6ab2f499eefdf88e99f84cef4eb3b97f`,
-and expires on 2026-11-24. Earlier 9449-versus-1e screens are historical
-comparisons of earlier source, not measurements of this runtime.
+and expires on 2026-11-24. [Independent verification](https://github.com/mingley/pure-protobuf/actions/runs/42742912726)
+checked the source, artifact and documentation links. Earlier 9449-versus-1e
+screens are historical comparisons of earlier source, not measurements of this
+runtime.

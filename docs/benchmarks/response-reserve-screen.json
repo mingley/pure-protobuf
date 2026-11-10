@@ -1,0 +1,4255 @@
+{
+  "schema": "pbrs.response-reserve-screen.v1",
+  "source": {
+    "baseline": "713038c7f2d60da41824531a7b81920183c7510b",
+    "prototype": "68618cdcf744a9c9874c58f0ecc1a87bb05a8d5c",
+    "harness_commit": "c09b2d0c2278be207ab6cfa78242b86f40bca139",
+    "run": "https://github.com/mingley/pure-protobuf/actions/runs/42740489589",
+    "extraction_run": "https://github.com/mingley/pure-protobuf/actions/runs/42742394408",
+    "artifact_sha256": "62694eff1411f39fe557c587f344e56b548cf4f69b3ef2fb7df68c3c2e7311c0"
+  },
+  "cpu": [
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0036063637171073,
+        "reserve": 1.01245332244285
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.996312531461897,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 468308538,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1121191040,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131869,
+            "p99_ns": 190999,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 676665622
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 466581665,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1050748087,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130947,
+            "p99_ns": 174198,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 638945913
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9784607899480212,
+        "reserve": 0.9930661123958078
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.989047353713514,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 461762835,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1032778068,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 125968,
+            "p99_ns": 172936,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 635184282
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 456705310,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1067966056,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130616,
+            "p99_ns": 174108,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639441276
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9951397978842937,
+        "reserve": 1.001264798265795
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.014055218995037,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 457699094,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1024245505,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 123793,
+            "p99_ns": 172024,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 630055870
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 464132155,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1061848601,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130997,
+            "p99_ns": 174810,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 638433617
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9884215440491174,
+        "reserve": 1.0096281934068636
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0042205846093568,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 459568799,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1055724989,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130005,
+            "p99_ns": 174498,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 636877224
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 461508448,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1042248480,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129184,
+            "p99_ns": 172515,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 637033222
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0296468689327523,
+        "reserve": 1.0079785084382802
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.016378122515468,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 459913094,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1049737831,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129885,
+            "p99_ns": 173276,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 631792053
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 467445607,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1053828430,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130706,
+            "p99_ns": 173758,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 640195462
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9710259020097143,
+        "reserve": 0.968847193247215
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9912682092890436,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 461396652,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1052961377,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130105,
+            "p99_ns": 175441,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639242421
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 457367833,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1028142304,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 126789,
+            "p99_ns": 171273,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 631486195
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9865166057105211,
+        "reserve": 1.0090940812337335
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9828658482584791,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 465961614,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1069479589,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131157,
+            "p99_ns": 176724,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 646423691
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 457977757,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1046324842,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129904,
+            "p99_ns": 172205,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 635167728
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9870143436175409,
+        "reserve": 1.0107041033577087
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.006244905105756,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 454140928,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1039008282,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 128843,
+            "p99_ns": 172846,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 633428470
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 456976995,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1046134619,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129414,
+            "p99_ns": 171973,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 632196778
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9940124998268625,
+        "reserve": 1.0072422777561498
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.009878336101789,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 459084501,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1015218903,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 120317,
+            "p99_ns": 168267,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 635823199
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 463619492,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1058226812,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131227,
+            "p99_ns": 174178,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 641441595
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0248506289298758,
+        "reserve": 1.0121662226313108
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0002705654763593,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 462971114,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1092254406,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131037,
+            "p99_ns": 223341,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 648867160
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 463096378,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1060856827,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 126949,
+            "p99_ns": 192363,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 645623199
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0444425696619832,
+        "reserve": 1.040006470675206
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9939310780101843,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 325312140,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 255775752,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 466173,
+            "p99_ns": 879438,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 331584778
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 323337846,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 250045341,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 456179,
+            "p99_ns": 912400,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 322730752
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9903200486806812,
+        "reserve": 1.0109488122604036
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0445786327099165,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 320928708,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 245537479,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 451766,
+            "p99_ns": 887367,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 316066306
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 335235271,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 255171733,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 468403,
+            "p99_ns": 902241,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 331371119
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9858439794639295,
+        "reserve": 1.0073825669219674
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0098948006145985,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 327681287,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 253953527,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 461761,
+            "p99_ns": 875251,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 327334149
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 330923628,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249868598,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458805,
+            "p99_ns": 893565,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 321517850
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9906367418891977,
+        "reserve": 1.0206054302115857
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0028845120495795,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 331120475,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 250835273,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 456851,
+            "p99_ns": 903693,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 320968180
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 332075596,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 251031936,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 459746,
+            "p99_ns": 884678,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 328989957
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0317788687986766,
+        "reserve": 1.0163892093628062
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.976578508522634,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 326908387,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 254916266,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 466865,
+            "p99_ns": 900938,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 328186609
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 319251705,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 245436701,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 450620,
+            "p99_ns": 900092,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 314658339
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9776432358685203,
+        "reserve": 1.012952390554274
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9991667499753032,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 327917182,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249758844,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 459115,
+            "p99_ns": 902686,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 323368576
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 327643945,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 250652287,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 459066,
+            "p99_ns": 900306,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 322557070
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0050017297197296,
+        "reserve": 0.9783443600494713
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0183615632451795,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 331482615,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 247709871,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 450849,
+            "p99_ns": 921891,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 319877382
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 337569154,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 257655438,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 472080,
+            "p99_ns": 932643,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 331976549
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9919642520063,
+        "reserve": 0.9915603927213137
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.00776156005076,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 332570512,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 248570873,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458516,
+            "p99_ns": 862465,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 323534687
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 335151778,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 252927937,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 462131,
+            "p99_ns": 867383,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 329533115
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0136673123685156,
+        "reserve": 0.9716503151115785
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.978891295139555,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 326214282,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 254282190,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 466500,
+            "p99_ns": 872612,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 331100403
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 319328321,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 242429088,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 446622,
+            "p99_ns": 858090,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 315494112
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0073907748880653,
+        "reserve": 1.0108360519463773
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0026757549442231,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 325451328,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 244928277,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 451922,
+            "p99_ns": 876602,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 318268838
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 326322156,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 247285221,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 451040,
+            "p99_ns": 887994,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 319245770
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.982385390421078,
+        "reserve": 1.0141305973663663
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9776306511207631,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 237908847,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 165812950,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1214599,
+            "p99_ns": 2878425,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 217279693
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 232586981,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 154612689,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1149597,
+            "p99_ns": 2787885,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 210949857
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0126967467231593,
+        "reserve": 0.9617842262215975
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0050384360312372,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 235109862,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 155341583,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1164495,
+            "p99_ns": 2652320,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 205005137
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 236294448,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160343120,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1180405,
+            "p99_ns": 3073182,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 216672225
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.011864650528984,
+        "reserve": 1.0104993616681586
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9853676122220288,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 237369461,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 157828742,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1174404,
+            "p99_ns": 2978985,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 217780381
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 233896179,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 153263927,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1155548,
+            "p99_ns": 2347575,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 204714539
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9708031361905137,
+        "reserve": 1.0076555764532151
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9821240807139522,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 239799136,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160821992,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1186085,
+            "p99_ns": 2716470,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212813083
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 235512506,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 162043936,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1158504,
+            "p99_ns": 3668634,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212305679
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0100411996296472,
+        "reserve": 1.0439806940694305
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0052140095554059,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 240883333,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160443018,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1186927,
+            "p99_ns": 3245932,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 213615038
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 242139301,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 162226149,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1206504,
+            "p99_ns": 2854210,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 215487092
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0081152422937856,
+        "reserve": 0.9558659984481177
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9786599879536219,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 237395836,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 165522913,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1204771,
+            "p99_ns": 3319662,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 218481973
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 232329806,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156073438,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1170616,
+            "p99_ns": 2941158,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 206941230
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9878112370499382,
+        "reserve": 0.9804635194106822
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0397195338506369,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 239876934,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160432201,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1186356,
+            "p99_ns": 3091026,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 214079969
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 249404734,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 165874870,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1213018,
+            "p99_ns": 3110694,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 222693922
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0350422525521068,
+        "reserve": 0.9984627840707175
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9709837528990117,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 237430050,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156774153,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1197547,
+            "p99_ns": 2729946,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 207676016
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 230540721,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 154876745,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1154728,
+            "p99_ns": 2670143,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 205243183
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0011241258432035,
+        "reserve": 1.0237520142393304
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.007950267789063,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 235731808,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158227946,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1167861,
+            "p99_ns": 3172386,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 207709563
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 237605939,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158023978,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1155608,
+            "p99_ns": 2897902,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 209012082
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9859465501686859,
+        "reserve": 0.993428120228544
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9677332733071753,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 244995412,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 169049841,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1204660,
+            "p99_ns": 3350275,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 227158545
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 237090212,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156858843,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1160597,
+            "p99_ns": 2696874,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 209861972
+        }
+      },
+      "setting": "default"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0091009115650411,
+        "reserve": 0.9996774709538822
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9744504361954235,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 461381732,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1064214384,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130366,
+            "p99_ns": 188335,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 641172114
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 449593630,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1051896176,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 128932,
+            "p99_ns": 181141,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 636862930
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9918133089326984,
+        "reserve": 0.9886218198629658
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0360416697935289,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 447266819,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1036525554,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 124244,
+            "p99_ns": 179609,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 640893156
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 463387062,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1051020682,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 127129,
+            "p99_ns": 184898,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 637093112
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9906344544198328,
+        "reserve": 0.9849295056539316
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0235139366279375,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 454415446,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1042942721,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 128842,
+            "p99_ns": 175541,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 637771955
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 465100542,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1061910749,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130827,
+            "p99_ns": 180901,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 647147816
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9982453010763406,
+        "reserve": 0.9932082563985969
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0080274336014858,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 458693548,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1056627020,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129915,
+            "p99_ns": 190490,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639461353
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 462375680,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1072477363,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131437,
+            "p99_ns": 187293,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 655326002
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9777745390666294,
+        "reserve": 0.9907760866744503
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0201441882835773,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 453278577,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1064086502,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129434,
+            "p99_ns": 190188,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639584198
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 462409506,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1065059449,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 131137,
+            "p99_ns": 180501,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 644435144
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0055528004543441,
+        "reserve": 1.0059842400468701
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.020827657156189,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 459636671,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1057379434,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 126939,
+            "p99_ns": 186983,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 641138130
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 469209826,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1088756703,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 132760,
+            "p99_ns": 186231,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 643293243
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 0.9850382090630647,
+        "reserve": 1.0015524943571799
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0018502688558453,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 456037509,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1043975625,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 128893,
+            "p99_ns": 176342,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 634879855
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 456881301,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1034856254,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 123893,
+            "p99_ns": 173457,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 635912845
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0031521977595643,
+        "reserve": 0.9903661881177974
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9965015830333854,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 453894723,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1054604603,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129374,
+            "p99_ns": 183025,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 642194357
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 452306810,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1037977775,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 127030,
+            "p99_ns": 181953,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 632369451
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0039228692704174,
+        "reserve": 1.0138048968453974
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0084270007958458,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 452890547,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1049659672,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129173,
+            "p99_ns": 182083,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639469061
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 456707056,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1061081719,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 129914,
+            "p99_ns": 177104,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 639110156
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 1,
+      "controls": {
+        "orig": 1.0044132139592166,
+        "reserve": 0.9700208277613197
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9994033578200795,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 457294186,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1053127527,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 128281,
+            "p99_ns": 184889,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 634591114
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 457021345,
+            "concurrency": 1,
+            "count": 8000,
+            "elapsed_ns": 1067800775,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 130115,
+            "p99_ns": 192182,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 641755082
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9906795693953997,
+        "reserve": 1.0807703963153517
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0038067858343087,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 325202429,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 247252272,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 450335,
+            "p99_ns": 899701,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 320603308
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 326440405,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 247720704,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 449958,
+            "p99_ns": 985573,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 312606975
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0356714306598547,
+        "reserve": 0.9903103595115222
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9904538264506774,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 329847764,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249180630,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 455929,
+            "p99_ns": 902706,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 326041155
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 326698980,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 248107098,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 453315,
+            "p99_ns": 875975,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 319638701
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.962479615085871,
+        "reserve": 1.0165882269506399
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9995109589196003,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 330908806,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 251572714,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458440,
+            "p99_ns": 900311,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 323531184
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 330746978,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 248530496,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 452433,
+            "p99_ns": 897181,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 324200076
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 1.0155069978893896,
+        "reserve": 1.0011002293283053
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.001539447943119,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 330146922,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249558281,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 457633,
+            "p99_ns": 881487,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 324468806
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 330655166,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 248979131,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458179,
+            "p99_ns": 893173,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 322773315
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9814297301319346,
+        "reserve": 1.0281527969444628
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9872690611099874,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 331056573,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 244949005,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 451639,
+            "p99_ns": 875760,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 311733665
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 326841912,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 247159223,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 454046,
+            "p99_ns": 886070,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 315844857
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.987874874955,
+        "reserve": 0.9900482109151422
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0096159354944012,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 324847957,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 245279558,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 447343,
+            "p99_ns": 868737,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 319184205
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 327971674,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249368019,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 461941,
+            "p99_ns": 882633,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 324714803
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9861923196428992,
+        "reserve": 0.979435720180918
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0217888643954887,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 326094645,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 246811486,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 455709,
+            "p99_ns": 881752,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 318240390
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 333199877,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 256158843,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 470497,
+            "p99_ns": 889197,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 330622288
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9965433751246856,
+        "reserve": 0.9945363976106925
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9989866434007973,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 329563157,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249700209,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 457984,
+            "p99_ns": 861765,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 326111573
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 329229192,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 251469913,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 461499,
+            "p99_ns": 904675,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 323315663
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9901903859290512,
+        "reserve": 0.9794642311504351
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.012397270306208,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 326222378,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 249843278,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458184,
+            "p99_ns": 912630,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 318916140
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 330266645,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 252315359,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 465438,
+            "p99_ns": 869499,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 327289330
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 16,
+      "controls": {
+        "orig": 0.9900670261301903,
+        "reserve": 0.9934550391544867
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0018218589462038,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 333159711,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 250304437,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 458662,
+            "p99_ns": 910459,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 322817283
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 333766681,
+            "concurrency": 16,
+            "count": 8000,
+            "elapsed_ns": 252281484,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 462812,
+            "p99_ns": 877294,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 324532848
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0263759899667597,
+        "reserve": 0.9846421573314892
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9849085286740534,
+      "round": 0,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 232223812,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 154146519,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1172266,
+            "p99_ns": 2559496,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 208755972
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 228719213,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156327576,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1154175,
+            "p99_ns": 2976741,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 207980940
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.0376782890243164,
+        "reserve": 0.958633027170123
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9462849980344015,
+      "round": 1,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 244935577,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158358820,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1189943,
+            "p99_ns": 2822471,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 211772237
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 231778862,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160591024,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1172895,
+            "p99_ns": 3213444,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 214877192
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9862752528936001,
+        "reserve": 0.9896957805737006
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.957213787989161,
+      "round": 2,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 240300450,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 161486566,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1184719,
+            "p99_ns": 2919945,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 210229217
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 230018904,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 155464820,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1157943,
+            "p99_ns": 2724011,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 210919675
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9739281297222122,
+        "reserve": 0.9855230673028222
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.012769319458444,
+      "round": 3,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 237765451,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158626583,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1177911,
+            "p99_ns": 2768142,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 213706323
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 240801554,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160401208,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1184919,
+            "p99_ns": 2916458,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212699671
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 1.030952476872683,
+        "reserve": 1.004808375502519
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.989607092259532,
+      "round": 4,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 240585894,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158913574,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1205518,
+            "p99_ns": 2538344,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212902027
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 238085507,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 165532600,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1189908,
+            "p99_ns": 2997641,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 219228613
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.975206382255887,
+        "reserve": 0.9693190093540602
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0019745490220697,
+      "round": 5,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 240759786,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160805100,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1200487,
+            "p99_ns": 2815273,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212711418
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 241235178,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 163334422,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1190480,
+            "p99_ns": 3286499,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 220107935
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9936670298420637,
+        "reserve": 1.0393561887658331
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 1.0218071998773364,
+      "round": 6,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 235173201,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158066253,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1179964,
+            "p99_ns": 2896850,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 215399368
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 240301670,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156984904,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1167697,
+            "p99_ns": 2734925,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 209916966
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9004364385185434,
+        "reserve": 1.00164417853745
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 1.0071596413735941,
+      "round": 7,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 241628164,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 160120209,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1196876,
+            "p99_ns": 2841947,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 211343859
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 243358135,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 163611605,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1185460,
+            "p99_ns": 3183590,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 219090721
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.940880053528976,
+        "reserve": 0.9814553507297848
+      },
+      "order": [
+        "orig",
+        "reserve"
+      ],
+      "ratio": 0.9712042212383951,
+      "round": 8,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 242546453,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 156507901,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1179073,
+            "p99_ns": 2608898,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 211746269
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 235562139,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 158364419,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1208548,
+            "p99_ns": 2712723,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 213404490
+        }
+      },
+      "setting": "explicit"
+    },
+    {
+      "concurrency": 64,
+      "controls": {
+        "orig": 0.9920253084393643,
+        "reserve": 0.9978474339555649
+      },
+      "order": [
+        "reserve",
+        "orig"
+      ],
+      "ratio": 0.9498968738207151,
+      "round": 9,
+      "samples": {
+        "orig": {
+          "client": {
+            "client_cpu_ns": 246237669,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 162182496,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1223837,
+            "p99_ns": 2753090,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 212933041
+        },
+        "reserve": {
+          "client": {
+            "client_cpu_ns": 233900392,
+            "concurrency": 64,
+            "count": 8000,
+            "elapsed_ns": 154728336,
+            "hedges": 0,
+            "mode": "unhedged",
+            "p50_ns": 1173211,
+            "p99_ns": 2356613,
+            "warmup": 64
+          },
+          "peer": {
+            "cancelled": 0,
+            "mode": "unhedged",
+            "pending": 0,
+            "responses": 8064,
+            "streams": 8064
+          },
+          "peer_cpu_ns": 199386371
+        }
+      },
+      "setting": "explicit"
+    }
+  ],
+  "allocation": [
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.646484375,
+        "reallocation_calls": 0.001953125,
+        "requested_bytes": 8411.9375
+      },
+      "large": {
+        "allocation_calls": 21108,
+        "client_cpu_ns": 41700454,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27944120,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 413557,
+        "p99_ns": 725227,
+        "reallocation_calls": 42,
+        "requested_bytes": 8532156,
+        "warmup": 64
+      },
+      "round": 0,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10537,
+        "client_cpu_ns": 22976908,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 15703511,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 406506,
+        "p99_ns": 1503123,
+        "reallocation_calls": 41,
+        "requested_bytes": 4225244,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.533203125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8176.546875
+      },
+      "large": {
+        "allocation_calls": 21062,
+        "client_cpu_ns": 37884452,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27245345,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 397188,
+        "p99_ns": 694086,
+        "reallocation_calls": 42,
+        "requested_bytes": 8464698,
+        "warmup": 64
+      },
+      "round": 0,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10549,
+        "client_cpu_ns": 21485439,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14405211,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 405151,
+        "p99_ns": 841696,
+        "reallocation_calls": 42,
+        "requested_bytes": 4278306,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.4140625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8227.08203125
+      },
+      "large": {
+        "allocation_calls": 21029,
+        "client_cpu_ns": 47575065,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 26965327,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 399644,
+        "p99_ns": 671568,
+        "reallocation_calls": 42,
+        "requested_bytes": 8481536,
+        "warmup": 64
+      },
+      "round": 1,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10577,
+        "client_cpu_ns": 23742072,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14545987,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 416716,
+        "p99_ns": 717896,
+        "reallocation_calls": 42,
+        "requested_bytes": 4269270,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.59765625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8357.50390625
+      },
+      "large": {
+        "allocation_calls": 21098,
+        "client_cpu_ns": 45458772,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27674268,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 405404,
+        "p99_ns": 714564,
+        "reallocation_calls": 42,
+        "requested_bytes": 8553928,
+        "warmup": 64
+      },
+      "round": 1,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10552,
+        "client_cpu_ns": 23337160,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14221374,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 400322,
+        "p99_ns": 732330,
+        "reallocation_calls": 42,
+        "requested_bytes": 4274886,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.57421875,
+        "reallocation_calls": 0,
+        "requested_bytes": 8245.48828125
+      },
+      "large": {
+        "allocation_calls": 21101,
+        "client_cpu_ns": 46409998,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 30763764,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 413350,
+        "p99_ns": 1982136,
+        "reallocation_calls": 42,
+        "requested_bytes": 8504362,
+        "warmup": 64
+      },
+      "round": 2,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10567,
+        "client_cpu_ns": 23007348,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14206857,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 405243,
+        "p99_ns": 687699,
+        "reallocation_calls": 42,
+        "requested_bytes": 4282672,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.3515625,
+        "reallocation_calls": 0.001953125,
+        "requested_bytes": 8190.046875
+      },
+      "large": {
+        "allocation_calls": 21051,
+        "client_cpu_ns": 43750730,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27632114,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 400768,
+        "p99_ns": 732398,
+        "reallocation_calls": 42,
+        "requested_bytes": 8493992,
+        "warmup": 64
+      },
+      "round": 2,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10631,
+        "client_cpu_ns": 22099632,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 13924565,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 394470,
+        "p99_ns": 675355,
+        "reallocation_calls": 41,
+        "requested_bytes": 4300688,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.42578125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8306.38671875
+      },
+      "large": {
+        "allocation_calls": 21079,
+        "client_cpu_ns": 43756663,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27899595,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 406947,
+        "p99_ns": 720735,
+        "reallocation_calls": 42,
+        "requested_bytes": 8499822,
+        "warmup": 64
+      },
+      "round": 3,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10621,
+        "client_cpu_ns": 21831939,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 18079529,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 452503,
+        "p99_ns": 2549937,
+        "reallocation_calls": 42,
+        "requested_bytes": 4246952,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.451171875,
+        "reallocation_calls": 0,
+        "requested_bytes": 8309.41796875
+      },
+      "large": {
+        "allocation_calls": 21030,
+        "client_cpu_ns": 43063970,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27462653,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 403584,
+        "p99_ns": 705650,
+        "reallocation_calls": 42,
+        "requested_bytes": 8504374,
+        "warmup": 64
+      },
+      "round": 3,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10559,
+        "client_cpu_ns": 21992247,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14083412,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 411252,
+        "p99_ns": 727832,
+        "reallocation_calls": 42,
+        "requested_bytes": 4249952,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.59765625,
+        "reallocation_calls": 0.001953125,
+        "requested_bytes": 8371.43359375
+      },
+      "large": {
+        "allocation_calls": 21089,
+        "client_cpu_ns": 41555026,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 26691180,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 385597,
+        "p99_ns": 727915,
+        "reallocation_calls": 42,
+        "requested_bytes": 8530074,
+        "warmup": 64
+      },
+      "round": 4,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10543,
+        "client_cpu_ns": 23041436,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14109694,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 410416,
+        "p99_ns": 719349,
+        "reallocation_calls": 41,
+        "requested_bytes": 4243900,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.45703125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8303.13671875
+      },
+      "large": {
+        "allocation_calls": 21055,
+        "client_cpu_ns": 44878219,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 28193470,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 408580,
+        "p99_ns": 723804,
+        "reallocation_calls": 42,
+        "requested_bytes": 8528492,
+        "warmup": 64
+      },
+      "round": 4,
+      "setting": "default",
+      "small": {
+        "allocation_calls": 10581,
+        "client_cpu_ns": 21782026,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14522142,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 415123,
+        "p99_ns": 755143,
+        "reallocation_calls": 42,
+        "requested_bytes": 4277286,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.3203125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8235.2265625
+      },
+      "large": {
+        "allocation_calls": 20985,
+        "client_cpu_ns": 41832800,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 28528298,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 414552,
+        "p99_ns": 771186,
+        "reallocation_calls": 42,
+        "requested_bytes": 8475798,
+        "warmup": 64
+      },
+      "round": 0,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10581,
+        "client_cpu_ns": 22080528,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 15249012,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 441562,
+        "p99_ns": 873324,
+        "reallocation_calls": 42,
+        "requested_bytes": 4259362,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.431640625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8275.9140625
+      },
+      "large": {
+        "allocation_calls": 21056,
+        "client_cpu_ns": 44839634,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 29252489,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 417644,
+        "p99_ns": 1099983,
+        "reallocation_calls": 42,
+        "requested_bytes": 8510182,
+        "warmup": 64
+      },
+      "round": 0,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10595,
+        "client_cpu_ns": 23081928,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14647919,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 398621,
+        "p99_ns": 738532,
+        "reallocation_calls": 42,
+        "requested_bytes": 4272914,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.439453125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8119.87890625
+      },
+      "large": {
+        "allocation_calls": 21009,
+        "client_cpu_ns": 42516608,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 37630058,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 496168,
+        "p99_ns": 2939350,
+        "reallocation_calls": 42,
+        "requested_bytes": 8403378,
+        "warmup": 64
+      },
+      "round": 1,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10544,
+        "client_cpu_ns": 20867943,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14191516,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 403410,
+        "p99_ns": 882997,
+        "reallocation_calls": 42,
+        "requested_bytes": 4246000,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.40625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8217.640625
+      },
+      "large": {
+        "allocation_calls": 21074,
+        "client_cpu_ns": 42539497,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27456561,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 400873,
+        "p99_ns": 689941,
+        "reallocation_calls": 42,
+        "requested_bytes": 8497920,
+        "warmup": 64
+      },
+      "round": 1,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10626,
+        "client_cpu_ns": 23742705,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14827064,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 420323,
+        "p99_ns": 765132,
+        "reallocation_calls": 42,
+        "requested_bytes": 4290488,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.671875,
+        "reallocation_calls": 0,
+        "requested_bytes": 8361.64453125
+      },
+      "large": {
+        "allocation_calls": 21093,
+        "client_cpu_ns": 45213186,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 28082989,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 402060,
+        "p99_ns": 738172,
+        "reallocation_calls": 42,
+        "requested_bytes": 8526764,
+        "warmup": 64
+      },
+      "round": 2,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10509,
+        "client_cpu_ns": 21736402,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14073296,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 409973,
+        "p99_ns": 664775,
+        "reallocation_calls": 42,
+        "requested_bytes": 4245602,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.517578125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8083.328125
+      },
+      "large": {
+        "allocation_calls": 21056,
+        "client_cpu_ns": 44582915,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 41980356,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 615661,
+        "p99_ns": 1483156,
+        "reallocation_calls": 42,
+        "requested_bytes": 8408248,
+        "warmup": 64
+      },
+      "round": 2,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10551,
+        "client_cpu_ns": 22165697,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14157375,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 406068,
+        "p99_ns": 790878,
+        "reallocation_calls": 42,
+        "requested_bytes": 4269584,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.455078125,
+        "reallocation_calls": 0,
+        "requested_bytes": 8190.3671875
+      },
+      "large": {
+        "allocation_calls": 21108,
+        "client_cpu_ns": 43486223,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 28470579,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 410293,
+        "p99_ns": 772318,
+        "reallocation_calls": 42,
+        "requested_bytes": 8499744,
+        "warmup": 64
+      },
+      "round": 3,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10635,
+        "client_cpu_ns": 23292336,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14419679,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 417266,
+        "p99_ns": 746367,
+        "reallocation_calls": 42,
+        "requested_bytes": 4306276,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.390625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8313.73046875
+      },
+      "large": {
+        "allocation_calls": 21009,
+        "client_cpu_ns": 42495465,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27718654,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 400294,
+        "p99_ns": 692134,
+        "reallocation_calls": 42,
+        "requested_bytes": 8508400,
+        "warmup": 64
+      },
+      "round": 3,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10569,
+        "client_cpu_ns": 21883250,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 13920708,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 404515,
+        "p99_ns": 674334,
+        "reallocation_calls": 42,
+        "requested_bytes": 4251770,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.541015625,
+        "reallocation_calls": 0,
+        "requested_bytes": 8370.5859375
+      },
+      "large": {
+        "allocation_calls": 21078,
+        "client_cpu_ns": 44956157,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 28094225,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 411222,
+        "p99_ns": 748558,
+        "reallocation_calls": 42,
+        "requested_bytes": 8535308,
+        "warmup": 64
+      },
+      "round": 4,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10561,
+        "client_cpu_ns": 22183253,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 14036185,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 402759,
+        "p99_ns": 888104,
+        "reallocation_calls": 42,
+        "requested_bytes": 4249568,
+        "warmup": 64
+      },
+      "variant": "orig"
+    },
+    {
+      "delta_per_rpc": {
+        "allocation_calls": 20.521484375,
+        "reallocation_calls": 0,
+        "requested_bytes": 8312.6796875
+      },
+      "large": {
+        "allocation_calls": 21047,
+        "client_cpu_ns": 42064723,
+        "concurrency": 16,
+        "count": 1024,
+        "elapsed_ns": 27393670,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 401938,
+        "p99_ns": 722970,
+        "reallocation_calls": 42,
+        "requested_bytes": 8500990,
+        "warmup": 64
+      },
+      "round": 4,
+      "setting": "explicit",
+      "small": {
+        "allocation_calls": 10540,
+        "client_cpu_ns": 22191846,
+        "concurrency": 16,
+        "count": 512,
+        "elapsed_ns": 15663279,
+        "hedges": 0,
+        "mode": "unhedged",
+        "p50_ns": 435501,
+        "p99_ns": 1152623,
+        "reallocation_calls": 42,
+        "requested_bytes": 4244898,
+        "warmup": 64
+      },
+      "variant": "reserve"
+    }
+  ]
+}

@@ -1,0 +1,4919 @@
+{
+  "schema": "recv-budget-rpc-screen/1",
+  "environment": {
+    "client_cpus": [
+      0,
+      2
+    ],
+    "frame_budget": 524288,
+    "scope": "three overlaid backend files in release binaries; non-default receive budget; plaintext single-connection loopback; baseline peer; user-level latency and peer counts retained; no tonic comparison",
+    "server_cpus": [
+      1,
+      3
+    ],
+    "source_base": "713038c7f2d60da41824531a7b81920183c7510b",
+    "source_cumulative": "e6427b224a1797befd898f3f55665c2dd731d4d5",
+    "source_progress": "e8a0895b3274f6e766d8f2c551019a9d7ff09f71",
+    "topology": {
+      "0": [
+        0,
+        0
+      ],
+      "1": [
+        0,
+        0
+      ],
+      "2": [
+        0,
+        1
+      ],
+      "3": [
+        0,
+        1
+      ]
+    },
+    "workers_per_process": 4
+  },
+  "cases": {
+    "unhedged.64": {
+      "mode": "unhedged",
+      "concurrency": 64,
+      "count": 8000,
+      "warmup": 64,
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 235859625,
+                "elapsed_ns": 168028402,
+                "p50_ns": 1182571,
+                "p99_ns": 3199068,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 213807449
+              },
+              "ratio": 0.9752631930963174,
+              "second": {
+                "client_cpu_ns": 230025211,
+                "elapsed_ns": 155403815,
+                "p50_ns": 1146222,
+                "p99_ns": 2758751,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 208722102
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 232546404,
+                "elapsed_ns": 156370419,
+                "p50_ns": 1161501,
+                "p99_ns": 2801420,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207494749
+              },
+              "ratio": 0.9835216157545915,
+              "second": {
+                "client_cpu_ns": 228714415,
+                "elapsed_ns": 158699202,
+                "p50_ns": 1165338,
+                "p99_ns": 3275000,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 212653294
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 235416887,
+                "elapsed_ns": 155328994,
+                "p50_ns": 1158856,
+                "p99_ns": 2870701,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 199342642
+              },
+              "ratio": 1.0058706833550135,
+              "second": {
+                "client_cpu_ns": 236798945,
+                "elapsed_ns": 158638138,
+                "p50_ns": 1161601,
+                "p99_ns": 2742551,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 205912684
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0497762370291535,
+            "progress": 0.9706284156966656
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 239993332,
+                "elapsed_ns": 168452538,
+                "p50_ns": 1190455,
+                "p99_ns": 3349319,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 208777151
+              },
+              {
+                "client_cpu_ns": 234211357,
+                "elapsed_ns": 155000036,
+                "p50_ns": 1161962,
+                "p99_ns": 2739694,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 204939502
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 261823737,
+                "elapsed_ns": 221518538,
+                "p50_ns": 1503734,
+                "p99_ns": 5081332,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 199098984
+              },
+              {
+                "client_cpu_ns": 235985077,
+                "elapsed_ns": 158075842,
+                "p50_ns": 1176238,
+                "p99_ns": 2758180,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 206382573
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 225769066,
+                "elapsed_ns": 195641986,
+                "p50_ns": 1292357,
+                "p99_ns": 4072848,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 223108510
+              },
+              {
+                "client_cpu_ns": 234507480,
+                "elapsed_ns": 161796399,
+                "p50_ns": 1168014,
+                "p99_ns": 2956272,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209304558
+              }
+            ]
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 230525050,
+                "elapsed_ns": 158553038,
+                "p50_ns": 1161200,
+                "p99_ns": 2818562,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 208744357
+              },
+              "ratio": 0.9828056300172151,
+              "second": {
+                "client_cpu_ns": 226561317,
+                "elapsed_ns": 151244114,
+                "p50_ns": 1146162,
+                "p99_ns": 2512528,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198230239
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 244364362,
+                "elapsed_ns": 154795462,
+                "p50_ns": 1171140,
+                "p99_ns": 2849101,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207988273
+              },
+              "ratio": 0.9591782823061572,
+              "second": {
+                "client_cpu_ns": 234388989,
+                "elapsed_ns": 154469399,
+                "p50_ns": 1158686,
+                "p99_ns": 3065106,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201331095
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 228974776,
+                "elapsed_ns": 150210121,
+                "p50_ns": 1134791,
+                "p99_ns": 2645878,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 204804876
+              },
+              "ratio": 1.041135177265115,
+              "second": {
+                "client_cpu_ns": 238393694,
+                "elapsed_ns": 152302131,
+                "p50_ns": 1164616,
+                "p99_ns": 2425074,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198510813
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9983822154302627,
+            "progress": 1.0117373775011653
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 239724103,
+                "elapsed_ns": 158045926,
+                "p50_ns": 1165078,
+                "p99_ns": 3125760,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 206245834
+              },
+              {
+                "client_cpu_ns": 232586002,
+                "elapsed_ns": 154667803,
+                "p50_ns": 1149799,
+                "p99_ns": 3041461,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201169356
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 244427546,
+                "elapsed_ns": 164502050,
+                "p50_ns": 1178954,
+                "p99_ns": 3762354,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209062977
+              },
+              {
+                "client_cpu_ns": 227118463,
+                "elapsed_ns": 153046107,
+                "p50_ns": 1143497,
+                "p99_ns": 2551181,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 202851343
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 237085343,
+                "elapsed_ns": 155063906,
+                "p50_ns": 1153917,
+                "p99_ns": 2952304,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 203476229
+              },
+              {
+                "client_cpu_ns": 240768444,
+                "elapsed_ns": 161963362,
+                "p50_ns": 1199112,
+                "p99_ns": 2809335,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 213856581
+              }
+            ]
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 240004888,
+                "elapsed_ns": 157305807,
+                "p50_ns": 1157033,
+                "p99_ns": 3221289,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207142544
+              },
+              "ratio": 0.9433629910070832,
+              "second": {
+                "client_cpu_ns": 226411729,
+                "elapsed_ns": 151838369,
+                "p50_ns": 1134731,
+                "p99_ns": 2710670,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 195987488
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 238744153,
+                "elapsed_ns": 159879359,
+                "p50_ns": 1152784,
+                "p99_ns": 3049907,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209357702
+              },
+              "ratio": 0.9762771321147287,
+              "second": {
+                "client_cpu_ns": 233080457,
+                "elapsed_ns": 150759944,
+                "p50_ns": 1158335,
+                "p99_ns": 2137584,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201995235
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 236951291,
+                "elapsed_ns": 154312996,
+                "p50_ns": 1155560,
+                "p99_ns": 2578623,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198267040
+              },
+              "ratio": 1.0294967458100914,
+              "second": {
+                "client_cpu_ns": 243940583,
+                "elapsed_ns": 158906331,
+                "p50_ns": 1175878,
+                "p99_ns": 2754172,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 213820907
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.007733767837657,
+            "progress": 1.0081316343438704
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 234469752,
+                "elapsed_ns": 152366541,
+                "p50_ns": 1130442,
+                "p99_ns": 2592718,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 204503894
+              },
+              {
+                "client_cpu_ns": 231078358,
+                "elapsed_ns": 155042356,
+                "p50_ns": 1161060,
+                "p99_ns": 2623897,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201318201
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 231324290,
+                "elapsed_ns": 154623249,
+                "p50_ns": 1152343,
+                "p99_ns": 2662129,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 206369795
+              },
+              {
+                "client_cpu_ns": 237824261,
+                "elapsed_ns": 157215918,
+                "p50_ns": 1169205,
+                "p99_ns": 2871623,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207767156
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 244240110,
+                "elapsed_ns": 159104194,
+                "p50_ns": 1173113,
+                "p99_ns": 2919963,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 212701296
+              },
+              {
+                "client_cpu_ns": 225093667,
+                "elapsed_ns": 150887944,
+                "p50_ns": 1124141,
+                "p99_ns": 2650037,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 202024005
+              }
+            ]
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 236563530,
+                "elapsed_ns": 154858670,
+                "p50_ns": 1158844,
+                "p99_ns": 2717897,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 204424186
+              },
+              "ratio": 0.9687804244382048,
+              "second": {
+                "client_cpu_ns": 229178117,
+                "elapsed_ns": 162415221,
+                "p50_ns": 1180685,
+                "p99_ns": 2880061,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 206767972
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 237483421,
+                "elapsed_ns": 160468260,
+                "p50_ns": 1202595,
+                "p99_ns": 2722657,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 210033897
+              },
+              "ratio": 1.0106971425175824,
+              "second": {
+                "client_cpu_ns": 240023815,
+                "elapsed_ns": 157205141,
+                "p50_ns": 1164454,
+                "p99_ns": 2750990,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207430377
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 239765689,
+                "elapsed_ns": 160215083,
+                "p50_ns": 1185954,
+                "p99_ns": 2822654,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 211270317
+              },
+              "ratio": 0.9774062793446647,
+              "second": {
+                "client_cpu_ns": 234348490,
+                "elapsed_ns": 155232472,
+                "p50_ns": 1187517,
+                "p99_ns": 2634791,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 203157346
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9921921759752073,
+            "progress": 0.9892013917753795
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 226547744,
+                "elapsed_ns": 148023155,
+                "p50_ns": 1126586,
+                "p99_ns": 2150238,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 195219698
+              },
+              {
+                "client_cpu_ns": 243578118,
+                "elapsed_ns": 162096222,
+                "p50_ns": 1186679,
+                "p99_ns": 2834893,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 211413504
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 228200693,
+                "elapsed_ns": 153812747,
+                "p50_ns": 1135963,
+                "p99_ns": 2579464,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 199178075
+              },
+              {
+                "client_cpu_ns": 238254509,
+                "elapsed_ns": 155471031,
+                "p50_ns": 1177771,
+                "p99_ns": 2628977,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209301071
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 228685300,
+                "elapsed_ns": 152033115,
+                "p50_ns": 1154809,
+                "p99_ns": 2644656,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198955934
+              },
+              {
+                "client_cpu_ns": 236363857,
+                "elapsed_ns": 156222251,
+                "p50_ns": 1178482,
+                "p99_ns": 2595184,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 203510869
+              }
+            ]
+          }
+        },
+        {
+          "block": 4,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 231486076,
+                "elapsed_ns": 154978915,
+                "p50_ns": 1162570,
+                "p99_ns": 2786065,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 200869729
+              },
+              "ratio": 1.0241723826188147,
+              "second": {
+                "client_cpu_ns": 237081646,
+                "elapsed_ns": 158644068,
+                "p50_ns": 1173089,
+                "p99_ns": 2772750,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 212377737
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 243898184,
+                "elapsed_ns": 161468827,
+                "p50_ns": 1207044,
+                "p99_ns": 2879300,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209212551
+              },
+              "ratio": 0.952911937220492,
+              "second": {
+                "client_cpu_ns": 232413491,
+                "elapsed_ns": 156314440,
+                "p50_ns": 1151268,
+                "p99_ns": 2771738,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 202664452
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 237389377,
+                "elapsed_ns": 153066199,
+                "p50_ns": 1168010,
+                "p99_ns": 2695214,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 202013906
+              },
+              "ratio": 0.9843239952561146,
+              "second": {
+                "client_cpu_ns": 233668060,
+                "elapsed_ns": 154750027,
+                "p50_ns": 1160285,
+                "p99_ns": 2800782,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 204069842
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0148320452094275,
+            "progress": 0.9761631746573661
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 231469914,
+                "elapsed_ns": 154377227,
+                "p50_ns": 1148334,
+                "p99_ns": 2698831,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 200929012
+              },
+              {
+                "client_cpu_ns": 229223733,
+                "elapsed_ns": 155420794,
+                "p50_ns": 1142603,
+                "p99_ns": 3056532,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 203143423
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 233733095,
+                "elapsed_ns": 154600075,
+                "p50_ns": 1159445,
+                "p99_ns": 2848531,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 200988234
+              },
+              {
+                "client_cpu_ns": 233793581,
+                "elapsed_ns": 159037326,
+                "p50_ns": 1167650,
+                "p99_ns": 2664447,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 212028907
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 221474293,
+                "elapsed_ns": 146260856,
+                "p50_ns": 1110513,
+                "p99_ns": 2217188,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 194239570
+              },
+              {
+                "client_cpu_ns": 228237880,
+                "elapsed_ns": 152014506,
+                "p50_ns": 1144006,
+                "p99_ns": 3339713,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198640890
+              }
+            ]
+          }
+        },
+        {
+          "block": 5,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 229397044,
+                "elapsed_ns": 159563854,
+                "p50_ns": 1147695,
+                "p99_ns": 3709688,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201712775
+              },
+              "ratio": 0.9509134302532687,
+              "second": {
+                "client_cpu_ns": 218136730,
+                "elapsed_ns": 145864702,
+                "p50_ns": 1097312,
+                "p99_ns": 2273760,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 191799603
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 231855563,
+                "elapsed_ns": 156918914,
+                "p50_ns": 1184622,
+                "p99_ns": 2826230,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207333981
+              },
+              "ratio": 0.9786113305377107,
+              "second": {
+                "client_cpu_ns": 226896481,
+                "elapsed_ns": 156515128,
+                "p50_ns": 1152094,
+                "p99_ns": 2746569,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 199001422
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 239752765,
+                "elapsed_ns": 159693276,
+                "p50_ns": 1162850,
+                "p99_ns": 2983535,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209911063
+              },
+              "ratio": 0.9566084545469162,
+              "second": {
+                "client_cpu_ns": 229349522,
+                "elapsed_ns": 152615012,
+                "p50_ns": 1150428,
+                "p99_ns": 2801594,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 202137997
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0200906562670278,
+            "progress": 0.9823102772154446
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 231108876,
+                "elapsed_ns": 156473589,
+                "p50_ns": 1138405,
+                "p99_ns": 2762210,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201363344
+              },
+              {
+                "client_cpu_ns": 232854415,
+                "elapsed_ns": 161476350,
+                "p50_ns": 1165325,
+                "p99_ns": 2851878,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 209297891
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 234399790,
+                "elapsed_ns": 154035386,
+                "p50_ns": 1169464,
+                "p99_ns": 2656121,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 207630080
+              },
+              {
+                "client_cpu_ns": 238884828,
+                "elapsed_ns": 158387738,
+                "p50_ns": 1187156,
+                "p99_ns": 2753503,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 208108343
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 227801642,
+                "elapsed_ns": 152200395,
+                "p50_ns": 1153874,
+                "p99_ns": 2414859,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 192180380
+              },
+              {
+                "client_cpu_ns": 227954267,
+                "elapsed_ns": 151949414,
+                "p50_ns": 1130320,
+                "p99_ns": 2737824,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 200505771
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "unhedged.256": {
+      "mode": "unhedged",
+      "concurrency": 256,
+      "count": 8000,
+      "warmup": 64,
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 211773830,
+                "elapsed_ns": 145732074,
+                "p50_ns": 4282364,
+                "p99_ns": 9598129,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 165286998
+              },
+              "ratio": 1.0078090668710105,
+              "second": {
+                "client_cpu_ns": 213427586,
+                "elapsed_ns": 133039512,
+                "p50_ns": 4035560,
+                "p99_ns": 6905802,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 189994906
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 213045360,
+                "elapsed_ns": 132059132,
+                "p50_ns": 4056008,
+                "p99_ns": 5914389,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 196252299
+              },
+              "ratio": 0.9591756938522388,
+              "second": {
+                "client_cpu_ns": 204347931,
+                "elapsed_ns": 125778935,
+                "p50_ns": 3865160,
+                "p99_ns": 6655632,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 180052591
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 211278100,
+                "elapsed_ns": 132176311,
+                "p50_ns": 4052903,
+                "p99_ns": 6193593,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 186289288
+              },
+              "ratio": 0.9433162026731592,
+              "second": {
+                "client_cpu_ns": 199302055,
+                "elapsed_ns": 130078361,
+                "p50_ns": 3963274,
+                "p99_ns": 6400222,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 173158931
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.003097897640835,
+            "progress": 1.025993446844586
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 204865861,
+                "elapsed_ns": 129854160,
+                "p50_ns": 3955941,
+                "p99_ns": 6435077,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 179435009
+              },
+              {
+                "client_cpu_ns": 208101302,
+                "elapsed_ns": 131067388,
+                "p50_ns": 3964266,
+                "p99_ns": 7249998,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 180913643
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 203560237,
+                "elapsed_ns": 129349472,
+                "p50_ns": 3873727,
+                "p99_ns": 7292257,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 174694204
+              },
+              {
+                "client_cpu_ns": 210686256,
+                "elapsed_ns": 135478524,
+                "p50_ns": 4099991,
+                "p99_ns": 7301444,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198151609
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 214940068,
+                "elapsed_ns": 128669004,
+                "p50_ns": 3998721,
+                "p99_ns": 6356029,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 189038298
+              },
+              {
+                "client_cpu_ns": 208761535,
+                "elapsed_ns": 129954708,
+                "p50_ns": 3969896,
+                "p99_ns": 7425228,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185256817
+              }
+            ]
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 207009320,
+                "elapsed_ns": 130223590,
+                "p50_ns": 3842877,
+                "p99_ns": 7826108,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 180148953
+              },
+              "ratio": 0.9599348763620884,
+              "second": {
+                "client_cpu_ns": 198715466,
+                "elapsed_ns": 127399752,
+                "p50_ns": 3908530,
+                "p99_ns": 7068078,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 172595558
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 212225432,
+                "elapsed_ns": 132097450,
+                "p50_ns": 4103224,
+                "p99_ns": 6492078,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 188164131
+              },
+              "ratio": 0.9834761368279368,
+              "second": {
+                "client_cpu_ns": 208718648,
+                "elapsed_ns": 130111310,
+                "p50_ns": 3949848,
+                "p99_ns": 6472442,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 176021835
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 217987045,
+                "elapsed_ns": 129874347,
+                "p50_ns": 3978172,
+                "p99_ns": 6525387,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 191911976
+              },
+              "ratio": 0.9766012654559357,
+              "second": {
+                "client_cpu_ns": 212886424,
+                "elapsed_ns": 130640480,
+                "p50_ns": 3979234,
+                "p99_ns": 6285041,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 196391525
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9963259512168856,
+            "progress": 1.0177406240838274
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 210047000,
+                "elapsed_ns": 134670086,
+                "p50_ns": 4078341,
+                "p99_ns": 7028252,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 184539642
+              },
+              {
+                "client_cpu_ns": 207662206,
+                "elapsed_ns": 129430274,
+                "p50_ns": 4020431,
+                "p99_ns": 6456567,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 177575944
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 211378720,
+                "elapsed_ns": 130450680,
+                "p50_ns": 4004702,
+                "p99_ns": 6688303,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 189042186
+              },
+              {
+                "client_cpu_ns": 204795802,
+                "elapsed_ns": 131817578,
+                "p50_ns": 4014370,
+                "p99_ns": 6892026,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 180729825
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 211909471,
+                "elapsed_ns": 132498457,
+                "p50_ns": 4063623,
+                "p99_ns": 6977727,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 187739093
+              },
+              {
+                "client_cpu_ns": 213210157,
+                "elapsed_ns": 136111923,
+                "p50_ns": 3944369,
+                "p99_ns": 6981694,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 206966717
+              }
+            ]
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 206204863,
+                "elapsed_ns": 128765610,
+                "p50_ns": 3974053,
+                "p99_ns": 6332079,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 186450308
+              },
+              "ratio": 1.0147837978001517,
+              "second": {
+                "client_cpu_ns": 209253354,
+                "elapsed_ns": 129150741,
+                "p50_ns": 3968583,
+                "p99_ns": 6539828,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 187549194
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 208040163,
+                "elapsed_ns": 131365459,
+                "p50_ns": 3970306,
+                "p99_ns": 6922895,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 178148038
+              },
+              "ratio": 0.9983406617500102,
+              "second": {
+                "client_cpu_ns": 207694954,
+                "elapsed_ns": 128192326,
+                "p50_ns": 3973321,
+                "p99_ns": 5611089,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 186107210
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 206492936,
+                "elapsed_ns": 127453432,
+                "p50_ns": 3914391,
+                "p99_ns": 6040042,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 179740791
+              },
+              "ratio": 1.0313979215250249,
+              "second": {
+                "client_cpu_ns": 212976385,
+                "elapsed_ns": 132863674,
+                "p50_ns": 4066095,
+                "p99_ns": 5848293,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 191599642
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9526612351377058,
+            "progress": 0.9505203753150291
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 218310357,
+                "elapsed_ns": 134379634,
+                "p50_ns": 4087726,
+                "p99_ns": 6597616,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 198997444
+              },
+              {
+                "client_cpu_ns": 212252630,
+                "elapsed_ns": 132357096,
+                "p50_ns": 3976448,
+                "p99_ns": 7826779,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 187040471
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 202733506,
+                "elapsed_ns": 127580801,
+                "p50_ns": 3959675,
+                "p99_ns": 7280115,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 171977422
+              },
+              {
+                "client_cpu_ns": 207447161,
+                "elapsed_ns": 127837161,
+                "p50_ns": 3892670,
+                "p99_ns": 6840201,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185164829
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 207192631,
+                "elapsed_ns": 129059129,
+                "p50_ns": 3866982,
+                "p99_ns": 6510113,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 176123610
+              },
+              {
+                "client_cpu_ns": 202066261,
+                "elapsed_ns": 131784013,
+                "p50_ns": 4059373,
+                "p99_ns": 6655825,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185422976
+              }
+            ]
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 205810362,
+                "elapsed_ns": 127881390,
+                "p50_ns": 3880406,
+                "p99_ns": 6562372,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 179000412
+              },
+              "ratio": 1.0334490690026579,
+              "second": {
+                "client_cpu_ns": 212694527,
+                "elapsed_ns": 133283833,
+                "p50_ns": 4038993,
+                "p99_ns": 6414344,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 184915740
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 201504295,
+                "elapsed_ns": 130749435,
+                "p50_ns": 3921273,
+                "p99_ns": 7831185,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 176929348
+              },
+              "ratio": 1.054649857463336,
+              "second": {
+                "client_cpu_ns": 212516476,
+                "elapsed_ns": 131510865,
+                "p50_ns": 4072878,
+                "p99_ns": 6463867,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185752526
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 210831680,
+                "elapsed_ns": 131197065,
+                "p50_ns": 4075252,
+                "p99_ns": 6660847,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185180023
+              },
+              "ratio": 0.96319998019273,
+              "second": {
+                "client_cpu_ns": 203073070,
+                "elapsed_ns": 126699400,
+                "p50_ns": 3854468,
+                "p99_ns": 6912490,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 178305007
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9888787495393632,
+            "progress": 1.0310352052467366
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 204487952,
+                "elapsed_ns": 135602712,
+                "p50_ns": 4154661,
+                "p99_ns": 6959254,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 189365095
+              },
+              {
+                "client_cpu_ns": 204348268,
+                "elapsed_ns": 127142582,
+                "p50_ns": 3915923,
+                "p99_ns": 6880489,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 172435916
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 200117729,
+                "elapsed_ns": 136458985,
+                "p50_ns": 4079941,
+                "p99_ns": 8163538,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 161947591
+              },
+              {
+                "client_cpu_ns": 204171721,
+                "elapsed_ns": 129645131,
+                "p50_ns": 3900704,
+                "p99_ns": 6491890,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 185119112
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 216225179,
+                "elapsed_ns": 132338569,
+                "p50_ns": 4054383,
+                "p99_ns": 6759672,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 190931625
+              },
+              {
+                "client_cpu_ns": 205299357,
+                "elapsed_ns": 128946069,
+                "p50_ns": 3904861,
+                "p99_ns": 6788597,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 183417840
+              }
+            ]
+          }
+        },
+        {
+          "block": 4,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 205445166,
+                "elapsed_ns": 125905610,
+                "p50_ns": 3881358,
+                "p99_ns": 6352759,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 174577527
+              },
+              "ratio": 1.0103566515651188,
+              "second": {
+                "client_cpu_ns": 207572890,
+                "elapsed_ns": 131144887,
+                "p50_ns": 3907708,
+                "p99_ns": 7311408,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 181323823
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 207505985,
+                "elapsed_ns": 126943288,
+                "p50_ns": 3890375,
+                "p99_ns": 6521776,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 177615989
+              },
+              "ratio": 0.9530650260521402,
+              "second": {
+                "client_cpu_ns": 197766697,
+                "elapsed_ns": 126754063,
+                "p50_ns": 3730935,
+                "p99_ns": 8084370,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 165123225
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 214722363,
+                "elapsed_ns": 135209319,
+                "p50_ns": 4022142,
+                "p99_ns": 6533738,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 200249032
+              },
+              "ratio": 1.017358965074355,
+              "second": {
+                "client_cpu_ns": 218449721,
+                "elapsed_ns": 134656622,
+                "p50_ns": 4115828,
+                "p99_ns": 7319714,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 192607222
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9975104993584573,
+            "progress": 1.0089079933134248
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 207752426,
+                "elapsed_ns": 129857079,
+                "p50_ns": 4075012,
+                "p99_ns": 6069777,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 179690211
+              },
+              {
+                "client_cpu_ns": 211144835,
+                "elapsed_ns": 129732005,
+                "p50_ns": 3950819,
+                "p99_ns": 7383885,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 180778794
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 206786488,
+                "elapsed_ns": 130835657,
+                "p50_ns": 4166423,
+                "p99_ns": 6003833,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 181411657
+              },
+              {
+                "client_cpu_ns": 211067928,
+                "elapsed_ns": 134652884,
+                "p50_ns": 4005972,
+                "p99_ns": 6737120,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 183064183
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 207430584,
+                "elapsed_ns": 130386423,
+                "p50_ns": 3994129,
+                "p99_ns": 6097970,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 184949130
+              },
+              {
+                "client_cpu_ns": 215198211,
+                "elapsed_ns": 135580005,
+                "p50_ns": 4094919,
+                "p99_ns": 7780951,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 201000770
+              }
+            ]
+          }
+        },
+        {
+          "block": 5,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 214523920,
+                "elapsed_ns": 136325404,
+                "p50_ns": 4042100,
+                "p99_ns": 7676383,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 192329422
+              },
+              "ratio": 0.9759621910694155,
+              "second": {
+                "client_cpu_ns": 209367235,
+                "elapsed_ns": 129678915,
+                "p50_ns": 4020339,
+                "p99_ns": 6937697,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 181228682
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 204682459,
+                "elapsed_ns": 128484201,
+                "p50_ns": 3995733,
+                "p99_ns": 6413803,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 187341144
+              },
+              "ratio": 1.020826440237363,
+              "second": {
+                "client_cpu_ns": 208945266,
+                "elapsed_ns": 133100188,
+                "p50_ns": 4048331,
+                "p99_ns": 7154564,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 194788100
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 200021412,
+                "elapsed_ns": 128258407,
+                "p50_ns": 3972179,
+                "p99_ns": 6497991,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 173434896
+              },
+              "ratio": 1.0215263153926741,
+              "second": {
+                "client_cpu_ns": 204327136,
+                "elapsed_ns": 129650712,
+                "p50_ns": 3926533,
+                "p99_ns": 6289900,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 175930714
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9913959500574469,
+            "progress": 0.9975902037359182
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 214592929,
+                "elapsed_ns": 129841159,
+                "p50_ns": 3946811,
+                "p99_ns": 6359040,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 193925763
+              },
+              {
+                "client_cpu_ns": 204202641,
+                "elapsed_ns": 135546092,
+                "p50_ns": 3987157,
+                "p99_ns": 8733689,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 190795647
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 209379064,
+                "elapsed_ns": 135019723,
+                "p50_ns": 4032582,
+                "p99_ns": 7024500,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 191585368
+              },
+              {
+                "client_cpu_ns": 205813168,
+                "elapsed_ns": 132277203,
+                "p50_ns": 4100360,
+                "p99_ns": 6767467,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 191319359
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 208909993,
+                "elapsed_ns": 130279342,
+                "p50_ns": 3907077,
+                "p99_ns": 7090133,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 184813325
+              },
+              {
+                "client_cpu_ns": 208876365,
+                "elapsed_ns": 127423981,
+                "p50_ns": 3997125,
+                "p99_ns": 6021085,
+                "peer": {
+                  "cancelled": 0,
+                  "mode": "unhedged",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 8064
+                },
+                "peer_cpu_ns": 183784632
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "paired.64": {
+      "mode": "paired",
+      "concurrency": 64,
+      "count": 8000,
+      "warmup": 64,
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 422160796,
+                "elapsed_ns": 271675214,
+                "p50_ns": 2052461,
+                "p99_ns": 3871905,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 357282755
+              },
+              "ratio": 1.040631041921761,
+              "second": {
+                "client_cpu_ns": 439313629,
+                "elapsed_ns": 277015354,
+                "p50_ns": 2101113,
+                "p99_ns": 4037176,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 362565844
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 419315937,
+                "elapsed_ns": 269251436,
+                "p50_ns": 2041902,
+                "p99_ns": 4011226,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 349438282
+              },
+              "ratio": 1.0193221537391746,
+              "second": {
+                "client_cpu_ns": 427418024,
+                "elapsed_ns": 271883334,
+                "p50_ns": 2095783,
+                "p99_ns": 3603833,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 354246891
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 417913200,
+                "elapsed_ns": 269756633,
+                "p50_ns": 2056469,
+                "p99_ns": 3780675,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 341010573
+              },
+              "ratio": 1.0277191268426076,
+              "second": {
+                "client_cpu_ns": 429497389,
+                "elapsed_ns": 270990559,
+                "p50_ns": 2087487,
+                "p99_ns": 3811081,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 343336086
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9938469829138931,
+            "progress": 1.0207247123819236
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 425924000,
+                "elapsed_ns": 273821010,
+                "p50_ns": 2117796,
+                "p99_ns": 3677942,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 352408350
+              },
+              {
+                "client_cpu_ns": 418323615,
+                "elapsed_ns": 268256999,
+                "p50_ns": 2047683,
+                "p99_ns": 3736180,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 354377391
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 415834467,
+                "elapsed_ns": 272139956,
+                "p50_ns": 2078019,
+                "p99_ns": 3914656,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 345385112
+              },
+              {
+                "client_cpu_ns": 423218478,
+                "elapsed_ns": 280765331,
+                "p50_ns": 2123073,
+                "p99_ns": 4375220,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 352162506
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 434877508,
+                "elapsed_ns": 278411865,
+                "p50_ns": 2099420,
+                "p99_ns": 4271835,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 358408693
+              },
+              {
+                "client_cpu_ns": 426866896,
+                "elapsed_ns": 277463906,
+                "p50_ns": 2104138,
+                "p99_ns": 4023509,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 350628649
+              }
+            ]
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 415557834,
+                "elapsed_ns": 272634418,
+                "p50_ns": 2046442,
+                "p99_ns": 4013424,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 342432740
+              },
+              "ratio": 1.0005425694850454,
+              "second": {
+                "client_cpu_ns": 415783303,
+                "elapsed_ns": 266732368,
+                "p50_ns": 2054898,
+                "p99_ns": 3717339,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 341032657
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 424190380,
+                "elapsed_ns": 277586004,
+                "p50_ns": 2086928,
+                "p99_ns": 4276269,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 354667717
+              },
+              "ratio": 0.9814198426659275,
+              "second": {
+                "client_cpu_ns": 416308856,
+                "elapsed_ns": 272767157,
+                "p50_ns": 2081538,
+                "p99_ns": 3865617,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 337565160
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 426466300,
+                "elapsed_ns": 266340014,
+                "p50_ns": 2014730,
+                "p99_ns": 3913754,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 345832817
+              },
+              "ratio": 0.9862042463847671,
+              "second": {
+                "client_cpu_ns": 420582876,
+                "elapsed_ns": 266740352,
+                "p50_ns": 2063184,
+                "p99_ns": 3621929,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 348550356
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0097948591306074,
+            "progress": 1.0136283265294068
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 426417977,
+                "elapsed_ns": 271030203,
+                "p50_ns": 2048985,
+                "p99_ns": 3803276,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 349583180
+              },
+              {
+                "client_cpu_ns": 412700676,
+                "elapsed_ns": 271554637,
+                "p50_ns": 2092407,
+                "p99_ns": 3968977,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 346878961
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 421741526,
+                "elapsed_ns": 275400333,
+                "p50_ns": 2073250,
+                "p99_ns": 4118327,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 344842026
+              },
+              {
+                "client_cpu_ns": 425596176,
+                "elapsed_ns": 275817987,
+                "p50_ns": 2067269,
+                "p99_ns": 4323663,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 343975272
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 428066335,
+                "elapsed_ns": 274554206,
+                "p50_ns": 2111302,
+                "p99_ns": 3614272,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 349751929
+              },
+              {
+                "client_cpu_ns": 422488101,
+                "elapsed_ns": 267758454,
+                "p50_ns": 2051439,
+                "p99_ns": 3934172,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 341920554
+              }
+            ]
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 418581280,
+                "elapsed_ns": 265881819,
+                "p50_ns": 2036797,
+                "p99_ns": 3803627,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351188119
+              },
+              "ratio": 0.9925831011840759,
+              "second": {
+                "client_cpu_ns": 415476705,
+                "elapsed_ns": 269847740,
+                "p50_ns": 2074548,
+                "p99_ns": 3873458,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 358596513
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 420647431,
+                "elapsed_ns": 274745674,
+                "p50_ns": 2085339,
+                "p99_ns": 4137535,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351470559
+              },
+              "ratio": 0.9787593163739065,
+              "second": {
+                "client_cpu_ns": 411712592,
+                "elapsed_ns": 270458468,
+                "p50_ns": 2030365,
+                "p99_ns": 3754475,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 346346557
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 430094509,
+                "elapsed_ns": 275319773,
+                "p50_ns": 2112239,
+                "p99_ns": 4145119,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351792918
+              },
+              "ratio": 1.0182840836965905,
+              "second": {
+                "client_cpu_ns": 437958393,
+                "elapsed_ns": 279675547,
+                "p50_ns": 2087131,
+                "p99_ns": 4151992,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 360671761
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0081322741607444,
+            "progress": 1.006968647479718
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 426981190,
+                "elapsed_ns": 284681295,
+                "p50_ns": 2134668,
+                "p99_ns": 4372579,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 372997502
+              },
+              {
+                "client_cpu_ns": 413889010,
+                "elapsed_ns": 268617859,
+                "p50_ns": 2037969,
+                "p99_ns": 4303436,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 345250984
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 416822411,
+                "elapsed_ns": 273159904,
+                "p50_ns": 2081428,
+                "p99_ns": 3843205,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 340447576
+              },
+              {
+                "client_cpu_ns": 430885976,
+                "elapsed_ns": 276745521,
+                "p50_ns": 2088384,
+                "p99_ns": 4243504,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 356765937
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 420050544,
+                "elapsed_ns": 275878018,
+                "p50_ns": 2083161,
+                "p99_ns": 4190478,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 341301783
+              },
+              {
+                "client_cpu_ns": 426679384,
+                "elapsed_ns": 277193888,
+                "p50_ns": 2080409,
+                "p99_ns": 4199434,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351377286
+              }
+            ]
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 409798115,
+                "elapsed_ns": 262952847,
+                "p50_ns": 2010344,
+                "p99_ns": 3780578,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 343076209
+              },
+              "ratio": 1.0324834217453636,
+              "second": {
+                "client_cpu_ns": 423109760,
+                "elapsed_ns": 266887645,
+                "p50_ns": 2041853,
+                "p99_ns": 4333276,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 355832452
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 415225270,
+                "elapsed_ns": 271277026,
+                "p50_ns": 2070958,
+                "p99_ns": 4230233,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 339907140
+              },
+              "ratio": 1.0395270475710692,
+              "second": {
+                "client_cpu_ns": 431637899,
+                "elapsed_ns": 285132260,
+                "p50_ns": 2152992,
+                "p99_ns": 4565472,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 357366328
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 426971555,
+                "elapsed_ns": 270541405,
+                "p50_ns": 2062723,
+                "p99_ns": 4205486,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 350542009
+              },
+              "ratio": 0.9944823115909911,
+              "second": {
+                "client_cpu_ns": 424615659,
+                "elapsed_ns": 276842546,
+                "p50_ns": 2095775,
+                "p99_ns": 4305795,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 360585475
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0202179297636222,
+            "progress": 0.9906307714719303
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 423429933,
+                "elapsed_ns": 269074267,
+                "p50_ns": 2042438,
+                "p99_ns": 3840827,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 355291028
+              },
+              {
+                "client_cpu_ns": 428539146,
+                "elapsed_ns": 272236795,
+                "p50_ns": 2092912,
+                "p99_ns": 3678853,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 353474220
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 436557931,
+                "elapsed_ns": 278044302,
+                "p50_ns": 2071321,
+                "p99_ns": 4611165,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 356857161
+              },
+              {
+                "client_cpu_ns": 432636199,
+                "elapsed_ns": 270468808,
+                "p50_ns": 2069208,
+                "p99_ns": 3885220,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 350208409
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 425409187,
+                "elapsed_ns": 268518784,
+                "p50_ns": 2044090,
+                "p99_ns": 4409445,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 336831971
+              },
+              {
+                "client_cpu_ns": 418577599,
+                "elapsed_ns": 263801099,
+                "p50_ns": 2029544,
+                "p99_ns": 4093632,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 346303819
+              }
+            ]
+          }
+        },
+        {
+          "block": 4,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 430431542,
+                "elapsed_ns": 277964582,
+                "p50_ns": 2102658,
+                "p99_ns": 4549302,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 355323179
+              },
+              "ratio": 0.9505872387948744,
+              "second": {
+                "client_cpu_ns": 409162731,
+                "elapsed_ns": 269815271,
+                "p50_ns": 2057543,
+                "p99_ns": 4782339,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347094856
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 433744428,
+                "elapsed_ns": 275505886,
+                "p50_ns": 2104903,
+                "p99_ns": 3955446,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347058959
+              },
+              "ratio": 0.9750616024051841,
+              "second": {
+                "client_cpu_ns": 422927537,
+                "elapsed_ns": 273061466,
+                "p50_ns": 2083322,
+                "p99_ns": 4419087,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 355863299
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 423194960,
+                "elapsed_ns": 268571435,
+                "p50_ns": 2059286,
+                "p99_ns": 3841672,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 349608370
+              },
+              "ratio": 0.9931726668011358,
+              "second": {
+                "client_cpu_ns": 420305667,
+                "elapsed_ns": 270026517,
+                "p50_ns": 2060238,
+                "p99_ns": 3782071,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 344912143
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9796189071674847,
+            "progress": 1.0287643331802667
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 418474471,
+                "elapsed_ns": 269497956,
+                "p50_ns": 2040802,
+                "p99_ns": 4295495,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351402262
+              },
+              {
+                "client_cpu_ns": 424352611,
+                "elapsed_ns": 266540864,
+                "p50_ns": 2039900,
+                "p99_ns": 3773896,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 348907708
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 404190814,
+                "elapsed_ns": 266537948,
+                "p50_ns": 2034750,
+                "p99_ns": 4073298,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347878917
+              },
+              {
+                "client_cpu_ns": 421458531,
+                "elapsed_ns": 273003648,
+                "p50_ns": 2039710,
+                "p99_ns": 4371918,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 352905642
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 428437023,
+                "elapsed_ns": 271138516,
+                "p50_ns": 2067492,
+                "p99_ns": 4006172,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347464272
+              },
+              {
+                "client_cpu_ns": 438633418,
+                "elapsed_ns": 278467898,
+                "p50_ns": 2135380,
+                "p99_ns": 3874444,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 362056872
+              }
+            ]
+          }
+        },
+        {
+          "block": 5,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 424861328,
+                "elapsed_ns": 266074637,
+                "p50_ns": 2043958,
+                "p99_ns": 3749931,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 343059677
+              },
+              "ratio": 1.0107317510432485,
+              "second": {
+                "client_cpu_ns": 429420834,
+                "elapsed_ns": 277611439,
+                "p50_ns": 2107627,
+                "p99_ns": 4293140,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347660651
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 426727160,
+                "elapsed_ns": 272390616,
+                "p50_ns": 2087159,
+                "p99_ns": 4021690,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 347035926
+              },
+              "ratio": 0.9971727344469942,
+              "second": {
+                "client_cpu_ns": 425520689,
+                "elapsed_ns": 271576167,
+                "p50_ns": 2059808,
+                "p99_ns": 3986645,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 353636838
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 432604729,
+                "elapsed_ns": 275113409,
+                "p50_ns": 2107126,
+                "p99_ns": 3842073,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 351533938
+              },
+              "ratio": 0.9805046791340092,
+              "second": {
+                "client_cpu_ns": 424170961,
+                "elapsed_ns": 273456988,
+                "p50_ns": 2082810,
+                "p99_ns": 4117281,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 352662805
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.037172119778853,
+            "progress": 1.0273055965624662
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 411909417,
+                "elapsed_ns": 272671373,
+                "p50_ns": 2046794,
+                "p99_ns": 4548109,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 346013510
+              },
+              {
+                "client_cpu_ns": 411602860,
+                "elapsed_ns": 268025641,
+                "p50_ns": 2045621,
+                "p99_ns": 3897257,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 335617220
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 423553380,
+                "elapsed_ns": 267232672,
+                "p50_ns": 2069516,
+                "p99_ns": 3694987,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 339219101
+              },
+              {
+                "client_cpu_ns": 430570594,
+                "elapsed_ns": 278226944,
+                "p50_ns": 2132193,
+                "p99_ns": 3864516,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 358805595
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 407618469,
+                "elapsed_ns": 266316101,
+                "p50_ns": 2056311,
+                "p99_ns": 3557970,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 328710409
+              },
+              {
+                "client_cpu_ns": 438380302,
+                "elapsed_ns": 274969538,
+                "p50_ns": 2100254,
+                "p99_ns": 3834620,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 352472420
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "paired.256": {
+      "mode": "paired",
+      "concurrency": 256,
+      "count": 8000,
+      "warmup": 64,
+      "blocks": [
+        {
+          "block": 0,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 359374040,
+                "elapsed_ns": 224437392,
+                "p50_ns": 6589682,
+                "p99_ns": 12581352,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 295425440
+              },
+              "ratio": 1.055121271419605,
+              "second": {
+                "client_cpu_ns": 379183194,
+                "elapsed_ns": 232501272,
+                "p50_ns": 6870489,
+                "p99_ns": 11842094,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 313353277
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 363327107,
+                "elapsed_ns": 225643697,
+                "p50_ns": 6967542,
+                "p99_ns": 12765989,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 297482212
+              },
+              "ratio": 1.0087871368210355,
+              "second": {
+                "client_cpu_ns": 366519712,
+                "elapsed_ns": 229580608,
+                "p50_ns": 6870260,
+                "p99_ns": 12554182,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 296308410
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 372931057,
+                "elapsed_ns": 226857336,
+                "p50_ns": 6987951,
+                "p99_ns": 13350496,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 313544223
+              },
+              "ratio": 1.0087827788501937,
+              "second": {
+                "client_cpu_ns": 376206428,
+                "elapsed_ns": 224302792,
+                "p50_ns": 6847277,
+                "p99_ns": 10476400,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 309786342
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0040501897899827,
+            "progress": 0.9926302477588802
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 367305681,
+                "elapsed_ns": 224542550,
+                "p50_ns": 6922036,
+                "p99_ns": 11628272,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 306032081
+              },
+              {
+                "client_cpu_ns": 369963473,
+                "elapsed_ns": 227478883,
+                "p50_ns": 6953385,
+                "p99_ns": 11170022,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 308868678
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 376621199,
+                "elapsed_ns": 233621355,
+                "p50_ns": 7081726,
+                "p99_ns": 12406724,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 312899771
+              },
+              {
+                "client_cpu_ns": 363634035,
+                "elapsed_ns": 221588093,
+                "p50_ns": 6681986,
+                "p99_ns": 11473913,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 296143424
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 363671035,
+                "elapsed_ns": 224635163,
+                "p50_ns": 6851644,
+                "p99_ns": 12818548,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 280266147
+              },
+              {
+                "client_cpu_ns": 368164628,
+                "elapsed_ns": 227215407,
+                "p50_ns": 6851804,
+                "p99_ns": 12015710,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 302261516
+              }
+            ]
+          }
+        },
+        {
+          "block": 1,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 372663842,
+                "elapsed_ns": 228962506,
+                "p50_ns": 6880774,
+                "p99_ns": 12859275,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 297817481
+              },
+              "ratio": 1.0246413200452111,
+              "second": {
+                "client_cpu_ns": 381846771,
+                "elapsed_ns": 233481277,
+                "p50_ns": 6968118,
+                "p99_ns": 11811959,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 313086871
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 375434170,
+                "elapsed_ns": 228970129,
+                "p50_ns": 6897686,
+                "p99_ns": 12979050,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 308634838
+              },
+              "ratio": 0.9778528203759397,
+              "second": {
+                "client_cpu_ns": 367119362,
+                "elapsed_ns": 230212893,
+                "p50_ns": 7056183,
+                "p99_ns": 11605381,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 295836365
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 351552077,
+                "elapsed_ns": 219602458,
+                "p50_ns": 6573919,
+                "p99_ns": 11157831,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 285691114
+              },
+              "ratio": 1.0416499942908886,
+              "second": {
+                "client_cpu_ns": 366194219,
+                "elapsed_ns": 225089807,
+                "p50_ns": 6783591,
+                "p99_ns": 11768868,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 292316735
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9941735061031395,
+            "progress": 1.0319437921460326
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 375215135,
+                "elapsed_ns": 228897454,
+                "p50_ns": 6958740,
+                "p99_ns": 10701625,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 308546375
+              },
+              {
+                "client_cpu_ns": 352555472,
+                "elapsed_ns": 224887568,
+                "p50_ns": 6800774,
+                "p99_ns": 11483323,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 286067196
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 355564475,
+                "elapsed_ns": 218792348,
+                "p50_ns": 6756691,
+                "p99_ns": 11896939,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 277822301
+              },
+              {
+                "client_cpu_ns": 367965781,
+                "elapsed_ns": 225480891,
+                "p50_ns": 6815241,
+                "p99_ns": 12291069,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 301561832
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 381387570,
+                "elapsed_ns": 238994383,
+                "p50_ns": 7190405,
+                "p99_ns": 11853317,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 304436965
+              },
+              {
+                "client_cpu_ns": 369630790,
+                "elapsed_ns": 226861152,
+                "p50_ns": 6816183,
+                "p99_ns": 11226961,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 307840070
+              }
+            ]
+          }
+        },
+        {
+          "block": 2,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 353317826,
+                "elapsed_ns": 220020843,
+                "p50_ns": 6703853,
+                "p99_ns": 11663069,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 286419267
+              },
+              "ratio": 1.0533342775634535,
+              "second": {
+                "client_cpu_ns": 372161777,
+                "elapsed_ns": 236549575,
+                "p50_ns": 7018102,
+                "p99_ns": 13951816,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 298379834
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 378701453,
+                "elapsed_ns": 236803802,
+                "p50_ns": 6943001,
+                "p99_ns": 14219377,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 315628467
+              },
+              "ratio": 0.9832732910058309,
+              "second": {
+                "client_cpu_ns": 372367024,
+                "elapsed_ns": 226808323,
+                "p50_ns": 6902344,
+                "p99_ns": 11619659,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 307547673
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 380615094,
+                "elapsed_ns": 228637977,
+                "p50_ns": 6911842,
+                "p99_ns": 13724910,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 311277018
+              },
+              "ratio": 0.9700173425071786,
+              "second": {
+                "client_cpu_ns": 369203242,
+                "elapsed_ns": 225904156,
+                "p50_ns": 6857029,
+                "p99_ns": 10977092,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 301713670
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9612717878924109,
+            "progress": 1.024644000502653
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 361372807,
+                "elapsed_ns": 226405767,
+                "p50_ns": 6675098,
+                "p99_ns": 12005492,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 306448184
+              },
+              {
+                "client_cpu_ns": 368936300,
+                "elapsed_ns": 226125000,
+                "p50_ns": 6750389,
+                "p99_ns": 12697201,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 303222869
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 350531296,
+                "elapsed_ns": 217315035,
+                "p50_ns": 6473720,
+                "p99_ns": 11495214,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 284967417
+              },
+              {
+                "client_cpu_ns": 351494245,
+                "elapsed_ns": 222002514,
+                "p50_ns": 6725843,
+                "p99_ns": 12204005,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 288778723
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 381967978,
+                "elapsed_ns": 232580226,
+                "p50_ns": 7134730,
+                "p99_ns": 12110840,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 310995698
+              },
+              {
+                "client_cpu_ns": 366338867,
+                "elapsed_ns": 224408529,
+                "p50_ns": 6877437,
+                "p99_ns": 11655005,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 298515650
+              }
+            ]
+          }
+        },
+        {
+          "block": 3,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 346371544,
+                "elapsed_ns": 218416556,
+                "p50_ns": 6526313,
+                "p99_ns": 11019929,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 277387834
+              },
+              "ratio": 1.0645043751053638,
+              "second": {
+                "client_cpu_ns": 368714024,
+                "elapsed_ns": 231131528,
+                "p50_ns": 6994372,
+                "p99_ns": 13002933,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 282525677
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 381113273,
+                "elapsed_ns": 227866438,
+                "p50_ns": 7005733,
+                "p99_ns": 12037510,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 307259953
+              },
+              "ratio": 0.9483902913032368,
+              "second": {
+                "client_cpu_ns": 361444128,
+                "elapsed_ns": 219607292,
+                "p50_ns": 6682326,
+                "p99_ns": 10888983,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 291833650
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 371974489,
+                "elapsed_ns": 231040292,
+                "p50_ns": 6949067,
+                "p99_ns": 12873150,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 296763094
+              },
+              "ratio": 1.0248415315384707,
+              "second": {
+                "client_cpu_ns": 381214905,
+                "elapsed_ns": 231311969,
+                "p50_ns": 7106102,
+                "p99_ns": 11601030,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 303960525
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9778543109014226,
+            "progress": 0.9876585357971204
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 373814704,
+                "elapsed_ns": 231332103,
+                "p50_ns": 7025486,
+                "p99_ns": 12493468,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 309117586
+              },
+              {
+                "client_cpu_ns": 363110660,
+                "elapsed_ns": 215675311,
+                "p50_ns": 6642932,
+                "p99_ns": 12060626,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 297081510
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 363979934,
+                "elapsed_ns": 217539677,
+                "p50_ns": 6628450,
+                "p99_ns": 10632486,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 299056578
+              },
+              {
+                "client_cpu_ns": 356625710,
+                "elapsed_ns": 219925344,
+                "p50_ns": 6689114,
+                "p99_ns": 13045855,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 306577704
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 360885357,
+                "elapsed_ns": 220977569,
+                "p50_ns": 6758916,
+                "p99_ns": 10579386,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 300947813
+              },
+              {
+                "client_cpu_ns": 366945269,
+                "elapsed_ns": 228100397,
+                "p50_ns": 6890913,
+                "p99_ns": 12129876,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 303924796
+              }
+            ]
+          }
+        },
+        {
+          "block": 4,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 351563690,
+                "elapsed_ns": 221674663,
+                "p50_ns": 6676656,
+                "p99_ns": 11834549,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 285405115
+              },
+              "ratio": 1.0363333056380197,
+              "second": {
+                "client_cpu_ns": 364337161,
+                "elapsed_ns": 228032410,
+                "p50_ns": 6815005,
+                "p99_ns": 13323845,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 295174471
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 371110683,
+                "elapsed_ns": 231559341,
+                "p50_ns": 6819153,
+                "p99_ns": 14658060,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 306431517
+              },
+              "ratio": 0.9814847448085994,
+              "second": {
+                "client_cpu_ns": 364239474,
+                "elapsed_ns": 220612419,
+                "p50_ns": 6568121,
+                "p99_ns": 11852602,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 290532872
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 366948412,
+                "elapsed_ns": 227196269,
+                "p50_ns": 6840051,
+                "p99_ns": 11697021,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 288852410
+              },
+              "ratio": 1.0093172797270478,
+              "second": {
+                "client_cpu_ns": 370367373,
+                "elapsed_ns": 226979943,
+                "p50_ns": 6937495,
+                "p99_ns": 12709051,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 307265865
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 1.0057734035414163,
+            "progress": 1.0002280065156455
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 357879713,
+                "elapsed_ns": 228185647,
+                "p50_ns": 6764880,
+                "p99_ns": 13117667,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 286165673
+              },
+              {
+                "client_cpu_ns": 379757102,
+                "elapsed_ns": 230485044,
+                "p50_ns": 6970737,
+                "p99_ns": 11683094,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 312871444
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 365280867,
+                "elapsed_ns": 227000032,
+                "p50_ns": 6812380,
+                "p99_ns": 13502941,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 295534365
+              },
+              {
+                "client_cpu_ns": 376614623,
+                "elapsed_ns": 234826956,
+                "p50_ns": 7175802,
+                "p99_ns": 11441761,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 308064044
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 358260948,
+                "elapsed_ns": 226881088,
+                "p50_ns": 6727310,
+                "p99_ns": 12239108,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 282197692
+              },
+              {
+                "client_cpu_ns": 379544053,
+                "elapsed_ns": 237741258,
+                "p50_ns": 7056328,
+                "p99_ns": 13502730,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 311846065
+              }
+            ]
+          }
+        },
+        {
+          "block": 5,
+          "controls": {
+            "base": {
+              "first": {
+                "client_cpu_ns": 365825308,
+                "elapsed_ns": 225986318,
+                "p50_ns": 6575686,
+                "p99_ns": 12204273,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 293742709
+              },
+              "ratio": 0.9575383641855637,
+              "second": {
+                "client_cpu_ns": 350291767,
+                "elapsed_ns": 223677273,
+                "p50_ns": 6741086,
+                "p99_ns": 12008966,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 287726791
+              }
+            },
+            "cumulative": {
+              "first": {
+                "client_cpu_ns": 356914715,
+                "elapsed_ns": 217105685,
+                "p50_ns": 6592948,
+                "p99_ns": 10814914,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 278136531
+              },
+              "ratio": 1.0065522767813033,
+              "second": {
+                "client_cpu_ns": 359253319,
+                "elapsed_ns": 219086253,
+                "p50_ns": 6569384,
+                "p99_ns": 12500399,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 284020455
+              }
+            },
+            "progress": {
+              "first": {
+                "client_cpu_ns": 365797062,
+                "elapsed_ns": 225214258,
+                "p50_ns": 6868756,
+                "p99_ns": 11363343,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 299391772
+              },
+              "ratio": 1.017184290561634,
+              "second": {
+                "client_cpu_ns": 372083025,
+                "elapsed_ns": 231891926,
+                "p50_ns": 7166134,
+                "p99_ns": 11851520,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 301318975
+              }
+            }
+          },
+          "cpu_ratio": {
+            "cumulative": 0.9921527250802621,
+            "progress": 0.968850508127324
+          },
+          "order": [
+            "base",
+            "cumulative",
+            "progress",
+            "progress",
+            "cumulative",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "client_cpu_ns": 375328801,
+                "elapsed_ns": 232327955,
+                "p50_ns": 6930892,
+                "p99_ns": 13625902,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 313631077
+              },
+              {
+                "client_cpu_ns": 375105848,
+                "elapsed_ns": 233922758,
+                "p50_ns": 7203875,
+                "p99_ns": 11708232,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 298129010
+              }
+            ],
+            "cumulative": [
+              {
+                "client_cpu_ns": 373842732,
+                "elapsed_ns": 229417490,
+                "p50_ns": 6780550,
+                "p99_ns": 11846511,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 300063066
+              },
+              {
+                "client_cpu_ns": 370703050,
+                "elapsed_ns": 238338759,
+                "p50_ns": 6826917,
+                "p99_ns": 21797804,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 307602519
+              }
+            ],
+            "progress": [
+              {
+                "client_cpu_ns": 361705295,
+                "elapsed_ns": 221460171,
+                "p50_ns": 6629957,
+                "p99_ns": 12131787,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 303141372
+              },
+              {
+                "client_cpu_ns": 365353696,
+                "elapsed_ns": 234800647,
+                "p50_ns": 7049695,
+                "p99_ns": 13110825,
+                "peer": {
+                  "cancelled": 8064,
+                  "mode": "paired",
+                  "pending": 0,
+                  "responses": 8064,
+                  "streams": 16128
+                },
+                "peer_cpu_ns": 311142915
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
