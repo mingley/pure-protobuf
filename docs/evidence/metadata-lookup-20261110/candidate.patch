@@ -1,0 +1,90 @@
+diff --git a/pbrs-grpc/src/metadata.rs b/pbrs-grpc/src/metadata.rs
+index e9e27ef88fe61148091859477824c692d6c8b3e9..1d5822cf8f8ba0f8bb94f637728adc9d59e5e563 100644
+--- a/pbrs-grpc/src/metadata.rs
++++ b/pbrs-grpc/src/metadata.rs
+@@ -409,7 +409,7 @@ impl Metadata {
+         if is_reserved(key) {
+             return None;
+         }
+-        self.headers().get(key.to_ascii_lowercase())?.to_str().ok()
++        self.headers().get(key)?.to_str().ok()
+     }
+ 
+     /// First `-bin` value for `key`, base64-decoded.
+@@ -421,11 +421,7 @@ impl Metadata {
+         if is_reserved(key) {
+             return None;
+         }
+-        let raw = self
+-            .headers()
+-            .get(key.to_ascii_lowercase())?
+-            .to_str()
+-            .ok()?;
++        let raw = self.headers().get(key)?.to_str().ok()?;
+         decode_base64(raw)
+     }
+ 
+@@ -766,6 +762,63 @@ mod tests {
+         assert_eq!(md.get_all("missing").count(), 0);
+     }
+ 
++    #[test]
++    fn first_value_lookup_accepts_case_and_invalid_names() {
++        let mut md = Metadata::new();
++        md.insert("x-request-id", "first").expect("first");
++        md.insert("x-request-id", "second").expect("second");
++        md.insert_bin("x-trace-bin", [0xde, 0xad]).expect("binary");
++        md.insert_bin("x-trace-bin", [0xbe, 0xef])
++            .expect("repeated binary");
++        for key in ["x-request-id", "X-Request-ID", "X-REQUEST-ID"] {
++            assert_eq!(md.get(key), Some("first"));
++            assert_eq!(md.get_all(key).next(), Some("first"));
++        }
++        for key in ["x-trace-bin", "X-Trace-Bin", "X-TRACE-BIN"] {
++            assert_eq!(md.get_bin(key).as_deref(), Some(&[0xde, 0xad][..]));
++            assert_eq!(
++                md.get_all_bin(key).next().as_deref(),
++                Some(&[0xde, 0xad][..])
++            );
++        }
++        for key in [
++            "",
++            "invalid key",
++            "invalid\0key",
++            "étag",
++            "grpc-status",
++            "GRPC-STATUS",
++            "x-missing",
++            "x-missing-bin",
++        ] {
++            assert_eq!(md.get(key), None);
++            assert_eq!(md.get_bin(key), None);
++        }
++
++        // Exercise long custom header names after growing the header map.
++        for i in 0..96 {
++            md.insert(format!("x-fill-{i}"), "value").expect("fill");
++        }
++        for len in [8, 60, 64, 128, 1024, 16000] {
++            let key = format!("x-{}", "a".repeat(len));
++            let upper = key.to_ascii_uppercase();
++            md.insert(&key, "long").expect("long name");
++            assert_eq!(md.get(&key), Some("long"));
++            assert_eq!(md.get(&upper), Some("long"));
++            assert_eq!(md.get_all(&upper).next(), Some("long"));
++
++            let bin_key = format!("x-{}-bin", "b".repeat(len));
++            let bin_upper = bin_key.to_ascii_uppercase();
++            md.insert_bin(&bin_key, [1, 2, 3])
++                .expect("long binary name");
++            assert_eq!(md.get_bin(&bin_key).as_deref(), Some(&[1, 2, 3][..]));
++            assert_eq!(md.get_bin(&bin_upper).as_deref(), Some(&[1, 2, 3][..]));
++        }
++        let too_long = format!("x-{}", "a".repeat(65536));
++        assert_eq!(md.get(&too_long), None);
++        assert_eq!(md.get_bin(&too_long), None);
++    }
++
+     #[test]
+     fn get_all_bin_yields_repeated_values() {
+         let mut md = Metadata::new();

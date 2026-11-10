@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check the trace-context summary against its retained raw samples."""
+import hashlib
 import json
 import statistics
 from pathlib import Path
@@ -39,4 +40,14 @@ for item in report["results"]:
         assert item["counts"]["base"]["allocations"] == 80_001
         assert item["counts"]["candidate"]["allocations"] == 60_001
 assert not expected
-print("trace-context screen summary matches raw samples")
+fixture_dir = path.with_name("traceparent-screen-20261110")
+fixture_hashes = {
+    "candidate.patch": "eff692bd3a565fa811bf5f482bec3e255d90f750154cdc5e32b850a83061be89",
+    "Cargo.toml": "5f43c8db0372bac856a74099f486165be00f5cf1b6784805bdfddf025b9029b7",
+    "main.rs": "cad2af1d0f64845a71975c1c9494be8be058be6326939f0f008fd3e4c2a485d7",
+    "compare.py": "b59fef67b3b3266111ba2e37f3ae92fd26d7f6a2589b05c60f4b78daff862f02",
+}
+for name, expected_hash in fixture_hashes.items():
+    digest = hashlib.sha256((fixture_dir / name).read_bytes()).hexdigest()
+    assert digest == expected_hash, f"{name}: SHA-256 mismatch"
+print("trace-context screen summary and fixture hashes match")

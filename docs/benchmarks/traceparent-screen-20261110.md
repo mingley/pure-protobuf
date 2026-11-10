@@ -11,7 +11,7 @@ covered by the tests.
 
 [Run and logs](https://github.com/mingley/pure-protobuf/actions/runs/42804214588) ·
 [Raw samples](traceparent-screen-20261110.json) ·
-[Fixture source](https://github.com/mingley/pure-protobuf/tree/c4ade89bb47c4094c75f67fd4998b3ca94394898/scratch/trace-context-probe)
+[Reconstruct and run the probe](traceparent-screen-20261110/README.md)
 
 The isolated probe built both sources with the same resolved lockfile and Rust
 1.99.1 release settings on a shared Linux AMD EPYC 7763 runner. The baseline

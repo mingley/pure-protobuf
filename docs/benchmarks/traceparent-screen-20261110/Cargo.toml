@@ -1,0 +1,10 @@
+[package]
+name = "trace-context-probe"
+version = "0.0.0"
+edition = "2024"
+[workspace]
+[dependencies]
+pbrs-grpc = { path = "PBRSGRPC_PATH", features = ["otel"] }
+opentelemetry = { version = "=0.31.0", default-features = false, features = ["trace"] }
+[features]
+count_alloc = []
