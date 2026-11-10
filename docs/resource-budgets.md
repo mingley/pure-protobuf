@@ -57,7 +57,7 @@ owner, limit and release point.
 | **Small-DATA Framing Budget** | Transport (`h2`) | 25,600 bytes per conn | `ServerConfig::data_frame_budget` (`DEFAULT_DATA_FRAME_BUDGET`) | Drained on write ACK |
 | **Reset Stream Tracking** | Transport (`h2`) | ~1 KiB – 10 KiB per conn | `max_concurrent_reset_streams`, `max_local_error_reset_streams` | Purged after `reset_stream_duration` (1s) |
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
-| **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Up to 4 MiB (chunk-straddling) | `MessageLimits::max_decoding` (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`) | Freed on frame yield |
+| **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Default payload cap: 4 MiB; allocation capacity can be larger | `MessageLimits::max_decoding` bounds frame payload length, not backing capacity | Carry can retain capacity between frames; a yielded payload or decoded message may keep its backing alive |
 | **Decompression Expansion Buffer** | Transport (`compression::read_bounded`) | Output reservation up to the decoding cap, plus an 8 KiB stack chunk and decoder state | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Output may be retained by the decoded message |
 | **Idle Decoded Buffer Cache** | Transport, shared across the process | At most 4 MiB per inbound stream and 16 MiB in total | Fixed internal capacity policy, separate from transport-byte permits | Reused by the next compressed message; released on observed EOF, error, cancellation, deadline or stream drop |
 | **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
@@ -68,7 +68,7 @@ owner, limit and release point.
 | **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
 | **Deserialized Message Struct** | Application (`T: Parse + Default`) | Domain dependent | Rust allocator / struct lifetime | Dropped by application handler |
-| **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original chunk size | Application holding sub-slice of transport `Bytes` | Dropped when last `Bytes` clone drops |
+| **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original backing allocation, which can exceed the visible chunk | Application or transport holding a shared slice | Released when the last owner of the allocation drops |
 
 Compressed streams can retain decoded storage only after successful decoding,
 when the codec has consumed the input and its backing allocation has one owner.
@@ -299,8 +299,10 @@ under all loads.
 
 For each simultaneously active RPC, allow for the following lifetimes:
 
-- A message split across DATA chunks can require a carry buffer up to the
-  decoding limit.
+- A message split across DATA chunks can require a carry allocation. Its
+  capacity can exceed the payload decoding limit because it also holds the
+  frame header and may grow geometrically. A yielded payload or decoded
+  message can retain the backing while the reader keeps remaining capacity.
 - Compressed input can keep encoded bytes alive while allocating decompressed
   bytes up to the inflate limit.
 - Outbound encoding can keep a whole message frame alive while flow control
@@ -316,6 +318,9 @@ For each simultaneously active RPC, allow for the following lifetimes:
   size of every item, including any shared backing allocation.
 - Handler futures and decoded messages belong to the application budget even
   when the transport has released its permits.
+
+Shared slices can retain an allocation larger than the visible DATA. Sizing
+the payload alone does not bound the memory held by its backing.
 
 The default inbound decoding cap is 4 MiB. Outbound encoding has no finite
 default cap; set `MessageLimits::with_max_encoding` when a deployment needs one.
