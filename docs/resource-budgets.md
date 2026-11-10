@@ -54,7 +54,7 @@ owner, limit and release point.
 | **HTTP/2 Connection Driver** | Transport (`h2::server::Connection` / client driver) | 8 KiB – 32 KiB per conn | Tokio task allocation, stream table trees | Connection termination |
 | **HPACK Dynamic Tables** | Transport (`h2`) | $2 \times 4096$ octets default | `ServerConfig::header_table_size` (`DEFAULT_HEADER_TABLE_SIZE`) | Connection termination |
 | **Stream Send Buffer** | Transport (`h2`) | 1 MiB capacity threshold per stream | `ServerConfig::max_send_buffer_size` (`DEFAULT_MAX_SEND_BUFFER_SIZE`) | Capacity returns as bytes are written to the connection |
-| **Small-DATA Framing Budget** | Transport (`h2`) | 25,600 bytes per conn | `ServerConfig::data_frame_budget` (`DEFAULT_DATA_FRAME_BUDGET`) | Drained on write ACK |
+| **Small-DATA Framing Budget** | Transport (`h2`) | 25,600 overhead units per connection by default | `ServerConfig::data_frame_budget` / `ChannelConfig::data_frame_budget` (`DEFAULT_DATA_FRAME_BUDGET`) | Queued small-frame charges return on read or clear; larger non-final DATA can replenish the budget |
 | **Reset Stream Tracking** | Transport (`h2`) | ~1 KiB – 10 KiB per conn | `max_concurrent_reset_streams`, `max_local_error_reset_streams` | Purged after `reset_stream_duration` (1s) |
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Default payload cap: 4 MiB; allocation capacity can be larger | `MessageLimits::max_decoding` bounds frame payload length, not backing capacity | Carry can retain capacity between frames; a yielded payload or decoded message may keep its backing alive |
@@ -69,6 +69,19 @@ owner, limit and release point.
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
 | **Deserialized Message Struct** | Application (`T: Parse + Default`) | Domain dependent | Rust allocator / struct lifetime | Dropped by application handler |
 | **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original backing allocation, which can exceed the visible chunk | Application or transport holding a shared slice | Released when the last owner of the allocation drops |
+
+The small-DATA budget tracks framing overhead, not live bytes. On tracked
+streams, each nonempty, non-final DATA frame below 256 payload bytes consumes
+`256 - payload_len` units; larger non-final frames replenish the budget up to
+its configured maximum.
+Empty non-final DATA has a separate lifetime cap, and final DATA is not charged.
+A queued charge returns when the frame is read or its receive queue is cleared;
+discarded non-final DATA can consume budget without a queued charge to return.
+DATA on an untracked stream above the local GOAWAY cutoff uses a separate
+shutdown path that bypasses this accounting. The budget is neither a
+total-memory limit nor a frame-rate limit. See the
+[known transport limits](status.md#messaging-and-protocol-limits) for observed
+burst and reset-discard behavior.
 
 Compressed streams can retain decoded storage only after successful decoding,
 when the codec has consumed the input and its backing allocation has one owner.

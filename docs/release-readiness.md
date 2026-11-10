@@ -82,6 +82,13 @@ under the existing [QG-06](plan/world-class/tasks.json) and
 The core protobuf profile has no transport requirement; the profile-specific
 gates in the checklist remain in effect.
 
+Known native transport limits include a demonstrated small-response burst
+failure under the default client DATA budget, discarded non-final frames that
+retain charges, and a reset-discard path that does not charge final DATA. The
+[source-pinned witnesses](status.md#messaging-and-protocol-limits) are finite
+tests, not rate or total-memory bounds. Validate behavior and any fix on the
+release source and retain the resulting evidence.
+
 ## Retry and binary-log claims
 
 Opt-in native unary hedging does not yet enforce A6 commitment when ordinary

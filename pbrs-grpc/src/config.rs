@@ -37,11 +37,13 @@ pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16 * 1024;
 /// (`SETTINGS_MAX_HEADER_LIST_SIZE`, uncompressed header-block cap).
 pub const DEFAULT_HEADER_TABLE_SIZE: u32 = 4096;
 
-/// Default HTTP/2 small-DATA framing budget: 25,600 bytes of overhead.
+/// Default per-connection HTTP/2 DATA framing budget: 25,600 overhead units.
 ///
-/// Tiny DATA frames (payload under 256 bytes) consume this budget. h2 Auto
-/// (half the connection window) is not used: the 16 MiB default window would
-/// otherwise raise this to 8 MiB. Distinct from [`DEFAULT_WINDOW_SIZE`].
+/// On tracked streams, nonempty, non-final DATA smaller than 256 payload
+/// bytes consumes this budget. Queued charges return when read or cleared;
+/// larger non-final DATA can replenish it. Empty non-final DATA has a separate
+/// lifetime cap. This budget is not a total-memory or frame-rate bound and
+/// does not grow with receive windows. Distinct from [`DEFAULT_WINDOW_SIZE`].
 pub const DEFAULT_DATA_FRAME_BUDGET: usize = 25_600;
 
 /// Default queue depth between a client-streaming caller and the wire.
@@ -410,11 +412,16 @@ impl ServerConfig {
         self
     }
 
-    /// Set the overhead budget for DATA frames smaller than 256 bytes.
+    /// Set the per-connection framing budget for inbound DATA on tracked streams.
     ///
-    /// Default 25,600 bytes. Exceeding it closes the connection with
-    /// `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Empty DATA frames have a
-    /// separate backend cap. The budget does not grow with receive windows.
+    /// Nonempty, non-final DATA smaller than 256 payload bytes consumes
+    /// `256 - payload_len` units. Queued charges return when read or cleared;
+    /// larger non-final DATA can replenish the budget. Empty non-final DATA
+    /// has a separate lifetime cap, and final DATA is not charged.
+    ///
+    /// The default is 25,600 units. Exceeding the budget closes the connection
+    /// with `ENHANCE_YOUR_CALM` (`too_many_data_frames`). It does not grow with
+    /// receive windows and is not a total-memory or frame-rate bound.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
@@ -1268,11 +1275,16 @@ impl ChannelConfig {
         self
     }
 
-    /// Set the overhead budget for DATA frames smaller than 256 bytes.
+    /// Set the per-connection framing budget for inbound DATA on tracked streams.
     ///
-    /// Default 25,600 bytes. Exceeding it closes the connection with
-    /// `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Empty DATA frames have a
-    /// separate backend cap. The budget does not grow with receive windows.
+    /// Nonempty, non-final DATA smaller than 256 payload bytes consumes
+    /// `256 - payload_len` units. Queued charges return when read or cleared;
+    /// larger non-final DATA can replenish the budget. Empty non-final DATA
+    /// has a separate lifetime cap, and final DATA is not charged.
+    ///
+    /// The default is 25,600 units. Exceeding the budget closes the connection
+    /// with `ENHANCE_YOUR_CALM` (`too_many_data_frames`). It does not grow with
+    /// receive windows and is not a total-memory or frame-rate bound.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
