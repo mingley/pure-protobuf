@@ -5,10 +5,13 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`1e6174f2`](https://github.com/mingley/pure-protobuf/commit/1e6174f2c6463f29488bcfbd432525e0cd9f94f1), all 12 required
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42720697407)
-and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42720697242)
-passed. The optional fuzz and sanitizer jobs were skipped. All six
+At source [`713038c7`](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b), all 12 required
+[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42737683456),
+five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42737683458),
+the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42737683521)
+and the [stream-burst diagnostic](https://github.com/mingley/pure-protobuf/actions/runs/42737683445)
+passed. The optional fuzz and sanitizer jobs were skipped. The parity audit
+includes known gaps; it is not a complete parity claim. All six
 [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42675951169)
 passed at the earlier source `6024ac88`. These checks cover their named source
 revisions; later changes need their own checks.
@@ -74,15 +77,21 @@ See the [parity summary](parity.md) and
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
 check the registry before treating them as published. The
-[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42726308637)
-at `1e6174f2` used that revision's successful CI in dry-run mode, packaged all
+[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42741860995)
+at `713038c7` used that revision's successful CI in dry-run mode, packaged all
 three crates, and produced a CycloneDX SBOM and a
-[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65589785).
-Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42726308637/artifacts/13722132862)
-has SHA-256 `8c9ce25b8d9a5c776c6bc2a8ca448383e5e67e5ec6448e71e46d431088de1be3`
-and expires February 8, 2027. The rehearsal did not authenticate to crates.io
-or upload the crates. An eventual release needs the same checks on its final
-source revision.
+[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65624447).
+Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42741860995/artifacts/13729333239)
+has SHA-256 `991b4ff5659521cd9bb859de37de9d6644bb125ea8792b502d9c29c53c7d2618`
+and expires February 8, 2027. The rehearsal skipped signed-tag verification,
+did not authenticate to crates.io and did not upload crates or create a GitHub
+Release. An eventual release needs the same checks on its final source revision.
+
+The earlier [`1e6174f2` rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42726308637)
+retains its [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42726308637/artifacts/13722132862)
+with SHA-256 `8c9ce25b8d9a5c776c6bc2a8ca448383e5e67e5ec6448e71e46d431088de1be3`
+and its [attestation](https://github.com/mingley/pure-protobuf/attestations/65589785).
+Its artifact expires February 8, 2027.
 
 Earlier rehearsals are available for
 [001d0b8b](https://github.com/mingley/pure-protobuf/actions/runs/42718098243),

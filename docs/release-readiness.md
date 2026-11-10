@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`1e6174f2`](https://github.com/mingley/pure-protobuf/commit/1e6174f2c6463f29488bcfbd432525e0cd9f94f1):
+These versions are declared at [`713038c7`](https://github.com/mingley/pure-protobuf/commit/713038c7f2d60da41824531a7b81920183c7510b):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -20,7 +20,10 @@ manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
 The [implementation status](status.md) links the latest recorded CI, Miri and
-package rehearsal; final release evidence must match the release source.
+package rehearsal. At `713038c7`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42741860995)
+packaged all three crates after its exact-source CI passed. Signed-tag
+verification and crates.io authentication were skipped; no crates were
+published. Final release evidence must match the release source.
 
 ## Release checklist
 

@@ -1,10 +1,10 @@
 # Unary binary-log cancellation
 
-Unary client binary logs record an application cancellation request rather than
-inferring it from a returned `CANCELLED` status. The earlier implementation
-could mistake a peer status for a local request. A status can also be reused
-by application codec code, so the cancellation observation belongs to the
-call, not the status.
+When registered, unary client binary logs record an application cancellation
+request rather than inferring it from a returned `CANCELLED` status. The
+earlier implementation could mistake a peer status for a local request. A
+status can also be reused by application codec code, so the cancellation
+observation belongs to the call, not the status.
 
 A client `Cancel` event may race a server trailer. The vendored A16 schema
 allows later events after cancellation; a winner-only check would lose a real
@@ -56,7 +56,7 @@ The [713 preflight](https://github.com/mingley/pure-protobuf/actions/runs/427395
 checked the selected source and its real hedge-order races, assertion-specific
 negative controls, Rust 1.85 and documentation. The
 [713 endpoint record](../benchmarks/unary-cancel-713-screen-20261110.md)
-compares that candidate with main: in its unpolled construct-and-drop
+compares that candidate with the 713 runtime baseline: in its unpolled construct-and-drop
 microbenchmark, configured but excluded and enabled logging were slower in
 all ten blocks. Those measurements are specific to that workload and runner.
 Earlier [rebased endpoint results](../benchmarks/rebased-unary-cancel-screen-20261110.md)
@@ -71,7 +71,7 @@ measured the cancellation `Inner` at 80 bytes versus 72 for the earlier
 baseline on x86-64. In a separate retained-call construction check, each
 additional live unpolled call requested 5,728 bytes versus 5,720 at baseline.
 These observations do not measure peak memory or drop-time logging-state
-allocation. Rebased integration still needs checks on its exact source.
+allocation.
 
 A16 support remains partial. Unary cancellations before logger registration
 may be omitted, streaming can still misattribute a peer `CANCELLED`, retry or
