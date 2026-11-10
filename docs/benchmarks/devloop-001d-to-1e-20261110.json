@@ -1,0 +1,407 @@
+{
+  "schema": "devloop-selected-allocation-cells/1",
+  "base": "001d0b8bc9e89a098047695c3ba73401ba330ea3",
+  "head": "1e6174f2c6463f29488bcfbd432525e0cd9f94f1",
+  "run": "https://github.com/mingley/pure-protobuf/actions/runs/42720697402",
+  "job_id": 129526170978,
+  "workflow_conclusion": "success",
+  "comparison": {
+    "exit_code": 1,
+    "gate": "advisory",
+    "common_cells": 1634,
+    "added_cells": 0,
+    "removed_cells": 0,
+    "instructions": "not_run",
+    "log_threshold_exceedances": {
+      "syscall_metrics": 191,
+      "locks_proxy_metrics": 299,
+      "picker_budget_exceedances": [
+        {
+          "id": "lb.pick_first.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.round_robin.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.weighted_round_robin.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.ring_hash.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.least_request.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.priority.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.outlier_detection.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        },
+        {
+          "id": "lb.random_subsetting_experimental.pick",
+          "reported_value": "0.0005",
+          "ceiling": "0",
+          "unit": "futex calls per operation (median)"
+        }
+      ],
+      "interpretation": "The locks metric is the process-wide strace futex-call proxy, including setup and wake calls, not lock acquisitions. Comparator threshold decisions on a shared runner do not establish causation."
+    }
+  },
+  "artifact": {
+    "id": 13726167039,
+    "url": "https://github.com/mingley/pure-protobuf/actions/runs/42720697402/artifacts/13726167039",
+    "sha256": "f75fb2b3afc010d59aded615032f7fdad487a2cd0edd180ae8bac538f8fc1b89",
+    "expires_utc": "2027-02-07T23:28:13Z"
+  },
+  "provenance": "Twenty selected comparison table rows reconstructed from the completed job log; raw reports and other cells remain in the workflow artifact.",
+  "rows": [
+    {
+      "id": "codec.adoption.pbrs.query.d4.v6.fresh_encode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "50.000",
+        "head": "50.000"
+      },
+      "requested_bytes": {
+        "base": "2949.0",
+        "head": "2949.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.query.d4.v6.fresh_encode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "23.000",
+        "head": "23.000"
+      },
+      "requested_bytes": {
+        "base": "2421.0",
+        "head": "2421.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v6.owned_decode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "39.000",
+        "head": "39.000"
+      },
+      "requested_bytes": {
+        "base": "4168.0",
+        "head": "4168.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.query.d4.v6.owned_decode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "22.000",
+        "head": "22.000"
+      },
+      "requested_bytes": {
+        "base": "3942.0",
+        "head": "3942.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v6.read_all",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "47.000",
+        "head": "47.000"
+      },
+      "requested_bytes": {
+        "base": "4868.0",
+        "head": "4868.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.query.d4.v6.read_all",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "22.000",
+        "head": "22.000"
+      },
+      "requested_bytes": {
+        "base": "3942.0",
+        "head": "3942.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v6.fully_read_clone",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "39.000",
+        "head": "39.000"
+      },
+      "requested_bytes": {
+        "base": "2340.0",
+        "head": "2340.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.query.d4.v6.fully_read_clone",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "21.000",
+        "head": "21.000"
+      },
+      "requested_bytes": {
+        "base": "1182.0",
+        "head": "1182.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n1000.fresh_encode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "38002.000",
+        "head": "38002.000"
+      },
+      "requested_bytes": {
+        "base": "2899166.0",
+        "head": "2899166.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.entities.n1000.fresh_encode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "27335.000",
+        "head": "27335.000"
+      },
+      "requested_bytes": {
+        "base": "2096502.0",
+        "head": "2096502.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n1000.owned_decode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "13668.000",
+        "head": "13668.000"
+      },
+      "requested_bytes": {
+        "base": "2081520.0",
+        "head": "2081520.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.entities.n1000.owned_decode",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "18342.000",
+        "head": "18342.000"
+      },
+      "requested_bytes": {
+        "base": "2032926.0",
+        "head": "2032926.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n1000.read_all",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "17668.000",
+        "head": "17668.000"
+      },
+      "requested_bytes": {
+        "base": "2705520.0",
+        "head": "2705520.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.entities.n1000.read_all",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "22342.000",
+        "head": "22342.000"
+      },
+      "requested_bytes": {
+        "base": "2791410.0",
+        "head": "2791410.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n1000.fully_read_clone",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "12668.000",
+        "head": "12668.000"
+      },
+      "requested_bytes": {
+        "base": "850664.0",
+        "head": "850664.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "codec.adoption.prost.entities.n1000.fully_read_clone",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "17334.000",
+        "head": "17334.000"
+      },
+      "requested_bytes": {
+        "base": "1011294.0",
+        "head": "1011294.0"
+      },
+      "unit": "heap bytes per op (exact)"
+    },
+    {
+      "id": "rpc.adoption.native_pbrs.query.d4.v6.unary",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "157.000",
+        "head": "157.000"
+      },
+      "requested_bytes": {
+        "base": "28988.0",
+        "head": "28988.0"
+      },
+      "unit": "heap bytes per RPC (median)"
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v6.unary",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "87.010",
+        "head": "87.045"
+      },
+      "requested_bytes": {
+        "base": "26973.52",
+        "head": "26978.84"
+      },
+      "unit": "heap bytes per RPC (median)"
+    },
+    {
+      "id": "rpc.adoption.tonic_pbrs.query.d4.v6.unary",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "195.010",
+        "head": "195.010"
+      },
+      "requested_bytes": {
+        "base": "57615.68",
+        "head": "57615.68"
+      },
+      "unit": "heap bytes per RPC (median)"
+    },
+    {
+      "id": "rpc.adoption.tonic_prost.query.d4.v6.unary",
+      "instructions": {
+        "base": "not_run",
+        "head": "not_run"
+      },
+      "allocations": {
+        "base": "125.010",
+        "head": "125.010"
+      },
+      "requested_bytes": {
+        "base": "54815.68",
+        "head": "54815.68"
+      },
+      "unit": "heap bytes per RPC (median)"
+    }
+  ],
+  "method": {
+    "selection": "20 selected allocation rows out of 1634 common comparison cells",
+    "codec_scope": "Query depth 4 variant 6 and EntityList 1000 records; fresh construction plus encoding, owned decode, read-all and fully-read clone",
+    "rpc_scope": "Unary Query d4/v6; two-worker, in-process client and server over TCP loopback; cloned, fully-read requests prepared from common wire",
+    "units": "Heap bytes per operation exact for codec; heap bytes per RPC median for RPC; allocations are successful allocation/reallocation requests",
+    "artifact_digest_source": "GitHub artifact metadata; archive not independently downloaded or hashed"
+  }
+}

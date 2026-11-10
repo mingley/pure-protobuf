@@ -16,6 +16,8 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Identity frame staging screen](benchmarks/identity-frame-staging-20261110.md) | Rejected chunk staging, whole-frame timing losses and synthetic backing retention, November 10 |
+| [Unary filter refinement screen](benchmarks/unary-filter-refinement-screen-20261110.md) | Unmerged early-filter draft, mixed CPU and higher requested bytes, November 10 |
 | [Integrated unary cancellation screen](benchmarks/integrated-unary-cancel-screen-20261109.md) | Unmerged no-logger endpoint draft; mixed CPU results across shared-host screens, November 9 |
 | [Unlogged cancellation screen](benchmarks/unlogged-cancel-screen-20261109.md) | Standalone primitive: two unmerged drafts and signal/lifecycle CPU losses, November 9 |
 | [gRPC-Web text encoder repeat](benchmarks/web-text-encoder-repeat-20261109.md) | Unmerged variants, allocation gains and aligned CPU losses, November 9 |
@@ -59,6 +61,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Dev-loop allocation comparison](benchmarks/devloop-001d-to-1e-20261110.md) | 1,634 common cells; advisory comparison failed and selected allocation results, November 10 |
 | [1,634-cell hosted run](https://github.com/mingley/pure-protobuf/actions/runs/42685722680) | `4a2d8e26`; advisory comparison exited 1 and instruction counts were unavailable, November 9 |
 | [November 6 hosted comparison](evidence/hosted-devloop-10d94697-20261106/README.md) | All 1,634 cells at `10d94697`, with selected wins, remaining Prost losses and instrumentation limits |
 | [Earlier full hosted comparison](evidence/hosted-devloop-20261106/README.md) | All 1,634 cells and repaired fresh lifecycle at `05a3cca5`, November 6 |
