@@ -441,7 +441,9 @@ peer for each side. It retains losses with task IDs and marks missing or
 nonpositive differentials unmeasured. Its default exit status is failure while
 full coverage remains incomplete; `--allow-partial` explicitly selects a diagnostic.
 When a capture includes the new patch hashes, the ledger rechecks the retained
-patches and driver on readback. Older reports and other v2 producers can lack
+patches and driver on readback. Both captures must either include patch evidence
+or omit it. When present, their patch hashes and scope, driver commit, and
+driver dirty status must match. Older reports and other v2 producers can lack
 every new field, so a report with those fields removed cannot be distinguished
 from one without them. The hashes detect ordinary retained-file drift; they are
 not attestations.
