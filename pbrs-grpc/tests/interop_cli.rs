@@ -26,50 +26,529 @@ const SERVER_BIN: &str = env!("CARGO_BIN_EXE_pbrs-grpc-interop-server");
 #[cfg(unix)]
 const HTTP2_CLIENT_BIN: &str = env!("CARGO_BIN_EXE_pbrs-grpc-http2-client");
 
+// The child owns the append handle and the parent opens a separate reader.
+// A regular file avoids pipe backpressure while the server is starting or
+// serving, and does not require joining a reader thread when a child exits.
+struct ServerLog {
+    path: PathBuf,
+    reader: Option<std::fs::File>,
+    line: Vec<u8>,
+    oversized_line: bool,
+}
+
+impl ServerLog {
+    fn new() -> (Self, std::fs::File) {
+        Self::new_with_reader(|path| std::fs::File::open(path))
+    }
+
+    fn new_with_reader<F>(open_reader: F) -> (Self, std::fs::File)
+    where
+        F: FnOnce(&Path) -> std::io::Result<std::fs::File>,
+    {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("wall clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "pbrs-grpc-interop-stderr-{}-{stamp}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let writer = std::fs::OpenOptions::new()
+            .append(true)
+            .create_new(true)
+            .open(&path)
+            .expect("create interop server stderr log");
+        let reader = match open_reader(&path) {
+            Ok(reader) => reader,
+            Err(error) => {
+                drop(writer);
+                let _ = std::fs::remove_file(&path);
+                panic!("open interop server stderr log: {error}");
+            }
+        };
+        (
+            Self {
+                path,
+                reader: Some(reader),
+                line: Vec::new(),
+                oversized_line: false,
+            },
+            writer,
+        )
+    }
+
+    fn poll_ready(&mut self, port: u16) -> std::io::Result<bool> {
+        use std::io::Read;
+
+        let plain = format!("pbrs-grpc interop server listening on 0.0.0.0:{port}");
+        let tls = format!("pbrs-grpc interop server listening with TLS on 0.0.0.0:{port}");
+        let mut ready = false;
+        let mut chunk = [0_u8; 4096];
+        // Bound each poll even if the child is continuously writing.
+        for _ in 0..16 {
+            let size = self
+                .reader
+                .as_mut()
+                .expect("open log reader")
+                .read(&mut chunk)?;
+            if size == 0 {
+                break;
+            }
+            for &byte in &chunk[..size] {
+                if byte == b'\n' {
+                    if !self.oversized_line {
+                        let line = self.line.strip_suffix(b"\r").unwrap_or(&self.line);
+                        ready |= line == plain.as_bytes() || line == tls.as_bytes();
+                    }
+                    self.line.clear();
+                    self.oversized_line = false;
+                } else if !self.oversized_line {
+                    if self.line.len() < 1024 {
+                        self.line.push(byte);
+                    } else {
+                        self.line.clear();
+                        self.oversized_line = true;
+                    }
+                }
+            }
+        }
+        Ok(ready)
+    }
+
+    fn contents(&self) -> String {
+        match std::fs::read(&self.path) {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+            Err(error) => format!("could not read server stderr: {error}"),
+        }
+    }
+}
+
+impl Drop for ServerLog {
+    fn drop(&mut self) {
+        // Close the independent reader before unlinking, including on Windows.
+        drop(self.reader.take());
+        if let Ok(mut source) = std::fs::File::open(&self.path) {
+            let _ = std::io::copy(&mut source, &mut std::io::stderr().lock());
+        }
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 struct ServerGuard {
     child: std::process::Child,
+    stderr_log: Option<ServerLog>,
+    port: u16,
 }
 
 impl Drop for ServerGuard {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+        drop(self.stderr_log.take());
+    }
+}
+
+#[derive(Debug)]
+enum ServerStartError {
+    Spawn(std::io::Error),
+    Poll(std::io::Error),
+    Read(std::io::Error),
+    Exited {
+        port: u16,
+        status: std::process::ExitStatus,
+        stderr: String,
+    },
+    Timeout {
+        port: u16,
+        stderr: String,
+    },
+}
+
+impl ServerStartError {
+    fn is_bind_collision(&self) -> bool {
+        let Self::Exited { port, stderr, .. } = self else {
+            return false;
+        };
+        if stderr
+            .lines()
+            .any(|line| line.starts_with("pbrs-grpc interop server listening"))
+        {
+            return false;
+        }
+        let prefix = format!("pbrs-grpc interop server bind failed on 0.0.0.0:{port}: ");
+        stderr.lines().any(|line| {
+            let Some(detail) = line.strip_prefix(prefix.as_str()) else {
+                return false;
+            };
+            let Some((_, raw)) = detail.rsplit_once(" (os error ") else {
+                return false;
+            };
+            let Some(code) = raw
+                .strip_suffix(')')
+                .and_then(|value| value.parse::<i32>().ok())
+            else {
+                return false;
+            };
+            std::io::Error::from_raw_os_error(code).kind() == std::io::ErrorKind::AddrInUse
+        })
+    }
+}
+
+impl std::fmt::Display for ServerStartError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Spawn(error) => write!(f, "failed to spawn interop server: {error}"),
+            Self::Poll(error) => write!(f, "poll interop server: {error}"),
+            Self::Read(error) => write!(f, "read interop server stderr: {error}"),
+            Self::Exited {
+                port,
+                status,
+                stderr,
+            } => write!(
+                f,
+                "server on port {port} exited before readiness: {status}; stderr:\n{stderr}"
+            ),
+            Self::Timeout { port, stderr } => write!(
+                f,
+                "server on port {port} failed to become ready in time; stderr:\n{stderr}"
+            ),
+        }
     }
 }
 
 fn pick_unused_port() -> u16 {
+    // This releases the port before the child binds; a verified bind collision
+    // is retried on a fresh port and the actual port is returned to the caller.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback");
     listener.local_addr().expect("local addr").port()
 }
 
-fn spawn_server(args: &[&str], port: u16) -> ServerGuard {
-    let mut server = ServerGuard {
-        child: Command::new(SERVER_BIN)
-            .args(args)
-            .spawn()
-            .expect("failed to spawn interop server"),
-    };
-    let addr = format!("127.0.0.1:{port}");
-    let start = std::time::Instant::now();
-    let mut ready = false;
-    while start.elapsed() < Duration::from_secs(5) {
-        if let Some(status) = server.child.try_wait().expect("poll interop server") {
-            panic!("server on port {port} exited before readiness: {status}");
+fn args_with_port(args: &[&str], port: u16) -> Vec<String> {
+    let mut out = Vec::with_capacity(args.len());
+    let mut awaiting_port = false;
+    let mut replaced = 0;
+    for &arg in args {
+        if awaiting_port {
+            out.push(port.to_string());
+            awaiting_port = false;
+            replaced += 1;
+        } else if arg == "--port" || arg == "-port" {
+            out.push(arg.to_owned());
+            awaiting_port = true;
+        } else if let Some((flag, _)) = arg.split_once('=') {
+            if flag == "--port" || flag == "-port" {
+                out.push(format!("{flag}={port}"));
+                replaced += 1;
+            } else {
+                out.push(arg.to_owned());
+            }
+        } else {
+            out.push(arg.to_owned());
         }
-        if std::net::TcpStream::connect(&addr).is_ok() {
-            ready = true;
-            break;
+    }
+    assert!(
+        !awaiting_port && replaced == 1,
+        "expected exactly one port flag"
+    );
+    out
+}
+
+fn spawn_server(args: &[&str], port: u16) -> ServerGuard {
+    spawn_server_with_retry(port, |actual_port| {
+        let mut command = Command::new(SERVER_BIN);
+        command.args(args_with_port(args, actual_port));
+        command
+    })
+    .unwrap_or_else(|error| panic!("{error}"))
+}
+
+fn spawn_server_with_retry<F>(
+    mut port: u16,
+    mut command_for_port: F,
+) -> Result<ServerGuard, ServerStartError>
+where
+    F: FnMut(u16) -> Command,
+{
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let (log, writer) = ServerLog::new();
+        match try_spawn_server_command(
+            command_for_port(port),
+            port,
+            Duration::from_secs(5),
+            log,
+            writer,
+        ) {
+            Ok(server) => return Ok(server),
+            Err(error) if error.is_bind_collision() && attempts < 8 => {
+                port = pick_unused_port();
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[cfg(unix)]
+fn spawn_server_command(
+    command: Command,
+    port: u16,
+    timeout: Duration,
+    log: ServerLog,
+    writer: std::fs::File,
+) -> ServerGuard {
+    try_spawn_server_command(command, port, timeout, log, writer)
+        .unwrap_or_else(|error| panic!("{error}"))
+}
+
+fn try_spawn_server_command(
+    mut command: Command,
+    port: u16,
+    timeout: Duration,
+    log: ServerLog,
+    writer: std::fs::File,
+) -> Result<ServerGuard, ServerStartError> {
+    let child = command.stderr(std::process::Stdio::from(writer)).spawn();
+    // Drop the parent's writer before waiting or handling a spawn failure.
+    drop(command);
+    let child = child.map_err(ServerStartError::Spawn)?;
+    let mut server = ServerGuard {
+        child,
+        stderr_log: Some(log),
+        port,
+    };
+    let start = std::time::Instant::now();
+    loop {
+        if let Some(status) = server.child.try_wait().map_err(ServerStartError::Poll)? {
+            let stderr = server.stderr_log.as_ref().expect("server log").contents();
+            return Err(ServerStartError::Exited {
+                port,
+                status,
+                stderr,
+            });
+        }
+        if start.elapsed() >= timeout {
+            let stderr = server.stderr_log.as_ref().expect("server log").contents();
+            return Err(ServerStartError::Timeout { port, stderr });
+        }
+        let ready = server
+            .stderr_log
+            .as_mut()
+            .expect("server log")
+            .poll_ready(port)
+            .map_err(ServerStartError::Read)?;
+        if ready {
+            if let Some(status) = server.child.try_wait().map_err(ServerStartError::Poll)? {
+                let stderr = server.stderr_log.as_ref().expect("server log").contents();
+                return Err(ServerStartError::Exited {
+                    port,
+                    status,
+                    stderr,
+                });
+            }
+            return Ok(server);
         }
         std::thread::sleep(Duration::from_millis(25));
     }
-    if let Some(status) = server.child.try_wait().expect("poll interop server") {
-        panic!("server on port {port} exited before readiness: {status}");
-    }
+}
+
+#[cfg(unix)]
+fn readiness_panic_message(result: std::thread::Result<ServerGuard>) -> String {
+    let error = match result {
+        Ok(_) => panic!("expected server startup to fail"),
+        Err(error) => error,
+    };
+    error
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| {
+            error
+                .downcast_ref::<&str>()
+                .map(|value| (*value).to_owned())
+        })
+        .expect("readiness panic message")
+}
+
+#[cfg(unix)]
+#[test]
+fn interop_server_readiness_rejects_a_foreign_listener() {
+    let decoy = std::net::TcpListener::bind("127.0.0.1:0").expect("bind decoy");
+    let port = decoy.local_addr().expect("decoy address").port();
+    let mut command = Command::new("sh");
+    command.args(["-c", "printf 'child has not bound\\n' >&2; exec sleep 3"]);
+    let (log, writer) = ServerLog::new();
+    let path = log.path.clone();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        spawn_server_command(command, port, Duration::from_millis(200), log, writer)
+    }));
+    let message = readiness_panic_message(result);
     assert!(
-        ready,
-        "server on port {port} failed to become ready in time"
+        message.contains("failed to become ready in time"),
+        "unexpected readiness failure: {message}"
     );
-    server
+    assert!(!path.exists(), "startup failure must remove the stderr log");
+    println!("INTEROP_OWN_READINESS_REJECTED_DECOY");
+}
+
+#[cfg(unix)]
+#[test]
+fn interop_server_readiness_timeout_and_spawn_failure_clean_logs() {
+    let (log, writer) = ServerLog::new();
+    let path = log.path.clone();
+    let mut command = Command::new("sh");
+    command.args(["-c", "printf 'waiting for startup\\n' >&2; exec sleep 3"]);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        spawn_server_command(command, 1, Duration::from_secs(1), log, writer)
+    }));
+    let message = readiness_panic_message(result);
+    assert!(
+        message.contains("failed to become ready in time")
+            && message.contains("waiting for startup"),
+        "unexpected timeout failure: {message}"
+    );
+    assert!(!path.exists(), "timeout must remove the stderr log");
+
+    let (log, writer) = ServerLog::new();
+    let path = log.path.clone();
+    let missing = path.with_extension("missing-executable");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        spawn_server_command(
+            Command::new(missing),
+            1,
+            Duration::from_secs(1),
+            log,
+            writer,
+        )
+    }));
+    let message = readiness_panic_message(result);
+    assert!(
+        message.contains("failed to spawn interop server"),
+        "unexpected spawn failure: {message}"
+    );
+    assert!(!path.exists(), "spawn failure must remove the stderr log");
+}
+
+#[test]
+fn interop_server_retries_verified_bind_collisions() {
+    for style in 0..3 {
+        // Bind exactly the wildcard address used by the child on every host.
+        let decoy = std::net::TcpListener::bind("0.0.0.0:0").expect("bind collision");
+        let port = decoy.local_addr().expect("collision address").port();
+        let value = port.to_string();
+        let args = match style {
+            0 => vec![format!("--port={value}")],
+            1 => vec!["--port".to_owned(), value],
+            _ => vec!["-port".to_owned(), value],
+        };
+        let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+        let server = spawn_server(&borrowed, port);
+        assert_ne!(server.port, port, "the occupied first port must be retried");
+        let port_str = server.port.to_string();
+        let out = run_client(&[
+            "--server_host=127.0.0.1",
+            &format!("--server_port={port_str}"),
+            "--test_case=empty_unary",
+            "--use_tls=false",
+        ]);
+        assert!(
+            out.status.success(),
+            "RPC through retried listener failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        drop(server);
+        drop(decoy);
+    }
+}
+
+#[test]
+fn interop_server_does_not_retry_tls_setup_errors() {
+    let mut attempts = 0;
+    let result = spawn_server_with_retry(pick_unused_port(), |port| {
+        attempts += 1;
+        let mut command = Command::new(SERVER_BIN);
+        command.args([format!("--port={port}"), "--use_tls=true".to_owned()]);
+        command
+    });
+    let error = match result {
+        Ok(_) => panic!("server without TLS identity must fail"),
+        Err(error) => error,
+    };
+    assert_eq!(attempts, 1, "TLS setup errors must not be retried");
+    assert!(!error.is_bind_collision());
+    assert!(
+        error
+            .to_string()
+            .contains("missing required flag --tls_cert_file")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn interop_server_does_not_retry_generic_address_error() {
+    let decoy = std::net::TcpListener::bind("0.0.0.0:0").expect("bind collision");
+    let port = decoy.local_addr().expect("collision address").port();
+    let bind_error =
+        std::net::TcpListener::bind(("0.0.0.0", port)).expect_err("address is occupied");
+    assert_eq!(bind_error.kind(), std::io::ErrorKind::AddrInUse);
+    let diagnostic = format!("UNAVAILABLE: {bind_error}");
+    let mut attempts = 0;
+    let result = spawn_server_with_retry(port, |_| {
+        attempts += 1;
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "printf '%s\\n' \"$1\" >&2; exit 1",
+            "fake-error",
+            &diagnostic,
+        ]);
+        command
+    });
+    let error = match result {
+        Ok(_) => panic!("a generic error must fail startup"),
+        Err(error) => error,
+    };
+    assert_eq!(attempts, 1, "a generic error must not be retried");
+    assert!(!error.is_bind_collision());
+    assert!(error.to_string().contains("UNAVAILABLE:"));
+}
+
+#[test]
+fn interop_server_readiness_reader_failure_cleans_log() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ServerLog::new_with_reader(|path| {
+            sender.send(path.to_owned()).expect("record stderr path");
+            Err(std::io::Error::other("simulated reader failure"))
+        })
+    }));
+    assert!(result.is_err(), "reader setup should fail");
+    let path = receiver.recv().expect("stderr path");
+    assert!(!path.exists(), "reader failure must remove the stderr log");
+}
+
+#[test]
+fn interop_server_readiness_requires_a_complete_bounded_line() {
+    use std::io::Write;
+
+    let (mut log, mut writer) = ServerLog::new();
+    let path = log.path.clone();
+    writer.write_all(&vec![b'x'; 2048]).expect("long line");
+    writer.write_all(b"\n").expect("finish long line");
+    writer
+        .write_all(b"pbrs-grpc interop server listening on 0.0.0.0:12345")
+        .expect("partial marker");
+    writer.flush().expect("flush partial marker");
+    assert!(!log.poll_ready(12345).expect("read partial marker"));
+    writer.write_all(b"\n").expect("finish marker");
+    writer.flush().expect("flush marker");
+    assert!(log.poll_ready(12345).expect("read complete marker"));
+    drop(writer);
+    drop(log);
+    assert!(!path.exists(), "completed log must be removed");
 }
 
 fn run_client(args: &[&str]) -> std::process::Output {
@@ -302,7 +781,7 @@ fn client_tls_without_ca_defaults_to_webpki_and_fails_on_self_signed() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -311,6 +790,7 @@ fn client_tls_without_ca_defaults_to_webpki_and_fails_on_self_signed() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -340,7 +820,7 @@ fn client_tls_wrong_ca_fails_verification() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -349,6 +829,7 @@ fn client_tls_wrong_ca_fails_verification() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let trusted = run_client(&[
         "--server_host=127.0.0.1",
@@ -402,7 +883,7 @@ fn client_tls_hostname_mismatch_fails_verification() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -411,6 +892,7 @@ fn client_tls_hostname_mismatch_fails_verification() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -586,7 +1068,8 @@ fn server_rejects_use_tls_with_nonexistent_files() {
 fn valid_flags_equal_syntax_style() {
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(&[&format!("--port={port_str}")], port);
+    let server = spawn_server(&[&format!("--port={port_str}")], port);
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -603,7 +1086,8 @@ fn valid_flags_equal_syntax_style() {
 fn valid_flags_space_syntax_style() {
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(&["--port", &port_str], port);
+    let server = spawn_server(&["--port", &port_str], port);
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host",
@@ -624,7 +1108,8 @@ fn valid_flags_space_syntax_style() {
 fn valid_flags_single_dash_interop_runner_style() {
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(&["-port", &port_str], port);
+    let server = spawn_server(&["-port", &port_str], port);
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "-server_host",
@@ -679,7 +1164,7 @@ fn valid_flags_tls_end_to_end() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -688,6 +1173,7 @@ fn valid_flags_tls_end_to_end() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -720,7 +1206,11 @@ fn spawn_openssl_server_without_alpn(cert: &Path, key: &Path, port: u16) -> Serv
         .stderr(std::process::Stdio::null())
         .spawn()
         .expect("openssl s_server must be installed for the missing-ALPN test");
-    let mut guard = ServerGuard { child };
+    let mut guard = ServerGuard {
+        child,
+        stderr_log: None,
+        port,
+    };
     let addr = format!("127.0.0.1:{port_str}");
     let start = std::time::Instant::now();
     let mut ready = false;
@@ -759,7 +1249,7 @@ fn client_mtls_end_to_end() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -769,6 +1259,7 @@ fn client_mtls_end_to_end() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -794,7 +1285,7 @@ fn client_mtls_missing_client_identity_fails() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -804,6 +1295,7 @@ fn client_mtls_missing_client_identity_fails() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     // Plain one-way TLS client against an mTLS-requiring server: the missing
     // client identity must fail, never silently run unverified.
@@ -837,7 +1329,7 @@ fn client_mtls_wrong_client_ca_fails() {
 
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(
+    let server = spawn_server(
         &[
             &format!("--port={port_str}"),
             "--use_tls=true",
@@ -847,6 +1339,7 @@ fn client_mtls_wrong_client_ca_fails() {
         ],
         port,
     );
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",
@@ -962,7 +1455,8 @@ fn server_rejects_mtls_with_missing_client_ca_file() {
 fn valid_flags_bench() {
     let port = pick_unused_port();
     let port_str = port.to_string();
-    let _guard = spawn_server(&[&format!("--port={port_str}")], port);
+    let server = spawn_server(&[&format!("--port={port_str}")], port);
+    let port_str = server.port.to_string();
 
     let out = run_client(&[
         "--server_host=127.0.0.1",

@@ -185,6 +185,13 @@ async fn main() {
     }
 }
 
+async fn bind_listener(addr: SocketAddr) -> Result<TcpListener, Status> {
+    TcpListener::bind(addr).await.map_err(|error| {
+        eprintln!("pbrs-grpc interop server bind failed on {addr}: {error}");
+        Status::unavailable(error.to_string())
+    })
+}
+
 async fn run(args: ServerArgs) -> Result<(), Status> {
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
     if args.use_tls {
@@ -248,9 +255,7 @@ async fn run(args: ServerArgs) -> Result<(), Status> {
                 }
             },
         };
-        let listener = TcpListener::bind(addr)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
+        let listener = bind_listener(addr).await?;
         let bound = listener
             .local_addr()
             .map_err(|e| Status::unavailable(e.to_string()))?;
@@ -259,9 +264,7 @@ async fn run(args: ServerArgs) -> Result<(), Status> {
             .serve_tls_with_shutdown(listener, std::future::pending(), server_tls)
             .await
     } else {
-        let listener = TcpListener::bind(addr)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
+        let listener = bind_listener(addr).await?;
         let bound = listener
             .local_addr()
             .map_err(|e| Status::unavailable(e.to_string()))?;
