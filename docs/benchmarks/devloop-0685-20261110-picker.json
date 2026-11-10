@@ -1,0 +1,38 @@
+{
+  "cells": {
+    "lb.least_request.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.outlier_detection.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.pick_first.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.priority.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.random_subsetting_experimental.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.ring_hash.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.round_robin.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.weighted_round_robin.pick": {
+      "allocs": 0,
+      "locks": 0
+    }
+  },
+  "note": "Zero ceilings for guarded allocations per pick and the child process's futex-family syscall rate. The futex count includes setup, teardown, wakes and unsuccessful waits; it does not isolate blocking or picker activity. Instructions compare relatively; wall is retained for inspection without a threshold; see baselines/README.md.",
+  "schema": "devloop-budget/1"
+}

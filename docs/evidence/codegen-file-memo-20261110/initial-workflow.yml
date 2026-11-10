@@ -1,0 +1,151 @@
+name: Screen borrowed codegen file memo
+on:
+  push:
+    branches: [scratch/codegen-file-memo-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+  BASELINE: 5fe70efdc798031badefd1a3847d8866dde352f5
+  BORROWED: 9717d306baf1e0391153d8157e5c31990f4a3c92
+  CONTAINS: 5bbdac8f28fea40bd6330067f3b205eaa63db728
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify exact sources and prerequisites
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^1)" = "$BORROWED"
+          test "$(git rev-parse HEAD^2)" = "$CONTAINS"
+          test "$(git rev-parse "$BORROWED^")" = "$BASELINE"
+          test "$(git rev-parse "$CONTAINS^")" = "$BASELINE"
+          test "$(git diff --name-only "$BASELINE" "$BORROWED")" = src/codegen/descriptors.rs
+          test "$(git diff --name-only "$BASELINE" "$CONTAINS")" = src/codegen/descriptors.rs
+          test "$(git hash-object src/codegen/descriptors.rs)" = 398dc509f8cae124ac8fc395893438078a3aa8a4
+          test "$(git hash-object '.github/experiments/file-memo/probe.rs')" = 9239bd9b594dc3b819ae19d971d837c86e2460fd
+          test "$(git hash-object '.github/experiments/file-memo/corpus.py')" = 2b4d678de28137ec05c34005dd5381104048001d
+          test "$(git hash-object '.github/experiments/file-memo/compare.py')" = 0ffbc79ca327c40444306763f907211073e2e5c1
+          test -z "$(git status --porcelain)"
+          if ! command -v protoc >/dev/null; then
+            timeout 300s sudo apt-get update
+            timeout 300s sudo apt-get install -y protobuf-compiler
+          fi
+          protoc --version
+          rustc -Vv
+          grep -m1 'model name' /proc/cpuinfo || true
+          cargo fetch --locked --manifest-path tests/proof/codec_benchmark/Cargo.toml
+      - name: Build exact-source probes and check fallback
+        run: |
+          set -euo pipefail
+          source_file=src/codegen/descriptors.rs
+          scratch_dir="$RUNNER_TEMP/file-memo"
+          mkdir -p "$scratch_dir/probe/src" "$scratch_dir/data"
+          cp .github/experiments/file-memo/probe.rs "$scratch_dir/probe/src/main.rs"
+          cat > "$scratch_dir/probe/Cargo.toml" <<EOF
+          [package]
+          name = "file-memo-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+          [workspace]
+          [dependencies]
+          pbrs = { path = "$GITHUB_WORKSPACE" }
+          libc = "=0.2.189"
+          [features]
+          allocation-probe = []
+          [profile.release]
+          opt-level = 3
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cargo generate-lockfile --offline --manifest-path "$scratch_dir/probe/Cargo.toml"
+          cp "$scratch_dir/probe/Cargo.lock" "$scratch_dir/data/Cargo.lock"
+          restore() { git checkout "$GITHUB_SHA" -- "$source_file"; }
+          trap restore EXIT
+          for variant in base borrowed contains; do
+            case "$variant" in
+              base) revision="$BASELINE" ;;
+              borrowed) revision="$BORROWED" ;;
+              contains) revision="$CONTAINS" ;;
+            esac
+            git show "$revision:$source_file" > "$source_file"
+            printf 'MEMO_SOURCE_V1 %s %s ' "$variant" "$revision"
+            git hash-object "$source_file"
+            cat >> "$source_file" <<'RS'
+
+          #[cfg(test)]
+          mod file_memo_fallback_probe {
+              use super::*;
+
+              #[test]
+              fn memo_hit_and_missing_file_fallback() {
+                  let targets = vec!["dir/a.proto".to_string()];
+                  let matcher = FileMatcher::for_slice(&targets);
+                  let mut memo = std::collections::BTreeMap::new();
+                  memo.insert("cached.proto".into(), FileFacts {
+                      stem: "sentinel".to_string(),
+                      in_any_target: false,
+                  });
+                  let mut scratch = None;
+                  let hit = file_facts(&memo, "cached.proto", &matcher, &mut scratch);
+                  assert_eq!(hit.stem, "sentinel");
+                  assert!(scratch.is_none());
+                  let fallback = file_facts(&memo, "a.proto", &matcher, &mut scratch);
+                  assert_eq!(fallback.stem, "a");
+                  assert!(fallback.in_any_target);
+                  assert!(scratch.is_some());
+              }
+          }
+          RS
+            touch "$source_file"
+            cargo test --locked -p pbrs --lib file_memo_fallback_probe -- --nocapture
+            git show "$revision:$source_file" > "$source_file"
+            touch "$source_file"
+            cargo build --offline --locked --release --manifest-path "$scratch_dir/probe/Cargo.toml" \
+              --message-format=json > "$scratch_dir/data/build-$variant.jsonl"
+            python3 - "$scratch_dir/data/build-$variant.jsonl" <<'PY'
+          import json, sys
+          rows = [json.loads(line) for line in open(sys.argv[1]) if line.startswith("{")]
+          targets = [r for r in rows if r.get("reason") == "compiler-artifact"
+                     and r.get("target", {}).get("name") == "pbrs" and "lib" in r["target"]["kind"]]
+          assert targets and any(not r["fresh"] for r in targets), targets
+          PY
+            cp "$scratch_dir/probe/target/release/file-memo-probe" "$scratch_dir/$variant"
+            cargo build --offline --locked --release --manifest-path "$scratch_dir/probe/Cargo.toml" \
+              --features allocation-probe
+            cp "$scratch_dir/probe/target/release/file-memo-probe" "$scratch_dir/$variant-alloc"
+          done
+          sha256sum "$scratch_dir"/{base,borrowed,contains}{,-alloc}
+          restore
+          trap - EXIT
+          test -z "$(git status --porcelain)"
+      - name: Compare exact outputs and balanced CPU
+        run: |
+          set -euo pipefail
+          scratch_dir="$RUNNER_TEMP/file-memo"
+          python3 .github/experiments/file-memo/corpus.py "$scratch_dir/corpus"
+          for workers in 1 2; do
+            PBRS_CODEGEN_CORES="$workers" python3 .github/experiments/file-memo/compare.py \
+              "$scratch_dir/base" "$scratch_dir/borrowed" "$scratch_dir/contains" \
+              "$scratch_dir/base-alloc" "$scratch_dir/borrowed-alloc" "$scratch_dir/contains-alloc" \
+              "$scratch_dir/corpus" "$scratch_dir/data/cores-$workers"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codegen-file-memo-screen-5fe
+          path: |
+            ${{ runner.temp }}/file-memo/data
+            ${{ runner.temp }}/file-memo/corpus
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Remove exact scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/scratch/codegen-file-memo-20261110:$GITHUB_SHA" origin ":refs/heads/scratch/codegen-file-memo-20261110"

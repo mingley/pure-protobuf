@@ -1,0 +1,133 @@
+name: Repeat borrowed file memo controls
+on:
+  push:
+    branches: [scratch/codegen-file-memo-repeat-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+  GH_TOKEN: ${{ github.token }}
+  BASELINE: 5fe70efdc798031badefd1a3847d8866dde352f5
+  BORROWED: 9717d306baf1e0391153d8157e5c31990f4a3c92
+jobs:
+  repeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check sources and retrieve original lock
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = a7a933bafd2c2e7e1f576ab7c2ca8beda7a9f446
+          test "$(git rev-parse HEAD^1^1)" = "$BORROWED"
+          test "$(git rev-parse "$BORROWED^")" = "$BASELINE"
+          test "$(git hash-object src/codegen/descriptors.rs)" = 398dc509f8cae124ac8fc395893438078a3aa8a4
+          test "$(git hash-object .github/experiments/file-memo/probe.rs)" = 9239bd9b594dc3b819ae19d971d837c86e2460fd
+          test "$(git hash-object .github/experiments/file-memo/corpus.py)" = 2b4d678de28137ec05c34005dd5381104048001d
+          test "$(git hash-object .github/experiments/file-memo/repeat.py)" = 875e49125d363120d04f90b7827c373ebf68674a
+          test -z "$(git status --porcelain)"
+          if ! command -v protoc >/dev/null; then
+            timeout 300s sudo apt-get update
+            timeout 300s sudo apt-get install -y protobuf-compiler
+          fi
+          test "$(protoc --version)" = "libprotoc 3.21.12"
+          rustc -Vv
+          grep -m1 'model name' /proc/cpuinfo || true
+          cargo fetch --locked --manifest-path tests/proof/codec_benchmark/Cargo.toml
+          mkdir -p "$RUNNER_TEMP/memo-repeat/original"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/13744031514/zip \
+            -o "$RUNNER_TEMP/memo-repeat/screen.zip"
+          printf '3ec488759acd5e27f234c222c6b64f6aa97ae162ea6ff3d3a39cba3ee7c01a7e  %s\n' \
+            "$RUNNER_TEMP/memo-repeat/screen.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/memo-repeat/screen.zip" -d "$RUNNER_TEMP/memo-repeat/original"
+      - name: Build exact-source normal and allocation probes
+        run: |
+          set -euo pipefail
+          source_file=src/codegen/descriptors.rs
+          scratch_dir="$RUNNER_TEMP/memo-repeat"
+          mkdir -p "$scratch_dir/probe/src" "$scratch_dir/data/sources"
+          cp .github/experiments/file-memo/probe.rs "$scratch_dir/probe/src/main.rs"
+          cp .github/experiments/file-memo/{probe.rs,corpus.py,repeat.py} "$scratch_dir/data/sources/"
+          cat > "$scratch_dir/probe/Cargo.toml" <<EOF
+          [package]
+          name = "file-memo-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+          [workspace]
+          [dependencies]
+          pbrs = { path = "$GITHUB_WORKSPACE" }
+          libc = "=0.2.189"
+          [features]
+          allocation-probe = []
+          [profile.release]
+          opt-level = 3
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cp "$scratch_dir/original/data/Cargo.lock" "$scratch_dir/probe/Cargo.lock"
+          cp "$scratch_dir/probe/Cargo.lock" "$scratch_dir/data/Cargo.lock"
+          cp "$scratch_dir/probe/Cargo.toml" "$scratch_dir/data/Cargo.toml"
+          restore() { git checkout "$GITHUB_SHA" -- "$source_file"; }
+          trap restore EXIT
+          for variant in base borrowed; do
+            if test "$variant" = base; then revision="$BASELINE"; else revision="$BORROWED"; fi
+            git show "$revision:$source_file" > "$source_file"
+            printf 'MEMO_REPEAT_SOURCE_V1 %s %s ' "$variant" "$revision"
+            git hash-object "$source_file"
+            touch "$source_file"
+            cargo build --offline --locked --release --manifest-path "$scratch_dir/probe/Cargo.toml" \
+              --message-format=json > "$scratch_dir/data/build-$variant.jsonl"
+            python3 - "$scratch_dir/data/build-$variant.jsonl" <<'PY'
+          import json, sys
+          rows = [json.loads(line) for line in open(sys.argv[1]) if line.startswith("{")]
+          targets = [r for r in rows if r.get("reason") == "compiler-artifact"
+                     and r.get("target", {}).get("name") == "pbrs" and "lib" in r["target"]["kind"]]
+          assert targets and any(not r["fresh"] for r in targets), targets
+          PY
+            cp "$scratch_dir/probe/target/release/file-memo-probe" "$scratch_dir/$variant"
+            cargo build --offline --locked --release --manifest-path "$scratch_dir/probe/Cargo.toml" \
+              --features allocation-probe
+            cp "$scratch_dir/probe/target/release/file-memo-probe" "$scratch_dir/$variant-alloc"
+          done
+          sha256sum "$scratch_dir"/{base,borrowed}{,-alloc}
+          restore
+          trap - EXIT
+          test -z "$(git status --porcelain)"
+      - name: Reproduce exact requests and run longer balanced samples
+        run: |
+          set -euo pipefail
+          scratch_dir="$RUNNER_TEMP/memo-repeat"
+          python3 .github/experiments/file-memo/corpus.py "$scratch_dir/corpus"
+          python3 - "$scratch_dir/original/corpus/corpus.json" "$scratch_dir/corpus/corpus.json" <<'PY'
+          import json, sys
+          def load(path):
+              rows = json.load(open(path))
+              return {r["case"]: (r["request_sha256"], r["targets"], r["descriptor_files"],
+                                  r["performance"], r["expected_error"]) for r in rows}
+          assert load(sys.argv[1]) == load(sys.argv[2])
+          print("MEMO_REPEAT_REQUESTS_IDENTICAL")
+          PY
+          for workers in 1 2; do
+            PBRS_CODEGEN_CORES="$workers" python3 .github/experiments/file-memo/repeat.py \
+              "$scratch_dir/base" "$scratch_dir/borrowed" "$scratch_dir/base-alloc" "$scratch_dir/borrowed-alloc" \
+              "$scratch_dir/corpus" "$scratch_dir/data/cores-$workers"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codegen-file-memo-repeat-5fe
+          path: |
+            ${{ runner.temp }}/memo-repeat/data
+            ${{ runner.temp }}/memo-repeat/corpus
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Remove exact scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/scratch/codegen-file-memo-repeat-20261110:$GITHUB_SHA" origin ":refs/heads/scratch/codegen-file-memo-repeat-20261110"

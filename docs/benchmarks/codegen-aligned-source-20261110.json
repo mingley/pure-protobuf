@@ -1,0 +1,139 @@
+{
+  "corpus": {
+    "files": 20,
+    "messages": 1000,
+    "seed": 190019,
+    "sha256": "73ff55edceede7079014c22e1adee623e2fe9baead31b5c1e34e57281edc9580"
+  },
+  "limitations": "Lexical sections are approximate source text, not Rust AST, expanded code, CPU samples or feature-equivalent output.",
+  "line_partition_bytes": {
+    "accessors": 1200862,
+    "constructors": 143343,
+    "doc_comments": 887119,
+    "merge_parse": 4147341,
+    "other": 1130946,
+    "other_methods": 751297,
+    "size_encode": 2018592,
+    "typed_message_macro_calls": 75513,
+    "validation": 2570888
+  },
+  "message_structures": 1000,
+  "method_counts": {
+    "__pbrs_merge_heavy": 14,
+    "__pbrs_merge_mode": 19,
+    "check_required": 1000,
+    "clear_previous": 19,
+    "cold_mut": 373,
+    "compute_size": 1000,
+    "default": 1373,
+    "eq": 1000,
+    "field_1": 1000,
+    "field_1_mut": 362,
+    "field_2": 1000,
+    "field_2_mut": 373,
+    "field_3": 1000,
+    "field_3_mut": 356,
+    "field_4": 1000,
+    "field_4_mut": 383,
+    "has_previous": 19,
+    "merge_bytes": 1000,
+    "merge_bytes_dont_enforce": 1000,
+    "merge_group": 1000,
+    "merge_heavy": 810,
+    "merge_inner": 1000,
+    "new": 1000,
+    "previous": 19,
+    "previous_mut": 19,
+    "previous_opt": 19,
+    "previous_view": 19,
+    "set_field_1": 1000,
+    "set_field_2": 1000,
+    "set_field_3": 1000,
+    "set_field_4": 1000,
+    "set_previous": 19,
+    "validate_inner": 1000,
+    "validate_until": 1000,
+    "write_to": 1000
+  },
+  "outputs": {
+    "pbrs-lean": {
+      "command": [
+        "/home/runner/work/_temp/codegen-aligned/pbrs/target/release/aligned-pbrs-driver",
+        "/home/runner/work/_temp/codegen-aligned/results/corpus",
+        "/home/runner/work/_temp/codegen-aligned/results/pbrs-lean",
+        "/usr/bin/protoc",
+        "part_00.proto",
+        "part_01.proto",
+        "part_02.proto",
+        "part_03.proto",
+        "part_04.proto",
+        "part_05.proto",
+        "part_06.proto",
+        "part_07.proto",
+        "part_08.proto",
+        "part_09.proto",
+        "part_10.proto",
+        "part_11.proto",
+        "part_12.proto",
+        "part_13.proto",
+        "part_14.proto",
+        "part_15.proto",
+        "part_16.proto",
+        "part_17.proto",
+        "part_18.proto",
+        "part_19.proto"
+      ],
+      "fds_sha256": "cb2d308fd5c8e7769964f8656da25f32d0635ff4281e9a0f2e558367596e1fa0",
+      "manifest": {
+        "bytes": 12925901,
+        "files": 21,
+        "sha256": "de51947430a8769f539989b1911cf0af55d32ecb2266be5b0638a0036491ae03"
+      },
+      "options": {
+        "CODEGEN_WITNESS_FDS": "/home/runner/work/_temp/codegen-aligned/results/pbrs-lean.fds",
+        "SB09_PBRS_EMIT_JSON": "0",
+        "SB09_PBRS_EMIT_REFLECTION": "0",
+        "SB09_PBRS_EMIT_TEXT": "0"
+      }
+    },
+    "prost-aligned": {
+      "command": [
+        "/home/runner/work/_temp/codegen-aligned/prost/target/release/aligned-prost-driver",
+        "/home/runner/work/_temp/codegen-aligned/results/corpus",
+        "/home/runner/work/_temp/codegen-aligned/results/prost-aligned",
+        "part_00.proto",
+        "part_01.proto",
+        "part_02.proto",
+        "part_03.proto",
+        "part_04.proto",
+        "part_05.proto",
+        "part_06.proto",
+        "part_07.proto",
+        "part_08.proto",
+        "part_09.proto",
+        "part_10.proto",
+        "part_11.proto",
+        "part_12.proto",
+        "part_13.proto",
+        "part_14.proto",
+        "part_15.proto",
+        "part_16.proto",
+        "part_17.proto",
+        "part_18.proto",
+        "part_19.proto"
+      ],
+      "fds_sha256": "cb2d308fd5c8e7769964f8656da25f32d0635ff4281e9a0f2e558367596e1fa0",
+      "manifest": {
+        "bytes": 412622,
+        "files": 1,
+        "sha256": "046d211af74344974c17eb5c106fa0f700b30559b9a4ba3278a421f089cd00b8"
+      },
+      "options": {
+        "CODEGEN_PROST_ALIGN": "1",
+        "CODEGEN_WITNESS_FDS": "/home/runner/work/_temp/codegen-aligned/results/prost-aligned.fds"
+      }
+    }
+  },
+  "reference_run": 42770907500,
+  "source": "5fe70efdc798031badefd1a3847d8866dde352f5"
+}

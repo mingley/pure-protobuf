@@ -39,7 +39,49 @@ outputs. The 1,000-message pbrs output contained 20 files with 50 distinct
 message structs each and a registry file: 1,000 distinct structs, with no
 duplicate message definitions. Its lean output contained no
 `FILE_DESCRIPTOR_SET` occurrence; default output contained 20 descriptor
-literals. Compacting those literals cannot improve this measured lean path.
+literals. The lean path emits no descriptor literal, although whole-binary
+code-layout effects remain possible.
+
+## What the generated source contains
+
+A [separate replay](https://github.com/mingley/pure-protobuf/actions/runs/42779103755)
+retained the 1,000-message lean output and approximately grouped its 12,925,901
+source bytes by lexical section. It attributed 4,147,341 bytes to merge and
+parse sections, 2,570,888 to validation, 2,018,592 to size and encoding, and
+1,200,862 to accessors. The remaining bytes include comments and other code.
+These are approximate source-text categories, not AST sizes or CPU samples.
+
+The opt-in [shared descriptor setting](../guides/codegen.md#shared-descriptor-storage)
+places reflective multi-file metadata in one helper, with a corresponding
+crate-root module and file-layout requirement. It is off by default and was
+not measured in this comparison. Reflection-free output is unchanged by that
+setting.
+
+The replay's [recorded breakdown](codegen-aligned-source-20261110.json) and
+[verifier](codegen-aligned-source-20261110-verify.py) are kept with this note.
+Its [90-day bundle](https://github.com/mingley/pure-protobuf/actions/runs/42779103755/artifacts/13745012286)
+has SHA-256
+`fa591e3ede48126599a8216a852718fbe2b774bbdc042a5f9375a22a23a6d908`
+and expires February 8, 2027. To check the original source archive and
+recompute the categories:
+
+```sh
+(
+  set -eu
+  repo_dir="$PWD"
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' EXIT
+  gh run download 42779103755 --repo mingley/pure-protobuf \
+    --name verified-aligned-codegen-sections-5fe --dir "$temp_dir"
+  printf '%s  %s\n' \
+    b0f8bb25b256bfefa1c264fadb66b5f1dbcd11da585553ae9e2da3738cf42dfb \
+    "$temp_dir/source.zip" | sha256sum --check
+  python3 "$repo_dir/docs/benchmarks/codegen-aligned-source-20261110-verify.py" \
+    "$temp_dir/source" "$repo_dir/docs/benchmarks/codegen-aligned-source-20261110.json"
+)
+```
+
+## Method
 
 Both drivers were optimized Rust 1.99.1 builds. Each timed invocation included
 driver startup, protoc 3.21.12, generation and writes to a fresh directory; it
@@ -64,7 +106,7 @@ individual invocation timings, controls, descriptor hashes and output
 summaries. The [independent verifier](https://github.com/mingley/pure-protobuf/actions/runs/42771970891)
 recomputed the timing ratios, compared the retained descriptor bytes directly,
 and regenerated the exact 1,000-message output to count its types and
-literals. That generated source itself was not retained. The
+literals. That verification did not retain generated source; the later source replay above did. The
 [90-day bundle](https://github.com/mingley/pure-protobuf/actions/runs/42771970891/artifacts/13742605866)
 has SHA-256
 `663dfacf4aa4ea3dda376c0ddce93bf1780da86477c9a2c6235c1cb0cbaf8ebc`

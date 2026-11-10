@@ -1,0 +1,17 @@
+diff --git a/src/codegen/descriptors.rs b/src/codegen/descriptors.rs
+index c07cb2e3bf2399b8e1f0ece0ef7e2a8e4449662a..8bf430983aeb4a93b6febcbc7ef0e0f3ef54c12b 100644
+--- a/src/codegen/descriptors.rs
++++ b/src/codegen/descriptors.rs
+@@ -391,9 +391,9 @@ pub fn generate_from_code_generator_request(
+         .chain(enum_facts.iter().map(|facts| facts.file.as_str()))
+         .chain(services_all.iter().map(|svc| svc.file_name.as_str()))
+     {
+-        file_memo
+-            .entry(file.to_string())
+-            .or_insert_with_key(|file| FileFacts::for_file(file, &all_matcher));
++        if !file_memo.contains_key(file) {
++            file_memo.insert(file.to_string(), FileFacts::for_file(file, &all_matcher));
++        }
+     }
+     // One target's emission as a pure closure over shared-immutable inputs
+     // (plus thread-local codegen state): this lets multi-target requests

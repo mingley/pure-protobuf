@@ -1,0 +1,31 @@
+diff --git a/src/codegen/descriptors.rs b/src/codegen/descriptors.rs
+index c07cb2e3bf2399b8e1f0ece0ef7e2a8e4449662a..398dc509f8cae124ac8fc395893438078a3aa8a4 100644
+--- a/src/codegen/descriptors.rs
++++ b/src/codegen/descriptors.rs
+@@ -383,7 +383,7 @@ pub fn generate_from_code_generator_request(
+     // re-derive these per (target, type) with fresh normalizations.
+     let services_all: Vec<Arc<ServiceDescriptor>> = pool.collect_services();
+     let all_matcher = FileMatcher::for_slice(&targets);
+-    let mut file_memo: std::collections::BTreeMap<String, FileFacts> =
++    let mut file_memo: std::collections::BTreeMap<&str, FileFacts> =
+         std::collections::BTreeMap::new();
+     for file in msg_facts
+         .iter()
+@@ -392,7 +392,7 @@ pub fn generate_from_code_generator_request(
+         .chain(services_all.iter().map(|svc| svc.file_name.as_str()))
+     {
+         file_memo
+-            .entry(file.to_string())
++            .entry(file)
+             .or_insert_with_key(|file| FileFacts::for_file(file, &all_matcher));
+     }
+     // One target's emission as a pure closure over shared-immutable inputs
+@@ -950,7 +950,7 @@ type TargetEmission = (usize, Result<Vec<(String, String)>, CodegenError>);
+ /// Look up a file's [`FileFacts`], computing them into `scratch` when the
+ /// file was not enumerated up front (defensive; every pool file is).
+ fn file_facts<'memo, 'out>(
+-    memo: &'memo std::collections::BTreeMap<String, FileFacts>,
++    memo: &'memo std::collections::BTreeMap<&str, FileFacts>,
+     file: &str,
+     all_targets: &FileMatcher,
+     scratch: &'out mut Option<FileFacts>,

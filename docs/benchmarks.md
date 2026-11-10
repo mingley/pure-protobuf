@@ -53,6 +53,8 @@ performance claim.
 | Read | Scope |
 |---|---|
 | [Aligned codegen settings](benchmarks/codegen-aligned-20261110.md) | Descriptor-matched generation CPU, output partition and controls, November 10 |
+| [Lazy-message cell seeding](benchmarks/lazy-cell-seeding-20261110.md) | Held Query CPU experiment across Rust 1.85 and 1.99, November 10 |
+| [Codegen filename memo](benchmarks/codegen-file-memo-20261110.md) | Held codegen allocation experiment with CPU holdouts, November 10 |
 | [Codegen reservation experiment](benchmarks/codegen-reservation-20261110.md) | Rejected per-target estimates: output hashes and CPU holdouts, November 10 |
 | [Repeated storage screens](benchmarks/repeated-singleton-20261110.md) | Unmerged singleton and Query-only diagnostics: allocation size tradeoffs and shifting CPU controls, November 10 |
 | [Consuming shared byte buffers](benchmarks/bytes-ownership-consume-20261110.md) | Conversion allocations and retained capacity, November 10 |
@@ -83,6 +85,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [Dev-loop: c8dd to 0685](benchmarks/devloop-0685-20261110.md) | Advisory proxy rows and tonic/reference allocation controls, November 10 |
 | [Dev-loop: 452 to 41d](benchmarks/devloop-452-to-41d-20261110.md) | 1,634 common cells, advisory proxy results and selected allocations, November 10 |
 | [Dev-loop: b245 to 09d8](benchmarks/devloop-b245-to-09d8-20261110.md) | 1,634 common cells, advisory budget overruns and selected allocations, November 10 |
 | [Dev-loop: 656 to 713](benchmarks/devloop-656-to-713-20261110.md) | 1,634 common cells; advisory exit, proxy limits and selected allocations, November 10 |
