@@ -116,23 +116,29 @@ the data is written or freed. Native receive buffers are not charged, and a
 zero charge does not mean the transport has no retained buffers. See
 [resource budgets](resource-budgets.md) for the accounting scope.
 
-A [release-mode resource preview](https://github.com/mingley/pure-protobuf/actions/runs/42803320936)
-on source `cab0e580` completed 186 cycles in 601.3 seconds (600 requested).
-The shared-host run covered plaintext and TLS with identity and gzip, a maximum
-of two active RPCs, 8 MiB client and server byte trackers, and a 2 MiB message
-limit. The process had a 1 GiB address-space limit and a limit of 128 file
-descriptors.
-Fault recovery used a separate warmed plaintext connection to the same server.
+A [one-hour release-mode preview](https://github.com/mingley/pure-protobuf/actions/runs/42872166447)
+on source `d02cf609` completed 1,117 cycles in 3,601.6 seconds (3,600
+requested). The shared-host run covered loopback plaintext and TLS with
+identity and gzip, up to two active RPCs, 8 MiB client and server byte trackers,
+and a 2 MiB message limit. The process had a 1 GiB address-space limit and a
+limit of 128 file descriptors. Fault recovery used a separate warmed
+plaintext connection to the same server.
 
-The smoke validator reported no failures, but `qualified=false` and the
-24-hour soak was not run. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805486784)
+The smoke validator passed, but `qualified=false` and the 24-hour soak was
+not run. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42884127798)
 checked the source and archive digest and reran the validator. The
-[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42803320936/artifacts/13758136824)
-has ZIP SHA-256 `b33bfe05fd8cc34f3d1dc08cd880c0036d303d80faa6381effda12fad3966f14`
+[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42872166447/artifacts/13793279919)
+has ZIP SHA-256 `9a6da2696c880f349e7153eb7a6b55c1d1ba1fa47aed2c0071f292654a5d15ee`
 and expires February 8, 2027. Independent endpoint attribution, allocator
 high-water, kernel socket memory, TLS reset/GOAWAY injection, dedicated-host
 performance and other release gates were not covered. This preview does not
-establish a memory bound or release qualification. An
+establish a memory bound or release qualification.
+
+An [earlier 600-second preview](https://github.com/mingley/pure-protobuf/actions/runs/42803320936)
+on source `cab0e580` completed 186 cycles in 601.3 seconds. Its
+[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805486784)
+and [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42803320936/artifacts/13758136824)
+retain that unqualified result. An
 [earlier 120-second preview](https://github.com/mingley/pure-protobuf/actions/runs/42771958343)
 ran on source `5fe70efd`.
 
