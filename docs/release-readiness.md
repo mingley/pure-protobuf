@@ -7,7 +7,7 @@ requirements for each supported profile.
 
 ## Candidate versions
 
-These versions are declared at [`5fe70efd`](https://github.com/mingley/pure-protobuf/commit/5fe70efdc798031badefd1a3847d8866dde352f5):
+These versions are declared at [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd):
 
 | Crate | Candidate | Scope |
 |---|---|---|
@@ -19,13 +19,17 @@ Both adapters require `pbrs 0.2.1` at runtime and build time. Recheck the
 manifests and registry before tagging. The next coordinated release requires
 three new versions; skipping an existing upload does not meet that goal.
 Keep adapter alpha warnings until their promotion evidence supports a change.
-The [implementation status](status.md) links the recorded CI, Miri and
-package rehearsal. At `5fe70efd`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+The [implementation status](status.md) links the recorded CI and Miri checks.
+At `5ff80d57`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)
 packaged all three crates after its exact-source CI passed. An
-[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
-verified their manifests, selected source files, SBOM and CI context.
-Signed-tag verification and crates.io authentication were skipped; no crates
-were published. Final release evidence must match the release source.
+[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42795147276)
+verified their manifests, selected source files, CycloneDX SBOM and CI context.
+The run also produced a [five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65745378).
+The [earlier 5fe dry run](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
+remain available. Signed-tag verification and crates.io authentication were
+skipped; no crates were published. Final release evidence must match the
+release source.
 
 ## Release checklist
 
@@ -49,7 +53,8 @@ were published. Final release evidence must match the release source.
    needs API compatibility review and a maintenance commitment.
 4. **Pass every required CI job on the final SHA.** The
    [required checks](RELEASE.md#required-ci) include semver, interop,
-   conformance, toolchains, dependency audit and isolated package consumers.
+   conformance, i686 transport, toolchains, dependency audit and isolated
+   package consumers.
    Failed or skipped required jobs block publication. Later commits need
    their own checks.
 5. **Rehearse the final packages and provenance.** Verify all three archives,
@@ -73,6 +78,15 @@ rejects that architecture. Any
 proposal to support this target needs a buildable transport/provider
 configuration and checks on the release source. The core `pbrs` alloc-only
 profile and i686 alloc-cell Miri evidence do not cover the gRPC crate.
+
+The current source selects built-in TLS on x86-64 and AArch64. On other
+architectures its built-in TLS constructors return `UNIMPLEMENTED` once
+preliminary checks succeed; provider-dependent key, certificate and verifier
+checks do not run. Callers can provide their own rustls configs where supported. An
+[i686 prototype check](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
+exercised plaintext and caller-configured mTLS; its ring provider was confined
+to the test application. Repeat the relevant checks on release source before
+claiming support for this target.
 
 ## Native transport memory
 

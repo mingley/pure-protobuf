@@ -1,0 +1,136 @@
+name: Compare TLS portability warmed RPC
+on:
+  push:
+    branches: [scratch/tls-portability-rpc-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check exact sources and prepare fixture
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test "$(git rev-parse HEAD^)" = 171388257f15d261a1667799f40a38edc3bbeffe
+          test "$(git rev-parse HEAD^^)" = 5ff80d578fb31445d5987535f3522bfb2a4e72fd
+          test "$(git rev-parse HEAD^^^)" = f73b85d067ea861fe36f23536153e4c5add3137f
+          test "$(git hash-object .github/experiments/tls-portability-rpc/probe.rs)" = cf707ccd1a6688328c270cf78245c3af11d4bcd7
+          test "$(git hash-object .github/experiments/tls-portability-rpc/compare.py)" = b4afcb761334f1e3f015014df730742d5126ab73
+          python3 - <<'PY'
+          import subprocess
+          files=subprocess.check_output(["git","diff","--name-only",
+              "f73b85d067ea861fe36f23536153e4c5add3137f",
+              "171388257f15d261a1667799f40a38edc3bbeffe"],text=True).splitlines()
+          runtime={p for p in files if not p.startswith("docs/") and p!="pbrs-grpc/README.md"}
+          assert runtime=={"pbrs-grpc/Cargo.toml","pbrs-grpc/src/tls.rs","pbrs-grpc/src/tls_target_tests.rs"},runtime
+          PY
+          test "$(git rev-parse f73b85d067ea861fe36f23536153e4c5add3137f:Cargo.lock)" = 6e082422103b0a488f13794475a91b5c71627f10
+          test "$(git rev-parse 171388257f15d261a1667799f40a38edc3bbeffe:Cargo.lock)" = 6e082422103b0a488f13794475a91b5c71627f10
+          for item in ca.crt:e7dd323bef6d98f189761bd4d9b3affa4d70248b other.crt:31ab15f6374147d1958f5ba740d57aced3cae070 server.crt:6f444d1f2b933fe3843225c324ad7a161adaa9df server.key:3d0fc7c13e8c607e035ad9b6751f5b2939efa186; do
+            file="${item%%:*}"
+            sha="${item#*:}"
+            test "$(git rev-parse f73b85d067ea861fe36f23536153e4c5add3137f:pbrs-grpc/tests/tls_data/$file)" = "$sha"
+            test "$(git rev-parse 171388257f15d261a1667799f40a38edc3bbeffe:pbrs-grpc/tests/tls_data/$file)" = "$sha"
+          done
+          if ! command -v protoc >/dev/null; then
+            bash scripts/ci-install-apt.sh protobuf-compiler
+          fi
+          rustc -Vv
+          protoc --version
+          grep -m1 'model name' /proc/cpuinfo || true
+          timeout 600s cargo fetch --locked
+      - name: Build exact x86-64 source variants and witnesses
+        run: |
+          set -euo pipefail
+          unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS
+          probe="$RUNNER_TEMP/tls-portability-rpc"
+          mkdir -p "$probe/src" "$probe/certs" "$RUNNER_TEMP/tls-portability-rpc-evidence"
+          cp .github/experiments/tls-portability-rpc/probe.rs "$probe/src/main.rs"
+          cp pbrs-grpc/tests/tls_data/{ca.crt,other.crt,server.crt,server.key} "$probe/certs/"
+          cat > "$probe/Cargo.toml" <<EOF
+          [package]
+          name = "tls-portability-rpc-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+          [workspace]
+          [dependencies]
+          pbrs-grpc = { path = "$GITHUB_WORKSPACE/pbrs-grpc" }
+          tokio = { version = "1.49", features = ["rt-multi-thread", "net", "time", "sync"] }
+          futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
+          libc = "=0.2.189"
+          serde_json = "1"
+          [features]
+          alloc-probe = []
+          witness = []
+          [profile.release]
+          opt-level = 3
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cargo generate-lockfile --offline --manifest-path "$probe/Cargo.toml"
+          cp "$probe/Cargo.lock" "$RUNNER_TEMP/tls-portability-rpc-evidence/Cargo.lock"
+          sha256sum "$probe"/certs/* "$probe/Cargo.lock" > "$RUNNER_TEMP/tls-portability-rpc-evidence/input-sha256.txt"
+          restore() { git checkout "$GITHUB_SHA" -- pbrs-grpc/Cargo.toml pbrs-grpc/src/tls.rs pbrs-grpc/src/tls_target_tests.rs; }
+          trap restore EXIT
+          for variant in base candidate; do
+            if [ "$variant" = base ]; then
+              git show f73b85d067ea861fe36f23536153e4c5add3137f:pbrs-grpc/Cargo.toml > pbrs-grpc/Cargo.toml
+              git show f73b85d067ea861fe36f23536153e4c5add3137f:pbrs-grpc/src/tls.rs > pbrs-grpc/src/tls.rs
+              rm -f pbrs-grpc/src/tls_target_tests.rs
+              test "$(git hash-object pbrs-grpc/Cargo.toml)" = 4d56688060370664e4868df336c6b41c26311fd2
+              test "$(git hash-object pbrs-grpc/src/tls.rs)" = 7dc0c26a49df12d8699b99e2adeddfb86c761f21
+            else
+              restore
+              test "$(git hash-object pbrs-grpc/Cargo.toml)" = dd47d99141529eac9aa51b319105c46d19356c4c
+              test "$(git hash-object pbrs-grpc/src/tls.rs)" = 218b3bbfd6545c77df5e2005c9d9f6bdc1fc4a5b
+            fi
+            touch pbrs-grpc/src/tls.rs
+            cargo tree --offline --locked --manifest-path "$probe/Cargo.toml" --target x86_64-unknown-linux-gnu -e features --prefix none > "$RUNNER_TEMP/tls-portability-rpc-evidence/tree-$variant.txt"
+            cargo build --offline --locked --release --manifest-path "$probe/Cargo.toml" --message-format=json > "$RUNNER_TEMP/tls-portability-rpc-evidence/build-$variant.jsonl"
+            python3 - "$RUNNER_TEMP/tls-portability-rpc-evidence/build-$variant.jsonl" <<'PY'
+          import json,sys
+          rows=[json.loads(s) for s in open(sys.argv[1]) if s.startswith("{")]
+          hits=[r for r in rows if r.get("reason")=="compiler-artifact" and r.get("target",{}).get("name")=="pbrs_grpc" and "lib" in r["target"]["kind"]]
+          assert hits and any(not r["fresh"] for r in hits),hits
+          PY
+            cp "$probe/target/release/tls-portability-rpc-probe" "$RUNNER_TEMP/tls-rpc-$variant"
+            cargo build --offline --locked --release --manifest-path "$probe/Cargo.toml" --features alloc-probe
+            cp "$probe/target/release/tls-portability-rpc-probe" "$RUNNER_TEMP/tls-rpc-$variant-alloc"
+            cargo build --offline --locked --release --manifest-path "$probe/Cargo.toml" --features witness
+            cp "$probe/target/release/tls-portability-rpc-probe" "$RUNNER_TEMP/tls-rpc-$variant-witness"
+          done
+          cmp "$RUNNER_TEMP/tls-portability-rpc-evidence/tree-base.txt" "$RUNNER_TEMP/tls-portability-rpc-evidence/tree-candidate.txt"
+          sha256sum "$RUNNER_TEMP"/tls-rpc-{base,candidate}{,-alloc,-witness} > "$RUNNER_TEMP/tls-portability-rpc-evidence/binary-sha256.txt"
+          restore
+          trap - EXIT
+      - name: Run paired warmed RPC and separate allocation controls
+        run: |
+          set -euo pipefail
+          python3 .github/experiments/tls-portability-rpc/compare.py \
+            "$RUNNER_TEMP/tls-rpc-base" "$RUNNER_TEMP/tls-rpc-candidate" \
+            "$RUNNER_TEMP/tls-rpc-base-alloc" "$RUNNER_TEMP/tls-rpc-candidate-alloc" \
+            "$RUNNER_TEMP/tls-rpc-base-witness" "$RUNNER_TEMP/tls-rpc-candidate-witness" \
+            "$RUNNER_TEMP/tls-portability-rpc-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tls-portability-rpc-20261110
+          path: |
+            ${{ runner.temp }}/tls-portability-rpc-evidence
+            ${{ runner.temp }}/tls-portability-rpc-results
+            .github/experiments/tls-portability-rpc
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Remove exact scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/scratch/tls-portability-rpc-20261110:$GITHUB_SHA" origin ":refs/heads/scratch/tls-portability-rpc-20261110"

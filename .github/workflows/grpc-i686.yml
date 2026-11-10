@@ -1,0 +1,90 @@
+name: gRPC i686 portability
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  grpc_i686:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.85.0", "stable"]
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_TERM_COLOR: never
+      TOOLCHAIN_NAME: ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install Rust and the 32-bit runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 180s rustup toolchain install "$TOOLCHAIN_NAME" --profile minimal
+          timeout --kill-after=5s 120s rustup target add --toolchain "$TOOLCHAIN_NAME" i686-unknown-linux-gnu
+          if test "$TOOLCHAIN_NAME" != stable; then
+            timeout --kill-after=5s 180s rustup toolchain install stable --profile minimal
+          fi
+          timeout --kill-after=5s 120s rustup component add rustfmt --toolchain stable
+          rustc "+$TOOLCHAIN_NAME" -Vv
+          if ! printf 'int main(void){return 0;}\n' | cc -m32 -x c - -o "$RUNNER_TEMP/check32" 2>/dev/null; then
+            bash scripts/ci-install-apt.sh gcc-multilib
+            printf 'int main(void){return 0;}\n' | cc -m32 -x c - -o "$RUNNER_TEMP/check32"
+          fi
+          "$RUNNER_TEMP/check32"
+      - name: Check the shipping dependency graph and feature selections
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 120s cargo "+$TOOLCHAIN_NAME" tree --locked -p pbrs-grpc --target i686-unknown-linux-gnu -e normal,build > "$RUNNER_TEMP/graph"
+          if grep -E 'graviola|ring v' "$RUNNER_TEMP/graph"; then
+            echo "Unexpected built-in TLS provider in the shipping i686 graph"
+            exit 1
+          fi
+          timeout --kill-after=5s 120s cargo "+$TOOLCHAIN_NAME" package --locked -p pbrs-grpc --list > "$RUNNER_TEMP/package-list"
+          if grep -F 'tests/portable-caller/' "$RUNNER_TEMP/package-list"; then
+            echo "Standalone test workspace must not enter the published archive"
+            exit 1
+          fi
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" check --locked -p pbrs-grpc --target i686-unknown-linux-gnu
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" check --locked -p pbrs-grpc --target i686-unknown-linux-gnu --no-default-features
+      - name: Test built-in TLS errors and validation order
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" test --locked -p pbrs-grpc --lib --target i686-unknown-linux-gnu tls_target_tests -- --nocapture | tee "$RUNNER_TEMP/builtin"
+          grep -F 'test result: ok. 2 passed;' "$RUNNER_TEMP/builtin"
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" test --locked -p pbrs-grpc --lib --features native-roots --target i686-unknown-linux-gnu tls_target_tests -- --nocapture 2>&1 | tee "$RUNNER_TEMP/native-roots"
+          grep -F 'test result: ok. 3 passed;' "$RUNNER_TEMP/native-roots"
+          if grep -F 'native roots are unavailable on this host' "$RUNNER_TEMP/native-roots"; then
+            echo "Native roots control did not run"
+            exit 1
+          fi
+      - name: Test plaintext gRPC without a caller provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" test --locked -p pbrs-grpc --test rpc --target i686-unknown-linux-gnu unary_echoes_name -- --nocapture | tee "$RUNNER_TEMP/plaintext"
+          grep -F 'test result: ok. 1 passed;' "$RUNNER_TEMP/plaintext"
+      - name: Test caller-owned TLS and no plaintext downgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 120s cargo +stable fmt --manifest-path pbrs-grpc/tests/portable-caller/Cargo.toml -- --check
+          timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" test --locked --manifest-path pbrs-grpc/tests/portable-caller/Cargo.toml --target i686-unknown-linux-gnu -- --nocapture --test-threads=1 | tee "$RUNNER_TEMP/caller"
+          grep -F 'test result: ok. 4 passed;' "$RUNNER_TEMP/caller"
+      - name: Check stable with all features
+        if: matrix.toolchain == 'stable'
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --kill-after=5s 120s cargo +stable tree --locked -p pbrs-grpc --all-features --target x86_64-unknown-linux-gnu -e normal,build > "$RUNNER_TEMP/supported-graph"
+          if grep -E 'ring v[0-9]' "$RUNNER_TEMP/supported-graph"; then
+            echo "Unexpected ring dependency in the supported shipping graph"
+            exit 1
+          fi
+          grep -F 'rustls-graviola v0.2.1' "$RUNNER_TEMP/supported-graph"
+          timeout --kill-after=5s 600s cargo +stable check --locked -p pbrs-grpc --all-features --target i686-unknown-linux-gnu

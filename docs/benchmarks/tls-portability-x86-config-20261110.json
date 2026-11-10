@@ -1,0 +1,2857 @@
+{
+  "allocation_binary_sha256": {
+    "base": "3fc2ac2148ea9dc4b083ff8c16c74565d6270fbf1ebf373f107dfbb017d39790",
+    "candidate": "a4d8c7e58b3238bc733df6deb273b4efa043171b85c127c155b5a9f4f5604a92"
+  },
+  "allocations": [
+    {
+      "case": "client-ca",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 45966,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 45225
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-ca",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 86201,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 85149
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "client-ca",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 45895,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 45164
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-ca",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 47689,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 46927
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "client-ca",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 46316,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 45576
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-ca",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 496,
+        "case": "client-ca",
+        "cpu_ns": 45985,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 547040,
+        "wall_ns": 45235
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 447265,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 446355
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 449208,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 448188
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 428249,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 427289
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 413332,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 412431
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 410767,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 409937
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 384,
+        "case": "server",
+        "cpu_ns": 409664,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 522736,
+        "wall_ns": 408835
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 452023,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 450983
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 458446,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 457296
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 457744,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 456614
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 447506,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 446395
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 448878,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 447798
+      },
+      "variant": "base"
+    },
+    {
+      "case": "client-mtls",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "client-mtls",
+        "cpu_ns": 468875,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 553104,
+        "wall_ns": 467765
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 503921,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 502791
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 0,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 454097,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 453038
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 452915,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 451986
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 1,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 452535,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 451665
+      },
+      "variant": "candidate"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 460720,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 459620
+      },
+      "variant": "base"
+    },
+    {
+      "case": "server-mtls",
+      "repeat": 2,
+      "sample": {
+        "alloc_calls": 576,
+        "case": "server-mtls",
+        "cpu_ns": 458726,
+        "iters": 16,
+        "parallelism": 1,
+        "requested_bytes": 575696,
+        "wall_ns": 457656
+      },
+      "variant": "candidate"
+    }
+  ],
+  "binary_sha256": {
+    "base": "611033861589dc2bd304f7c2eff0377bff46d2bec02cd5f08a73f9adcffb6156",
+    "candidate": "c37227f252256c958ee24653a9175274eb278ed5743615f7b7cbe2465545c04b"
+  },
+  "cpu": 0,
+  "fixtures": {
+    "ca.crt": "3c2eef86f2238d268ac3628b7b2d7acb6d67a9473968afa2d832ff4a7f6de995",
+    "client.crt": "b2214339a681ff38818868dfd4c567bb478516da1bd3e397550c9fec81f10ebb",
+    "client.key": "1db5b60d0ec3ada7dded9774b59e916be8e56a53fb4a62b4f8ab2fe004c0ad35",
+    "server.crt": "88c451b95d68e4aa9c72cae2684d5b89ad823ccb39bb56836b06952b1d3fa3e2",
+    "server.key": "b00a9826c2dba5150da5ef9e58efd39957ef639cf6f5c1c49a8a81ced9448d36"
+  },
+  "rows": [
+    {
+      "block": 0,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 42870424,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 43414543
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 59526310,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 63747959
+          },
+          "ratio": 1.3885169411900382
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 34255730,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 34263916
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27759154,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27757934
+          },
+          "ratio": 0.8103506770984008
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.028199391270424,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 28390932,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 28595992
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 29191539,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 29633263
+        }
+      }
+    },
+    {
+      "block": 1,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27808265,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27807056
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 28002948,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 28001551
+          },
+          "ratio": 1.007000904227574
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 38821212,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 38827903
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 28095551,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 28094224
+          },
+          "ratio": 0.7237164826281055
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.6325998019515408,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 43878150,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 43875946
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27757309,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27762814
+        }
+      }
+    },
+    {
+      "block": 2,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27570932,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27575904
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27849102,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27848003
+          },
+          "ratio": 1.010089249068548
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27637726,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27636116
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27463000,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27461922
+          },
+          "ratio": 0.9936779892817521
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9832177472860358,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27978723,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27977747
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27509177,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27508047
+        }
+      }
+    },
+    {
+      "block": 3,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27734407,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27965232
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27972852,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27971264
+          },
+          "ratio": 1.008597443601372
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 28283853,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 28282526
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27592422,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27591373
+          },
+          "ratio": 0.9755538610669487
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0037214555050151,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27575501,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27573870
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27678122,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27685369
+        }
+      }
+    },
+    {
+      "block": 4,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27887222,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27885994
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27777367,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27776239
+          },
+          "ratio": 0.9960607406503237
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27953757,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27960534
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27599185,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27598066
+          },
+          "ratio": 0.9873157658199576
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.7077889190630048,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 39694802,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 39693071
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 28095541,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 28094455
+        }
+      }
+    },
+    {
+      "block": 5,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27479932,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27478713
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27481004,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27479955
+          },
+          "ratio": 1.0000390102857606
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 42157398,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 42155517
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 28018968,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 28017911
+          },
+          "ratio": 0.6646275465103421
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.5809054111064665,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 47625084,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 47622404
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27665669,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27663999
+        }
+      }
+    },
+    {
+      "block": 6,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27765515,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27764447
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27682941,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27681832
+          },
+          "ratio": 0.9970260231081614
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27873386,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27872358
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27605807,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27604588
+          },
+          "ratio": 0.9904001975217507
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9990301684593424,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27767709,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27766610
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27740779,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27739430
+        }
+      }
+    },
+    {
+      "block": 7,
+      "case": "client-ca",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27523724,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27522364
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27836999,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27835891
+          },
+          "ratio": 1.0113819990347237
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27488188,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27487139
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-ca",
+            "cpu_ns": 27663575,
+            "iters": 10000,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 27662286
+          },
+          "ratio": 1.0063804496680537
+        }
+      },
+      "iterations": 10000,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.9929911347366666,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27816771,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27815623
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-ca",
+          "cpu_ns": 27621807,
+          "iters": 10000,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 27620637
+        }
+      }
+    },
+    {
+      "block": 0,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136669929,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136676031
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136627149,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136635595
+          },
+          "ratio": 0.999686983081699
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136056404,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136067513
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136659948,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136674368
+          },
+          "ratio": 1.004435983770378
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.006448536708551,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136645574,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136873910
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 137526738,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 137525129
+        }
+      }
+    },
+    {
+      "block": 1,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136591743,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136589795
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 137697476,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137696116
+          },
+          "ratio": 1.0080951672166596
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 137276220,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137285127
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136547320,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136545312
+          },
+          "ratio": 0.9946902675496164
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.9946673492163641,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 137644678,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 137903234
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136910667,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136920092
+        }
+      }
+    },
+    {
+      "block": 2,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136486015,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136493184
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136253160,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136259657
+          },
+          "ratio": 0.9982939277698158
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136298135,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136316724
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136469965,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136483335
+          },
+          "ratio": 1.0012606922317755
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9986534599041431,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136893807,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136898072
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136709474,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136998180
+        }
+      }
+    },
+    {
+      "block": 3,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136336295,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136334857
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 137408016,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137406794
+          },
+          "ratio": 1.0078608634626605
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136725793,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136724748
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136957326,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136962954
+          },
+          "ratio": 1.0016934112790261
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.9969761261413103,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136848301,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 137108056
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136434489,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136440295
+        }
+      }
+    },
+    {
+      "block": 4,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 137038717,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137037503
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136189433,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136218059
+          },
+          "ratio": 0.9938025981372841
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136995346,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137003619
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136718950,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136738293
+          },
+          "ratio": 0.9979824424108539
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.005499781984361,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136077394,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136087074
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136825790,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 137148320
+        }
+      }
+    },
+    {
+      "block": 5,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136686520,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136685704
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136486877,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136485349
+          },
+          "ratio": 0.9985394097384293
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136145331,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136154650
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136172280,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136174418
+          },
+          "ratio": 1.000197942887957
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.02046801446593,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136675348,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136958334
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 139472821,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 139484554
+        }
+      }
+    },
+    {
+      "block": 6,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136092321,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136345087
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136421865,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136420558
+          },
+          "ratio": 1.002421473875811
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136592273,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136590927
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136168523,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136179046
+          },
+          "ratio": 0.9968977015266449
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9995128174794464,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136160468,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136159109
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136094133,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136092985
+        }
+      }
+    },
+    {
+      "block": 7,
+      "case": "server",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136118930,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136117941
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 135819451,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 135818180
+          },
+          "ratio": 0.9977998725085482
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136766418,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 137048376
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server",
+            "cpu_ns": 136487928,
+            "iters": 5333,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 136493845
+          },
+          "ratio": 0.997963754523424
+        }
+      },
+      "iterations": 5333,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0041978731774386,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 135939314,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 135946781
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server",
+          "cpu_ns": 136509970,
+          "iters": 5333,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 136515105
+        }
+      }
+    },
+    {
+      "block": 0,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149350637,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149564066
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 151292742,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 151291288
+          },
+          "ratio": 1.0130036606405637
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148954738,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148960117
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148675628,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148688389
+          },
+          "ratio": 0.9981262093186992
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9988890216862183,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149065916,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149064131
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148900307,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148897820
+        }
+      }
+    },
+    {
+      "block": 1,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148739187,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148737766
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148820989,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148819529
+          },
+          "ratio": 1.0005499693903799
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148753603,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149041045
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148573707,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148581294
+          },
+          "ratio": 0.9987906444188783
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.9980463145141969,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148904725,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148916676
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148613812,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148623948
+        }
+      }
+    },
+    {
+      "block": 2,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149117343,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149115434
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148684183,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148682954
+          },
+          "ratio": 0.9970951735640837
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148962824,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148974841
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148702398,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148712560
+          },
+          "ratio": 0.9982517382994833
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.0017075931803932,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149101673,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149099994
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149356278,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149362096
+        }
+      }
+    },
+    {
+      "block": 3,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149059364,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149057165
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149409998,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149407601
+          },
+          "ratio": 1.0023523111235064
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149108415,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149106537
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149233379,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149231462
+          },
+          "ratio": 1.0008380747659347
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 0.9923913907827032,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149886657,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 150117720
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148746228,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148750871
+        }
+      }
+    },
+    {
+      "block": 4,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149067379,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149077162
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149327475,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149335997
+          },
+          "ratio": 1.001744821715823
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149014040,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149029492
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148523253,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148524457
+          },
+          "ratio": 0.9967064378631705
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.000299771342356,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149093638,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149092460
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149138332,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149236370
+        }
+      }
+    },
+    {
+      "block": 5,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149300814,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149305760
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149195428,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149193390
+          },
+          "ratio": 0.9992941364673337
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 150508068,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 150516466
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149024829,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149022700
+          },
+          "ratio": 0.9901451196622895
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0011653345837594,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148922037,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148937501
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149095581,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149174024
+        }
+      }
+    },
+    {
+      "block": 6,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148480253,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148478852
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148693612,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148706228
+          },
+          "ratio": 1.0014369520235125
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148587533,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148593387
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148661912,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148672615
+          },
+          "ratio": 1.0005005736248411
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9942140575369985,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149770760,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149786770
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148904195,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148902706
+        }
+      }
+    },
+    {
+      "block": 7,
+      "case": "client-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 150026219,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 150024488
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148600908,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148598871
+          },
+          "ratio": 0.9904995872754748
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 149086073,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149084736
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "client-mtls",
+            "cpu_ns": 148670448,
+            "iters": 5561,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148669289
+          },
+          "ratio": 0.9972121809124317
+        }
+      },
+      "iterations": 5561,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0034014196383212,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 148730840,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148735763
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "client-mtls",
+          "cpu_ns": 149236736,
+          "iters": 5561,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149259383
+        }
+      }
+    },
+    {
+      "block": 0,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147911701,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147923497
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147522204,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147533878
+          },
+          "ratio": 0.9973666924430813
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147860906,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147864808
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147483954,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147566363
+          },
+          "ratio": 0.9974506310680932
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9830631057058751,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 150523346,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 150511019
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147973948,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147972589
+        }
+      }
+    },
+    {
+      "block": 1,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147278880,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147277594
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148115092,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148140308
+          },
+          "ratio": 1.005677745512459
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147664921,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147663296
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148086127,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148084694
+          },
+          "ratio": 1.002852444555874
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0001502970567555,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147567760,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147574859
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147589939,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147594818
+        }
+      }
+    },
+    {
+      "block": 2,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147616862,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147632187
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147658909,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147675738
+          },
+          "ratio": 1.0002848387333962
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147549476,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147555182
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148411966,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148440359
+          },
+          "ratio": 1.0058454290952548
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.9984714859144557,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 148728757,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148727126
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 148501423,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148500291
+        }
+      }
+    },
+    {
+      "block": 3,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 149034267,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149041033
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 149420950,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149426454
+          },
+          "ratio": 1.0025945912157235
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148596099,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148594387
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148174712,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148173249
+          },
+          "ratio": 0.9971642122314396
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.0004268292889327,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147712450,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147711185
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147775498,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147780675
+        }
+      }
+    },
+    {
+      "block": 4,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147935005,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147948148
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148460856,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148466648
+          },
+          "ratio": 1.0035546083227562
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148079324,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148098910
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148107878,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148119398
+          },
+          "ratio": 1.0001928290812565
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 0.991003778588708,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 149332474,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 149356183
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147989046,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147987041
+        }
+      }
+    },
+    {
+      "block": 5,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148198246,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148205951
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148084354,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148096837
+          },
+          "ratio": 0.9992314888801046
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147893829,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147892454
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147850477,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147849113
+          },
+          "ratio": 0.9997068707985105
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.009047355646039,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147643472,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147642166
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 148979255,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148989116
+        }
+      }
+    },
+    {
+      "block": 6,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148099653,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148114420
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147639835,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147643098
+          },
+          "ratio": 0.9968952121717666
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148183028,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148207805
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 148110202,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 148114881
+          },
+          "ratio": 0.9995085402088018
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "ratio": 1.0013748182735387,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147822446,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147833945
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 148025675,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148037144
+        }
+      }
+    },
+    {
+      "block": 7,
+      "case": "server-mtls",
+      "controls": {
+        "base": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147898958,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147907463
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147904138,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147908875
+          },
+          "ratio": 1.0000350239113922
+        },
+        "candidate": {
+          "a": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 149054375,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 149052836
+          },
+          "b": {
+            "alloc_calls": 0,
+            "case": "server-mtls",
+            "cpu_ns": 147852962,
+            "iters": 5270,
+            "parallelism": 1,
+            "requested_bytes": 0,
+            "wall_ns": 147851668
+          },
+          "ratio": 0.9919397669474647
+        }
+      },
+      "iterations": 5270,
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "ratio": 1.001185271425208,
+      "samples": {
+        "base": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 147828587,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 147827583
+        },
+        "candidate": {
+          "alloc_calls": 0,
+          "case": "server-mtls",
+          "cpu_ns": 148003804,
+          "iters": 5270,
+          "parallelism": 1,
+          "requested_bytes": 0,
+          "wall_ns": 148009643
+        }
+      }
+    }
+  ],
+  "scope": "fresh configuration and drop only; test PEM files read and identities parsed before measurement; CA parsing remains inside constructors; no handshake or RPC; process CPU; one pinned guest CPU; separate counting allocator; shared host",
+  "source": {
+    "base": "f73b85d067ea861fe36f23536153e4c5add3137f",
+    "candidate": "171388257f15d261a1667799f40a38edc3bbeffe"
+  },
+  "summaries": [
+    {
+      "case": "client-ca",
+      "controls": {
+        "base": [
+          0.9960607406503237,
+          1.3885169411900382
+        ],
+        "candidate": [
+          0.6646275465103421,
+          1.0063804496680537
+        ]
+      },
+      "cpu_ns_per_op": {
+        "base": [
+          2757.5501,
+          4762.5084
+        ],
+        "candidate": [
+          2750.9177,
+          2919.1539
+        ]
+      },
+      "iterations": 10000,
+      "median": 0.9881044410113512,
+      "range": [
+        0.5809054111064665,
+        1.028199391270424
+      ],
+      "slower": 2
+    },
+    {
+      "case": "server",
+      "controls": {
+        "base": [
+          0.9938025981372841,
+          1.0080951672166596
+        ],
+        "candidate": [
+          0.9946902675496164,
+          1.004435983770378
+        ]
+      },
+      "cpu_ns_per_op": {
+        "base": [
+          25490.21451340709,
+          25809.990249390587
+        ],
+        "candidate": [
+          25519.244890305643,
+          26152.788486780424
+        ]
+      },
+      "iterations": 5333,
+      "median": 1.0018553453284424,
+      "range": [
+        0.9946673492163641,
+        1.02046801446593
+      ],
+      "slower": 4
+    },
+    {
+      "case": "client-mtls",
+      "controls": {
+        "base": [
+          0.9904995872754748,
+          1.0130036606405637
+        ],
+        "candidate": [
+          0.9901451196622895,
+          1.0008380747659347
+        ]
+      },
+      "cpu_ns_per_op": {
+        "base": [
+          26745.34076604927,
+          26953.18413954325
+        ],
+        "candidate": [
+          26724.296349577413,
+          26857.809386800935
+        ]
+      },
+      "iterations": 5561,
+      "median": 0.9995943965142872,
+      "range": [
+        0.9923913907827032,
+        1.0034014196383212
+      ],
+      "slower": 4
+    },
+    {
+      "case": "server-mtls",
+      "controls": {
+        "base": [
+          0.9968952121717666,
+          1.005677745512459
+        ],
+        "candidate": [
+          0.9919397669474647,
+          1.0058454290952548
+        ]
+      },
+      "cpu_ns_per_op": {
+        "base": [
+          28001.4724857685,
+          28562.304743833018
+        ],
+        "candidate": [
+          28005.68102466793,
+          28269.30834914611
+        ]
+      },
+      "iterations": 5270,
+      "median": 1.0002885631728442,
+      "range": [
+        0.9830631057058751,
+        1.009047355646039
+      ],
+      "slower": 5
+    }
+  ],
+  "topology": {
+    "core_id": 0,
+    "physical_package_id": 0
+  }
+}

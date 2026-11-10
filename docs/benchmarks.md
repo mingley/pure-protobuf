@@ -16,6 +16,7 @@ performance claim.
 
 | Read | Scope |
 |---|---|
+| [TLS portability on x86-64](benchmarks/tls-portability-x86-20261110.md) | Configuration and warmed RPC controls, November 10 |
 | [Drop-only cancellation screen](benchmarks/drop-only-cancel-screen-20261110.md) | Unary unpolled-call and endpoint CPU, controls and allocation limits, November 10 |
 | [Drop-only construction repeat](benchmarks/drop-only-construction-repeat-20261110.md) | Matched unpolled lifecycle and held-call CPU with controls, November 10 |
 | [Receive accounting candidates](benchmarks/recv-budget-rpc-screen-20261110.md) | Unmerged candidates: loopback CPU and layout with a non-default frame budget, November 10 |

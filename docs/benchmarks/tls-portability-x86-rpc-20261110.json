@@ -1,0 +1,4530 @@
+{
+  "allocation_binaries": {
+    "base": "4472440f69dd2c7855bc61798532b5b38abe272d272669d043b6c26a8fe4f4eb",
+    "candidate": "22d27edfa561b82671a580f1ce6abeb8b0bd538dde522f0a82b00196a5c3ed13"
+  },
+  "allocations": [
+    {
+      "delta_calls_per_rpc": 23.005859375,
+      "delta_requested_bytes_per_rpc": 16526.1171875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 47118,
+        "cpu_ns": 180352427,
+        "mode": "plain",
+        "requested_bytes": 33853720,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 157836937,
+        "warmup": 256,
+        "width": 1
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 23560,
+        "cpu_ns": 96222486,
+        "mode": "plain",
+        "requested_bytes": 16930976,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 85646849,
+        "warmup": 256,
+        "width": 1
+      },
+      "mode": "plain",
+      "variant": "base",
+      "width": 1
+    },
+    {
+      "delta_calls_per_rpc": 23.005859375,
+      "delta_requested_bytes_per_rpc": 16526.1171875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 47118,
+        "cpu_ns": 177725938,
+        "mode": "plain",
+        "requested_bytes": 33853720,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 156116765,
+        "warmup": 256,
+        "width": 1
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 23560,
+        "cpu_ns": 92938814,
+        "mode": "plain",
+        "requested_bytes": 16930976,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 81636869,
+        "warmup": 256,
+        "width": 1
+      },
+      "mode": "plain",
+      "variant": "candidate",
+      "width": 1
+    },
+    {
+      "delta_calls_per_rpc": 23.009765625,
+      "delta_requested_bytes_per_rpc": 16605.66796875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 47149,
+        "cpu_ns": 43727650,
+        "mode": "plain",
+        "requested_bytes": 34029096,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 34387110,
+        "warmup": 256,
+        "width": 32
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 23587,
+        "cpu_ns": 21866186,
+        "mode": "plain",
+        "requested_bytes": 17024892,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 17100096,
+        "warmup": 256,
+        "width": 32
+      },
+      "mode": "plain",
+      "variant": "base",
+      "width": 32
+    },
+    {
+      "delta_calls_per_rpc": 23.021484375,
+      "delta_requested_bytes_per_rpc": 16646.203125,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 47135,
+        "cpu_ns": 43212334,
+        "mode": "plain",
+        "requested_bytes": 34050972,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 33695655,
+        "warmup": 256,
+        "width": 32
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 23561,
+        "cpu_ns": 21473027,
+        "mode": "plain",
+        "requested_bytes": 17005260,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 16856720,
+        "warmup": 256,
+        "width": 32
+      },
+      "mode": "plain",
+      "variant": "candidate",
+      "width": 32
+    },
+    {
+      "delta_calls_per_rpc": 30.005859375,
+      "delta_requested_bytes_per_rpc": 16853.1171875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 61454,
+        "cpu_ns": 198969702,
+        "mode": "tls",
+        "requested_bytes": 34523416,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 175753398,
+        "warmup": 256,
+        "width": 1
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 30728,
+        "cpu_ns": 103111663,
+        "mode": "tls",
+        "requested_bytes": 17265824,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 90754989,
+        "warmup": 256,
+        "width": 1
+      },
+      "mode": "tls",
+      "variant": "base",
+      "width": 1
+    },
+    {
+      "delta_calls_per_rpc": 30.0078125,
+      "delta_requested_bytes_per_rpc": 16853.138671875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 61460,
+        "cpu_ns": 198518280,
+        "mode": "tls",
+        "requested_bytes": 34523482,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 174922803,
+        "warmup": 256,
+        "width": 1
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 30732,
+        "cpu_ns": 100055502,
+        "mode": "tls",
+        "requested_bytes": 17265868,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 88188032,
+        "warmup": 256,
+        "width": 1
+      },
+      "mode": "tls",
+      "variant": "candidate",
+      "width": 1
+    },
+    {
+      "delta_calls_per_rpc": 28.2021484375,
+      "delta_requested_bytes_per_rpc": 16962.380859375,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 57697,
+        "cpu_ns": 47845737,
+        "mode": "tls",
+        "requested_bytes": 34689162,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 38185975,
+        "warmup": 256,
+        "width": 32
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 28818,
+        "cpu_ns": 24447727,
+        "mode": "tls",
+        "requested_bytes": 17319684,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 19368674,
+        "warmup": 256,
+        "width": 32
+      },
+      "mode": "tls",
+      "variant": "base",
+      "width": 32
+    },
+    {
+      "delta_calls_per_rpc": 28.1982421875,
+      "delta_requested_bytes_per_rpc": 16950.32421875,
+      "high": {
+        "allocation_instrumented": true,
+        "allocations": 57703,
+        "cpu_ns": 47600185,
+        "mode": "tls",
+        "requested_bytes": 34667544,
+        "requests": 2048,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 38293325,
+        "warmup": 256,
+        "width": 32
+      },
+      "low": {
+        "allocation_instrumented": true,
+        "allocations": 28828,
+        "cpu_ns": 24347828,
+        "mode": "tls",
+        "requested_bytes": 17310412,
+        "requests": 1024,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 19467609,
+        "warmup": 256,
+        "width": 32
+      },
+      "mode": "tls",
+      "variant": "candidate",
+      "width": 32
+    }
+  ],
+  "available_cpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "baseline": "f73b85d067ea861fe36f23536153e4c5add3137f",
+  "binaries": {
+    "base": "a5bf0a0d948b585cd7297e8fe6a0980d11aa0f2be6986abd5fc2bea7f1598fb1",
+    "candidate": "e124a37d8fe2ee1e096139fc3b7baea683b4aa63d5e3352a9d06efa7bd525430"
+  },
+  "candidate": "171388257f15d261a1667799f40a38edc3bbeffe",
+  "cpus": [
+    0,
+    2
+  ],
+  "rows": [
+    {
+      "block": 0,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766313161,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 671076577,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 756611567,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 666062013,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9873399094603309
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 765635113,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 672637777,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 760166355,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 667806320,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9928572267557431
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9706766130371006,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 777417255,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 683222529,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 754620748,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 664570497,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 1,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 764359495,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670837186,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 769646456,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 678828582,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0069168513436206
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 763868261,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670845792,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 763608460,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670264122,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9996598876884086
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9976162469335308,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 758502223,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 665025491,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 756694141,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 662281703,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 2,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 780118200,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 688283020,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 757656903,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 666124791,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.971207828505988
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753894984,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 661608363,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 760441444,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 668968838,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0086835171196735
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9879729166982238,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 762240002,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 670385800,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 753072478,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 661973316,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 3,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766969570,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 671927309,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 756554193,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 661299856,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.986420090956151
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 765551622,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 672712850,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 762818792,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670318215,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9964302472603213
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9991704448946261,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 760734273,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 669911133,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 760103202,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 666729214,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 4,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 765802008,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 672993377,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766913906,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 673807361,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0014519392589527
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766527169,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 673768549,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 769877221,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 679826785,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0043704282581014
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0046781974956505,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 761542240,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 669594209,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 765104885,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 672294668,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 5,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 762361099,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 668003371,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 765294999,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 672932393,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0038484387567106
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 764645356,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 673777606,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 764371877,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 674633929,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9996423453070707
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.98578772304108,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 764056951,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 673720279,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 753197962,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 661620998,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 6,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 762832644,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 666919429,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 769014838,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 675889538,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0081042598905874
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 756936215,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 667631793,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 763581059,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670694950,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0087786049449359
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0073947638704577,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 759226136,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 669393835,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 764840434,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 673298571,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 7,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 763763217,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 671117360,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 764357913,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 670885146,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0007786392258269
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 759138004,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 665548581,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 759115589,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 8566,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 668976491,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9999704730893699
+        }
+      },
+      "count": 8566,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 44828401,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 39314468,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9605723786548335,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 789664807,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 694540367,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 758530202,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 8566,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 666656656,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 0,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 744768331,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 583165565,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753727943,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 591462976,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0120300657628258
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 751362175,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 592002406,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 747343887,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 588217327,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9946519958899981
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 1.0007203045547677,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 750453397,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 589817403,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 750993952,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 593830740,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 1,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 762003337,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 599762740,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 751079880,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 590071599,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9856648173707407
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 747797439,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 590894591,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766123818,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 605769871,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.024507143304084
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 1.0024478056017891,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 757439234,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 595186439,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 759293298,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 599928060,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 2,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753212455,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 590035918,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 757876798,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 592816465,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0061925994041083
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 747804105,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 588159203,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 749836167,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 589202888,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0027173720850329
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9827764440577946,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 760360755,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 598908651,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 747264639,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 590499252,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 3,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 764763915,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 601980649,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 748662599,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 588170605,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9789460306845152
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 755131914,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 594757511,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 751646313,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 592311680,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9953841164233989
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9767938176983942,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 757074549,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 594348755,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 739505739,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 580619383,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 4,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753721848,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 589380380,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753493174,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 592071707,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9996966069106172
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753696322,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 593228884,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 748101021,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 587643804,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9925761864073419
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9905567721000822,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 759154293,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 595694746,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 751985426,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 592119681,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 5,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 739218492,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 581667171,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753627960,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 587414764,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0194928402846286
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 747232127,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 589194378,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 746887573,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 587041926,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9995388929523369
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9997742490248122,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 748098651,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 587168333,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 747929767,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 591695211,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 6,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 749421994,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 587390940,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 756728883,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 593584018,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0097500327699216
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 731811252,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 573791086,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 730310170,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 571324300,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9979488126263465
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9970895344328816,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 749075689,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 587591836,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 746895530,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 590682444,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 7,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742887649,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 581035917,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 740121981,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 578219864,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9962771382675121
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 727390310,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 569546169,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 734584638,
+            "mode": "plain",
+            "requested_bytes": 0,
+            "requests": 35680,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": false,
+            "wall_ns": 574485400,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0098906019245706
+        }
+      },
+      "count": 35680,
+      "mode": "plain",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 10766258,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": false,
+        "wall_ns": 8489940,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9876916620192118,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 741403999,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 581245851,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 732278548,
+          "mode": "plain",
+          "requested_bytes": 0,
+          "requests": 35680,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": false,
+          "wall_ns": 574936213,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 0,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 735485997,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 650726658,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 735393808,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 647829041,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9998746556693451
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 735905444,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 651905467,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 740303934,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 652200112,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0059769771182723
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0171902150668564,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 727844646,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 644648865,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 740356452,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 653468763,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 1,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 739606609,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 652644735,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742168563,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 655313573,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0034639414640494
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 730963618,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 647163880,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 745661670,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 657831488,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.020107775049346
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0161494960917565,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 721577499,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 646719519,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 733230612,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 649681946,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 2,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742176991,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 656872683,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 745693939,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 657306065,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0047386917711654
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 748106612,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 664815404,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 762002942,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 669313717,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0185753337520294
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9974458317016323,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 741222887,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 653752349,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 739329679,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 655983107,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 3,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 752183445,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 663680817,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 755115630,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 668273759,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0038982312353337
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 757114764,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 667955433,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 748855020,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 660066469,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.989090499363185
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9911293521694587,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 749980850,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 663271541,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 743328034,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 656674957,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 4,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742883558,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 656965771,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 753626723,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 666478287,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0144614386525432
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 751932628,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 662624203,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 748456777,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 658505941,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9953774435759689
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0001922868228368,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 743587095,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 655520075,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 743730077,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 654472823,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 5,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 744923018,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 657668172,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 749365961,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 661930564,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0059642981793322
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 752797355,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 664030857,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 746511524,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 659854527,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9916500357523175
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9922534726721309,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 750985668,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 662407567,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 745168137,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 661559149,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 6,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 744906562,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 656840863,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 754453986,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 663752437,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0128169417307402
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 766147879,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 676217632,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 737659793,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 649342400,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 0.9628164656186433
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 1.0201929971904973,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 745641217,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 657256591,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 760697948,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 669490762,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 7,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 755341628,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 662276423,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 759343773,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 670157653,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0052984568195942
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 758559427,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 668718237,
+            "warmup": 256,
+            "width": 1
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 760229191,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 7573,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 670236330,
+            "warmup": 256,
+            "width": 1
+          },
+          "ratio": 1.0022012303065084
+        }
+      },
+      "count": 7573,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 50710799,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 44752795,
+        "warmup": 256,
+        "width": 1
+      },
+      "ratio": 0.9991494133676572,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 747154935,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 659473394,
+          "warmup": 256,
+          "width": 1
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 746519415,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 7573,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 660635878,
+          "warmup": 256,
+          "width": 1
+        }
+      },
+      "width": 1
+    },
+    {
+      "block": 0,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 743509284,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 597334701,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 736824099,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595113882,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9910086058858143
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 736188936,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 591340365,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 736930877,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 591516926,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.001007813298623
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 1.0066075264191503,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 733605542,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 589794991,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 738452860,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 592358813,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 1,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 741897149,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 594493620,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 736339309,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 591753639,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9925086111902555
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 737066300,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 596572665,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 727926505,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 588418122,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9875997654485085
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 1.0156960544709048,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 733739235,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 589260580,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 745256046,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 599577321,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 2,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 741057791,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595785751,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742963386,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 596058270,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0025714526223772
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 730585033,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 588810196,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 731493024,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 591901315,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0012428272671718
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 1.0101905545707877,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 734844404,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 588419805,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 742332876,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 596809167,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 3,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742116796,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 598569423,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 738962797,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 588976849,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9957499964736009
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 743255948,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 600168367,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 728105796,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 588473767,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9796165075560216
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9931615300291518,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 741090481,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 595776062,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 736022556,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 592956862,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 4,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 743334682,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 597906272,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 742666853,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595659674,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9991015769663765
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 735584081,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 592967512,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 734253102,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 590903667,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9981905821042367
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9983816572036662,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 733429285,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 589238318,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 732242345,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 591946019,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 5,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 739832472,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 594160621,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 737479754,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 593328803,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9968199314182036
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 743635751,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 597699309,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 730247630,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 589848837,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 0.9819963994711168
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9950704367906551,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 739524750,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 591122922,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 735879216,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 590716070,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 6,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 741997390,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595795623,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 747074287,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 597237134,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0068422033128714
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 733990736,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 590515785,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 737652201,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595025862,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0049884348949059
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9826844946154556,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 742667379,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 595343857,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 729807718,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 587832580,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    },
+    {
+      "block": 7,
+      "controls": {
+        "base": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 740485935,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 595015542,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 757689485,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 607338560,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0232327842931952
+        },
+        "candidate": {
+          "a": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 721236285,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 581483268,
+            "warmup": 256,
+            "width": 32
+          },
+          "b": {
+            "allocation_instrumented": false,
+            "allocations": 0,
+            "cpu_ns": 726306649,
+            "mode": "tls",
+            "requested_bytes": 0,
+            "requests": 32064,
+            "response_validated": true,
+            "schema": "tls-rpc-control/1",
+            "scheme_witness": false,
+            "tls_verified": true,
+            "wall_ns": 585742725,
+            "warmup": 256,
+            "width": 32
+          },
+          "ratio": 1.0070301010992535
+        }
+      },
+      "count": 32064,
+      "mode": "tls",
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "pilot": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 11986506,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 512,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": false,
+        "tls_verified": true,
+        "wall_ns": 9474494,
+        "warmup": 256,
+        "width": 32
+      },
+      "ratio": 0.9951989575616845,
+      "samples": {
+        "base": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 743601217,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 597030005,
+          "warmup": 256,
+          "width": 32
+        },
+        "candidate": {
+          "allocation_instrumented": false,
+          "allocations": 0,
+          "cpu_ns": 740031156,
+          "mode": "tls",
+          "requested_bytes": 0,
+          "requests": 32064,
+          "response_validated": true,
+          "schema": "tls-rpc-control/1",
+          "scheme_witness": false,
+          "tls_verified": true,
+          "wall_ns": 598299764,
+          "warmup": 256,
+          "width": 32
+        }
+      },
+      "width": 32
+    }
+  ],
+  "schema": "tls-portability-rpc-screen/1",
+  "scope": "Combined native client and server process CPU; one warmed loopback connection; TLS handshake and configuration outside timed region; two Tokio workers pinned to two guest-visible cores. Allocation samples instrument process-wide requests and are not RSS.",
+  "summaries": [
+    {
+      "control_ranges": {
+        "base": [
+          0.971207828505988,
+          1.0081042598905874
+        ],
+        "candidate": [
+          0.9928572267557431,
+          1.0087786049449359
+        ]
+      },
+      "median": 0.9927945818158773,
+      "mode": "plain",
+      "range": [
+        0.9605723786548335,
+        1.0073947638704577
+      ],
+      "requests": 8566,
+      "slower": 2,
+      "width": 1
+    },
+    {
+      "control_ranges": {
+        "base": [
+          0.9789460306845152,
+          1.0194928402846286
+        ],
+        "candidate": [
+          0.9925761864073419,
+          1.024507143304084
+        ]
+      },
+      "median": 0.9938231532664819,
+      "mode": "plain",
+      "range": [
+        0.9767938176983942,
+        1.0024478056017891
+      ],
+      "requests": 35680,
+      "slower": 2,
+      "width": 32
+    },
+    {
+      "control_ranges": {
+        "base": [
+          0.9998746556693451,
+          1.0144614386525432
+        ],
+        "candidate": [
+          0.9628164656186433,
+          1.020107775049346
+        ]
+      },
+      "median": 0.9996708500952469,
+      "mode": "tls",
+      "range": [
+        0.9911293521694587,
+        1.0201929971904973
+      ],
+      "requests": 7573,
+      "slower": 4,
+      "width": 1
+    },
+    {
+      "control_ranges": {
+        "base": [
+          0.9910086058858143,
+          1.0232327842931952
+        ],
+        "candidate": [
+          0.9796165075560216,
+          1.0070301010992535
+        ]
+      },
+      "median": 0.9967903073826754,
+      "mode": "tls",
+      "range": [
+        0.9826844946154556,
+        1.0156960544709048
+      ],
+      "requests": 32064,
+      "slower": 3,
+      "width": 32
+    }
+  ],
+  "topology": {
+    "0": [
+      0,
+      0
+    ],
+    "2": [
+      0,
+      1
+    ]
+  },
+  "witness_binaries": {
+    "base": "dce4d8170d38ef94a871d06dac8e98bcf5e93601f3991987583e6d2fc54ce665",
+    "candidate": "ecd2d23ab1d4bd84b67fe85e099200370aba6702267c17de6dab577c6821f827"
+  },
+  "witnesses": [
+    {
+      "result": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 2928798,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 64,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": true,
+        "tls_verified": false,
+        "wall_ns": 2068013,
+        "warmup": 256,
+        "width": 8
+      },
+      "variant": "base"
+    },
+    {
+      "result": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 2068355,
+        "mode": "plain",
+        "requested_bytes": 0,
+        "requests": 64,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": true,
+        "tls_verified": false,
+        "wall_ns": 1604495,
+        "warmup": 256,
+        "width": 8
+      },
+      "variant": "candidate"
+    },
+    {
+      "result": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 1723525,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 64,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": true,
+        "tls_verified": true,
+        "wall_ns": 1551866,
+        "warmup": 256,
+        "width": 8
+      },
+      "variant": "base"
+    },
+    {
+      "result": {
+        "allocation_instrumented": false,
+        "allocations": 0,
+        "cpu_ns": 1778155,
+        "mode": "tls",
+        "requested_bytes": 0,
+        "requests": 64,
+        "response_validated": true,
+        "schema": "tls-rpc-control/1",
+        "scheme_witness": true,
+        "tls_verified": true,
+        "wall_ns": 1558939,
+        "warmup": 256,
+        "width": 8
+      },
+      "variant": "candidate"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+name: Screen TLS configuration construction
+on:
+  push:
+    branches: [scratch/tls-config-construction-20261110]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+  BASE: f73b85d067ea861fe36f23536153e4c5add3137f
+  CANDIDATE: 171388257f15d261a1667799f40a38edc3bbeffe
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check source ancestry and identical x86 inputs
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test "$(rustc -V)" = 'rustc 1.99.1 (58cf8f9c3 2026-10-13)'
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE"
+          test "$(git rev-parse HEAD^^)" = 5ff80d578fb31445d5987535f3522bfb2a4e72fd
+          test "$(git rev-parse HEAD^^^)" = "$BASE"
+          test "$(git hash-object pbrs-grpc/Cargo.toml)" = dd47d99141529eac9aa51b319105c46d19356c4c
+          test "$(git hash-object pbrs-grpc/src/tls.rs)" = 218b3bbfd6545c77df5e2005c9d9f6bdc1fc4a5b
+          test "$(git hash-object Cargo.lock)" = 6e082422103b0a488f13794475a91b5c71627f10
+          test "$(git hash-object .github/experiments/tls-construct/probe.rs)" = f73c01807949606984f9720ea3cf050cce62c852
+          test "$(git hash-object .github/experiments/tls-construct/compare.py)" = f32a75b368e5959281e381719e5ebfbf241bad2b
+          git diff --quiet "$BASE" "$CANDIDATE" -- Cargo.lock Cargo.toml src/ pbrs-grpc/build.rs pbrs-grpc/proto/ pbrs-grpc/tests/tls_data/
+          test -z "$(git diff --name-only "$BASE" "$CANDIDATE" -- pbrs-grpc/src/ ':!pbrs-grpc/src/tls.rs' ':!pbrs-grpc/src/tls_target_tests.rs')"
+          test -z "$(git status --porcelain)"
+          work="$RUNNER_TEMP/tls-construct"
+          mkdir -p "$work/probe/src" "$work/evidence/sources/base" "$work/evidence/sources/candidate"
+          cp .github/experiments/tls-construct/{probe.rs,compare.py} "$work/evidence/sources/"
+          cp Cargo.lock "$work/evidence/workspace-Cargo.lock"
+          for rev in base candidate; do
+            if test "$rev" = base; then commit="$BASE"; else commit="$CANDIDATE"; fi
+            git show "$commit:pbrs-grpc/Cargo.toml" > "$work/evidence/sources/$rev/Cargo.toml"
+            git show "$commit:pbrs-grpc/src/tls.rs" > "$work/evidence/sources/$rev/tls.rs"
+          done
+          sha256sum pbrs-grpc/tests/tls_data/{ca.crt,server.crt,server.key,client.crt,client.key} > "$work/evidence/fixture-sha256.txt"
+          { rustc -Vv; cargo -V; uname -a; grep -m1 'model name' /proc/cpuinfo || true; } > "$work/evidence/environment.txt"
+      - name: Build both pinned variants and compare active x86 features
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/tls-construct"
+          cp .github/experiments/tls-construct/probe.rs "$work/probe/src/main.rs"
+          cat > "$work/probe/Cargo.toml" <<EOF
+          [package]
+          name = "tls-construct-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+          [workspace]
+          [dependencies]
+          pbrs-grpc = { path = "$GITHUB_WORKSPACE/pbrs-grpc" }
+          libc = "=0.2.189"
+          [features]
+          allocation-probe = []
+          [profile.release]
+          opt-level = 3
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cp "$work/probe/Cargo.toml" "$work/evidence/probe-Cargo.toml"
+          cp Cargo.lock "$work/probe/Cargo.lock"
+          restore() { git checkout "$GITHUB_SHA" -- pbrs-grpc/Cargo.toml pbrs-grpc/src/tls.rs; }
+          trap restore EXIT
+          for variant in base candidate; do
+            if test "$variant" = base; then commit="$BASE"; else commit="$CANDIDATE"; fi
+            git show "$commit:pbrs-grpc/Cargo.toml" > pbrs-grpc/Cargo.toml
+            git show "$commit:pbrs-grpc/src/tls.rs" > pbrs-grpc/src/tls.rs
+            touch pbrs-grpc/Cargo.toml pbrs-grpc/src/tls.rs
+            if test "$variant" = base; then
+              cargo fetch --manifest-path "$work/probe/Cargo.toml"
+              cp "$work/probe/Cargo.lock" "$work/evidence/probe-Cargo.lock"
+              python3 - "$work/evidence/workspace-Cargo.lock" "$work/probe/Cargo.lock" <<'PY'
+          import sys, tomllib
+          def packages(path):
+              with open(path, "rb") as f:
+                  data = tomllib.load(f)
+              return {(p["name"], p["version"], p["source"], p.get("checksum"))
+                      for p in data["package"] if "source" in p}
+          missing = packages(sys.argv[2]) - packages(sys.argv[1])
+          assert not missing, sorted(missing)
+          print("TLS_PROBE_EXTERNAL_LOCKS_MATCH_WORKSPACE")
+          PY
+            else
+              cmp "$work/evidence/probe-Cargo.lock" "$work/probe/Cargo.lock"
+            fi
+            cargo tree --locked --manifest-path "$work/probe/Cargo.toml" --target x86_64-unknown-linux-gnu \
+              -p pbrs-grpc -e features > "$work/evidence/features-$variant.txt"
+            CARGO_TARGET_DIR="$work/target-$variant" cargo build --offline --locked --release \
+              --manifest-path "$work/probe/Cargo.toml" --message-format=json > "$work/evidence/build-$variant.jsonl"
+            python3 - "$work/evidence/build-$variant.jsonl" <<'PY'
+          import json, sys
+          rows = [json.loads(x) for x in open(sys.argv[1]) if x.startswith("{")]
+          matches = [x for x in rows if x.get("reason") == "compiler-artifact"
+                     and x.get("target", {}).get("name") == "pbrs_grpc"
+                     and "lib" in x["target"]["kind"]]
+          assert matches and any(not x["fresh"] for x in matches), matches
+          PY
+            cp "$work/target-$variant/release/tls-construct-probe" "$work/$variant"
+            CARGO_TARGET_DIR="$work/target-$variant" cargo build --offline --locked --release \
+              --manifest-path "$work/probe/Cargo.toml" --features allocation-probe
+            cp "$work/target-$variant/release/tls-construct-probe" "$work/$variant-alloc"
+          done
+          cmp "$work/evidence/features-base.txt" "$work/evidence/features-candidate.txt"
+          printf 'TLS_X86_FEATURE_TREES_IDENTICAL\n'
+          sha256sum "$work"/{base,candidate,base-alloc,candidate-alloc} | tee "$work/evidence/binaries.sha256"
+          restore
+          trap - EXIT
+          test -z "$(git status --porcelain)"
+      - name: Measure fresh construction and drop
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/tls-construct"
+          python3 .github/experiments/tls-construct/compare.py "$work/base" "$work/candidate" \
+            "$work/base-alloc" "$work/candidate-alloc" "$GITHUB_WORKSPACE/pbrs-grpc/tests/tls_data" "$work/evidence/results"
+          cat "$work/evidence/environment.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tls-config-construction-f73-171
+          path: ${{ runner.temp }}/tls-construct/evidence
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Remove exact scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/scratch/tls-config-construction-20261110:$GITHUB_SHA" origin ":refs/heads/scratch/tls-config-construction-20261110"

@@ -43,9 +43,6 @@ pin-project-lite = "=0.2.17"
 prost = { version = "0.14", optional = true }
 # TLS uses rustls with Graviola as its crypto provider.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
-# 0.3+ pulls graviola ≥0.3, which declares rust-version 1.89. Pinning 0.2.1
-# keeps the declared pbrs-grpc MSRV (1.85) honest. Same `default_provider()` API.
-rustls-graviola = "0.2.1"
 rustls-pemfile = "2"
 rustls-native-certs = { version = "0.8", optional = true }
 serde_json = "1"
@@ -132,6 +129,12 @@ path = "src/bin/pbrs-grpc-interop-client.rs"
 [[bin]]
 name = "pbrs-grpc-http2-client"
 path = "src/bin/pbrs-grpc-http2-client.rs"
+
+# Select the built-in TLS provider on these architectures. On other targets,
+# applications can supply their own rustls config where supported.
+# Version 0.3+ requires Rust 1.89; 0.2.1 keeps the crate's 1.85 MSRV.
+[target.'cfg(any(target_arch = "x86_64", target_arch = "aarch64"))'.dependencies]
+rustls-graviola = "0.2.1"
 
 # Linux-only raw TCP_USER_TIMEOUT setsockopt (A18, CH-09). socket2
 # exposes no public API for it.

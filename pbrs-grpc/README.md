@@ -11,9 +11,16 @@ TLS, and optional Prost and Tower integration. The transport uses an embedded
 
 At `f73b85d`, [i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
 for `pbrs-grpc` failed on Rust 1.85 and 1.99 with default and no-default
-features: the unconditional Graviola dependency rejects `i686-unknown-linux-gnu`.
-Disabling default features does not remove it. The `pbrs` core alloc-only
+features: the unconditional Graviola dependency rejected `i686-unknown-linux-gnu`.
+Disabling default features did not remove it. The `pbrs` core alloc-only
 profile and i686 tests do not cover the gRPC transport.
+
+This checkout selects the built-in TLS provider on x86-64 and AArch64. On
+other architectures, built-in TLS constructors return `UNIMPLEMENTED` once
+preliminary checks succeed. They cannot perform provider-dependent key,
+certificate or verifier checks. Applications can supply a trusted config through
+`ClientTls::from_rustls` or `ServerTls::from_rustls` where the target and
+provider support it. TLS failures do not fall back to plaintext.
 
 Published version `0.1.0-alpha.2` is a preview; this checkout targets the
 unreleased `0.1.0-alpha.3` preview. See the [project status](../docs/status.md)

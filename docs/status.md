@@ -5,17 +5,33 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source [`5fe70efd`](https://github.com/mingley/pure-protobuf/commit/5fe70efdc798031badefd1a3847d8866dde352f5), all 12 required
-[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284086),
-five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284001),
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42768284231)
-passed. The optional fuzz and sanitizer jobs were skipped. The parity audit
-includes known gaps; it is not a complete parity claim. All six
-[Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42763730693)
-passed at [`0685d7f6`](https://github.com/mingley/pure-protobuf/commit/0685d7f6cbc4e0ac9cdfb020bd085a8b7eb5b2be).
-Changes from 0685 through the docs-only `8e32db23` update affect documentation
-and CI setup, not runtime source. These checks cover their named revisions;
-later changes need their own checks.
+At source [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd), all 12
+[CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790264957),
+five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790265148)
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42790265038)
+passed. Optional fuzz and sanitizer jobs were skipped; the parity audit includes
+known gaps. Changes from [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f)
+to 5ff were documentation only. All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42783426107)
+passed at f73; focused [streaming ownership checks](https://github.com/mingley/pure-protobuf/actions/runs/42782758596)
+also passed using a test-only overlay.
+
+The [11683-to-f73 dev-loop comparison](https://github.com/mingley/pure-protobuf/actions/runs/42783219046)
+had 1,634 common cells and no added or removed cells. The workflow succeeded,
+but the advisory comparison exited 1. Across implementations it reported
+252 syscall and 352 futex-proxy regression rows, 236 and 373 improvement rows,
+one allocation-byte row each way, and eight additional absolute picker budget
+rows. Instruction counts were unavailable because perf and Valgrind were not
+available; the futex proxy counts syscalls, not lock acquisitions. The [raw artifact](https://github.com/mingley/pure-protobuf/actions/runs/42783219046/artifacts/13751423630)
+and [independent audit](https://github.com/mingley/pure-protobuf/actions/runs/42792051248)
+retain the scope. These shared-host observations do not establish a cause or
+overall ranking.
+
+Earlier, source `5fe70efd` passed its [CI](https://github.com/mingley/pure-protobuf/actions/runs/42768284086),
+[compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284001)
+and [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42768284231).
+All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42763730693)
+passed at `0685d7f6`. Changes from 0685 through the docs-only `8e32db23`
+update affected documentation and CI setup, not runtime source.
 
 The earlier [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42200175988)
 at `10d94697` includes known differences as well as successful comparisons.
@@ -29,6 +45,15 @@ unconditional `rustls-graviola` dependency uses `graviola` 0.2.1, which rejects
 `i686-unknown-linux-gnu` at compile time. This is separate from the core
 `pbrs` alloc-only profile and i686 alloc-cell Miri evidence; it does not
 establish gRPC support for other targets.
+
+The current source selects built-in TLS on x86-64 and AArch64. On other
+architectures, built-in TLS constructors return `UNIMPLEMENTED` once
+preliminary checks succeed; provider-dependent key, certificate and verifier
+checks do not run. Callers can supply their own rustls config. A
+[source-pinned prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
+exercised i686 Linux plaintext and caller-configured mTLS with Rust 1.85 and
+1.99. The caller used ring only in the test application. These checks do not
+qualify a later release source or establish support for other targets.
 
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
@@ -84,18 +109,23 @@ See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
 The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
-check the registry before treating them as published. The
-[release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
-at `5fe70efd` used that revision's successful CI in dry-run mode, packaged all
-three crates, and produced a CycloneDX SBOM and a
-[five-subject provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65693055).
-The [archive readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
-verified the package manifests, selected source files, SBOM and CI context.
-Its [evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42773096505/artifacts/13743130290)
-has ZIP SHA-256 `c2cba1ae8c7703e148a7b8e07cf3e1183c4d585da857655f3918c30b527ba69e`
-and expires February 8, 2027. The rehearsal skipped signed-tag verification,
-did not authenticate to crates.io and did not upload crates or create a GitHub
-Release. An eventual release needs the same checks on its final source revision.
+check the registry before treating them as published. The [5ff release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)
+used that revision's successful CI in dry-run mode, packaged all three crates,
+and produced a CycloneDX SBOM and a [five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65745378).
+An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42795147276)
+verified the manifests, selected source files, SBOM and CI context. Its
+[evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42794817426/artifacts/13752703565)
+has ZIP SHA-256 `368062a9c29bcd3964d35a0e7f3f932e6059e07471374a953a8b094bc9eaa028`
+and expires February 8, 2027. Signed-tag verification, crates.io authentication,
+crate uploads and GitHub Release creation were skipped. An eventual release
+needs the same checks on its final source revision.
+
+The [earlier 5fe rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
+retain their [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42773096505/artifacts/13743130290)
+and [attestation](https://github.com/mingley/pure-protobuf/attestations/65693055).
+That ZIP has SHA-256 `c2cba1ae8c7703e148a7b8e07cf3e1183c4d585da857655f3918c30b527ba69e`
+and expires February 8, 2027.
 
 The earlier [`1e6174f2` rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42726308637)
 retains its [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42726308637/artifacts/13722132862)

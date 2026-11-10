@@ -323,6 +323,13 @@ jobs:
           path: target/conformance-out/
           if-no-files-found: warn
 
+  # Required for main CI and the same reusable policy invoked by releases.
+  grpc-i686:
+    name: Native gRPC i686 portability
+    uses: ./.github/workflows/grpc-i686.yml
+    permissions:
+      contents: read
+
   # Declared rust-version on pbrs and pbrs-grpc. Adapter build.rs needs protoc
   # even for `--lib` tests. Do not skip if a dep needs a newer rustc: pin or
   # raise rust-version instead.

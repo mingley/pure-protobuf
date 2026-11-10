@@ -116,6 +116,7 @@ rehearsals reuse the completed main-push run of that same CI policy:
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
 | `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then non-mutating checks of all bundled bindings and adapter descriptor/codegen parity with pinned protoc |
 | `msrv-core` | rustc **1.85**: `cargo test -p pbrs --lib` and `cargo test -p pbrs-grpc --lib` |
+| `grpc-i686` | Rust 1.85 and stable: i686 native build, built-in TLS error ordering, plaintext RPC, and caller-configured TLS and no-downgrade controls; stable also checks all features. |
 | `msrv-tonic` | rustc **1.88**: `cargo test -p protobuf-tonic` |
 | `macos` | stable, `brew` protoc: `pbrs-grpc` `tcp::tests`, `--test pbrs_build`, `--test onboarding` |
 | `package-consumers` | `cargo test --test package_consumer`: assert the core archive excludes unrelated `third_party/`, docs and tests, then unpack all `.crate` archives outside the workspace and build consumers |

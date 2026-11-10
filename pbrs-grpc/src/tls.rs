@@ -40,8 +40,16 @@ use tokio_rustls::TlsConnector;
 
 const ALPN_H2: &[u8] = b"h2";
 
-fn provider() -> Arc<rustls::crypto::CryptoProvider> {
-    Arc::new(rustls_graviola::default_provider())
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn provider() -> Result<Arc<rustls::crypto::CryptoProvider>, Status> {
+    Ok(Arc::new(rustls_graviola::default_provider()))
+}
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn provider() -> Result<Arc<rustls::crypto::CryptoProvider>, Status> {
+    Err(Status::unimplemented(
+        "built-in TLS is unavailable on this target; supply a rustls config via from_rustls",
+    ))
 }
 
 fn certs_from_pem(pem: &[u8]) -> Result<Vec<CertificateDer<'static>>, Status> {
@@ -627,7 +635,9 @@ fn protocol_name(version: Option<ProtocolVersion>) -> &'static str {
 /// This reads the live provider key-exchange groups, so it tracks provider
 /// upgrades: it returns `true` exactly when the provider offers a pure
 /// ML-KEM or hybrid ML-KEM group. On the pinned `rustls-graviola` 0.2.1
-/// (X25519, P-256, P-384 only) it returns `false`.
+/// (X25519, P-256, P-384 only) it returns `false`. It also returns `false`
+/// when this target has no built-in provider. Caller-owned rustls configs
+/// retain their own provider and are not inspected here.
 ///
 /// Re-evaluate on provider bumps: `rustls-graviola` 0.4 ships pure-Rust
 /// `X25519MLKEM768`, but needs `graviola` 0.4 (`rust-version` 1.89), above
@@ -638,7 +648,10 @@ fn protocol_name(version: Option<ProtocolVersion>) -> &'static str {
 )]
 #[must_use]
 pub fn post_quantum_key_exchange_available() -> bool {
-    provider().kx_groups.iter().any(|group| {
+    let Ok(provider) = provider() else {
+        return false;
+    };
+    provider.kx_groups.iter().any(|group| {
         matches!(
             group.name(),
             NamedGroup::MLKEM512
@@ -662,6 +675,12 @@ impl fmt::Debug for Identity {
 /// Built-in constructors enable TLS 1.3 session tickets with keys that rotate
 /// every 6 h; rebuilding them invalidates outstanding tickets. Caller configs
 /// supplied to [`Self::from_rustls`] retain their own ticket and session policy.
+///
+/// Built-in constructors select Graviola on x86-64 and AArch64. On other
+/// architectures, they return [`Code::Unimplemented`](crate::Code::Unimplemented)
+/// once preliminary checks succeed. Provider-dependent key, certificate and
+/// verifier checks do not run. Use [`Self::from_rustls`] with a trusted
+/// application-owned config instead.
 ///
 /// There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only
 /// timeout on the tonic acceptor. This type has no timeout setter; the bound is
@@ -896,7 +915,7 @@ fn build_server(
     crls: Vec<CertificateRevocationListDer<'static>>,
     spiffe: Option<SpiffeId>,
 ) -> Result<ServerTls, Status> {
-    let provider = provider();
+    let provider = provider()?;
     let builder = RustlsServerConfig::builder_with_provider(Arc::clone(&provider))
         .with_safe_default_protocol_versions()
         .map_err(|e| Status::internal(format!("tls versions: {e}")))?;
@@ -937,8 +956,11 @@ fn build_server(
     // (authenticated sessions resumed into unauthenticated configs) cannot
     // trigger between `new` / `mtls` / `optional_mtls` instances.
     // Verification, ALPN and cipher policy are unchanged.
-    config.ticketer = rustls_graviola::Ticketer::new()
-        .map_err(|e| Status::internal(format!("tls ticketer: {e}")))?;
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    {
+        config.ticketer = rustls_graviola::Ticketer::new()
+            .map_err(|e| Status::internal(format!("tls ticketer: {e}")))?;
+    }
     let config = Arc::new(config);
     Ok(ServerTls {
         acceptor: TlsAcceptor::from(Arc::clone(&config)),
@@ -951,6 +973,12 @@ fn build_server(
 /// Built-in constructors keep a session cache for up to 256 server names.
 /// Caller configs supplied to [`Self::from_rustls`] retain their own session
 /// policy. Clones share the underlying config and session store.
+///
+/// Built-in constructors select Graviola on x86-64 and AArch64. On other
+/// architectures, they return [`Code::Unimplemented`](crate::Code::Unimplemented)
+/// once preliminary checks succeed. Provider-dependent key, certificate and
+/// verifier checks do not run. Use [`Self::from_rustls`] with a trusted
+/// application-owned config instead.
 ///
 /// `server_name` is both SNI and the name verified against the certificate.
 /// It is independent of the TCP address, so you can dial `127.0.0.1` while
@@ -1280,7 +1308,7 @@ fn build_client(
     spiffe: Option<SpiffeId>,
 ) -> Result<ClientTls, Status> {
     let server_name = server_name(&name)?;
-    let provider = provider();
+    let provider = provider()?;
     let verifier_stage = RustlsClientConfig::builder_with_provider(Arc::clone(&provider))
         .with_safe_default_protocol_versions()
         .map_err(|e| Status::internal(format!("tls versions: {e}")))?;
@@ -1651,7 +1679,10 @@ mod tests {
         // Tripwire: any provider change (new group of any kind) fails here
         // and forces a revisit of the A120 status, so a future PQ-capable
         // provider cannot slip through unnoticed.
-        let groups: Vec<String> = super::provider()
+        let Ok(provider) = super::provider() else {
+            return;
+        };
+        let groups: Vec<String> = provider
             .kx_groups
             .iter()
             .map(|group| format!("{:?}", group.name()))
@@ -2135,3 +2166,7 @@ mod handshake {
         server_task.await.expect("server");
     }
 }
+
+#[cfg(test)]
+#[path = "tls_target_tests.rs"]
+mod tls_target_tests;
