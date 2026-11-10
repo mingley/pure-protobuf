@@ -96,6 +96,9 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Classify the `-bin` metadata suffix without regard to ASCII case for writes
+  and removals. ASCII writes with mixed-case binary suffixes, previously
+  accepted by mistake, now return `INVALID_ARGUMENT`.
 - Build and test native gRPC on i686 Linux with plaintext or caller-provided
   rustls configurations. Built-in TLS remains available on x86-64 and AArch64;
   other architectures need a caller-provided provider and TLS configuration.

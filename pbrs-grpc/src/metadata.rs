@@ -277,7 +277,7 @@ impl Metadata {
 
     /// Add an ASCII entry. The key must not end in `-bin` and must not be a
     /// reserved protocol key (`grpc-*`, `content-type`, hop-by-hop headers,
-    /// ...).
+    /// ...). The `-bin` suffix check is ASCII case-insensitive.
     ///
     /// Repeated keys accumulate rather than replace, matching gRPC's
     /// comma-joined multi-value semantics. To overwrite, use [`Self::set`].
@@ -288,7 +288,7 @@ impl Metadata {
                 "reserved metadata key {key:?}"
             )));
         }
-        if key.ends_with("-bin") {
+        if has_binary_suffix(key) {
             return Err(Status::invalid_argument(
                 "ascii metadata key must not end in -bin",
             ));
@@ -312,7 +312,7 @@ impl Metadata {
                 "reserved metadata key {key:?}"
             )));
         }
-        if key.ends_with("-bin") {
+        if has_binary_suffix(key) {
             return Err(Status::invalid_argument(
                 "ascii metadata key must not end in -bin",
             ));
@@ -324,6 +324,7 @@ impl Metadata {
     }
 
     /// Add a binary entry. The key must end in `-bin` and must not be reserved.
+    /// The suffix check is ASCII case-insensitive.
     ///
     /// Repeats accumulate. To overwrite, use [`Self::set_bin`].
     pub fn insert_bin(
@@ -337,7 +338,7 @@ impl Metadata {
                 "reserved metadata key {key:?}"
             )));
         }
-        if !key.ends_with("-bin") {
+        if !has_binary_suffix(key) {
             return Err(Status::invalid_argument(
                 "binary metadata key must end in -bin",
             ));
@@ -364,7 +365,7 @@ impl Metadata {
                 "reserved metadata key {key:?}"
             )));
         }
-        if !key.ends_with("-bin") {
+        if !has_binary_suffix(key) {
             return Err(Status::invalid_argument(
                 "binary metadata key must end in -bin",
             ));
@@ -380,7 +381,7 @@ impl Metadata {
     /// Remove every ASCII entry for `key`. Reserved keys and `-bin` keys are
     /// left alone. Returns whether anything was removed.
     pub fn remove(&mut self, key: &str) -> bool {
-        if is_reserved(key) || key.ends_with("-bin") {
+        if is_reserved(key) || has_binary_suffix(key) {
             return false;
         }
         let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
@@ -391,7 +392,7 @@ impl Metadata {
 
     /// Remove every `-bin` entry for `key`. Returns whether anything was removed.
     pub fn remove_bin(&mut self, key: &str) -> bool {
-        if is_reserved(key) || !key.ends_with("-bin") {
+        if is_reserved(key) || !has_binary_suffix(key) {
             return false;
         }
         let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
@@ -400,10 +401,14 @@ impl Metadata {
         self.headers_mut().remove(name).is_some()
     }
 
-    /// First ASCII value for `key`, matched case-insensitively.
+    /// First value for `key` as ASCII text, matched case-insensitively.
     ///
-    /// Repeats are kept; this is the first. Use [`Self::get_all`] for every
-    /// value in insertion order.
+    /// This does not enforce the `-bin` suffix. For a binary value it can
+    /// return the encoded header text.
+    ///
+    /// Only the first stored value is inspected. If it cannot be read as
+    /// text, this returns `None` even if a later value is readable.
+    /// [`Self::get_all`] skips values that cannot be read as text.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
         if is_reserved(key) {
@@ -412,10 +417,14 @@ impl Metadata {
         self.headers().get(key)?.to_str().ok()
     }
 
-    /// First `-bin` value for `key`, base64-decoded.
+    /// First value for `key`, base64-decoded.
     ///
-    /// Repeats are kept; this is the first. Use [`Self::get_all_bin`] for
-    /// every value in insertion order.
+    /// This does not enforce the `-bin` suffix; it attempts to decode the
+    /// stored header value for any non-reserved name.
+    ///
+    /// Only the first stored value is inspected. If it cannot be decoded,
+    /// this returns `None` even if a later value can be decoded.
+    /// [`Self::get_all_bin`] skips values that cannot be decoded.
     #[must_use]
     pub fn get_bin(&self, key: &str) -> Option<Vec<u8>> {
         if is_reserved(key) {
@@ -425,12 +434,13 @@ impl Metadata {
         decode_base64(raw)
     }
 
-    /// Every ASCII value for `key`, in insertion order.
+    /// Every value for `key` as ASCII text, in insertion order.
     ///
     /// [`Self::insert`] appends rather than replacing, so a peer (or an
     /// interceptor that adds a second `x-forwarded-for`) is visible here.
-    /// [`Self::set`] replaces every value. [`Self::get`] is the first of
-    /// these. Reserved keys yield nothing.
+    /// [`Self::set`] replaces every value. Values that cannot be read as text
+    /// are skipped, and reserved keys yield nothing. Like [`Self::get`], this
+    /// does not enforce the binary-key suffix.
     pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ + use<'_> {
         let skip = is_reserved(key);
         self.headers()
@@ -440,10 +450,11 @@ impl Metadata {
             .filter_map(|value| value.to_str().ok())
     }
 
-    /// Every `-bin` value for `key`, base64-decoded, in insertion order.
+    /// Every value for `key`, base64-decoded, in insertion order.
     ///
-    /// [`Self::insert_bin`] appends; [`Self::set_bin`] replaces.
-    /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
+    /// [`Self::insert_bin`] appends; [`Self::set_bin`] replaces. Values that
+    /// cannot be decoded are skipped, and reserved keys yield nothing. Like
+    /// [`Self::get_bin`], this decodes values regardless of the suffix.
     pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ + use<'_> {
         let skip = is_reserved(key);
         self.headers()
@@ -454,12 +465,14 @@ impl Metadata {
     }
 
     /// Whether `key` has an ASCII value. Reserved names are never present.
+    /// Uses [`Self::get`], which does not enforce the key suffix.
     #[must_use]
     pub fn contains(&self, key: &str) -> bool {
         self.get(key).is_some()
     }
 
-    /// Whether `key` has a `-bin` value. Reserved names are never present.
+    /// Whether `key` has a base64-decodable value. Reserved names are never present.
+    /// Uses [`Self::get_bin`], which attempts decoding regardless of suffix.
     #[must_use]
     pub fn contains_bin(&self, key: &str) -> bool {
         self.get_bin(key).is_some()
@@ -654,6 +667,14 @@ fn ascii_header_value(value: &str) -> Result<HeaderValue, Status> {
     Ok(value)
 }
 
+#[inline]
+fn has_binary_suffix(key: &str) -> bool {
+    matches!(
+        key.as_bytes().last_chunk::<4>(),
+        Some([b'-', b'b' | b'B', b'i' | b'I', b'n' | b'N'])
+    )
+}
+
 /// Keys the gRPC wire protocol owns, plus HTTP/2 hop-by-hop headers.
 ///
 /// The spec forbids user metadata whose names start with `grpc-`. Pseudo-headers
@@ -689,6 +710,40 @@ pub(crate) fn decode_base64(raw: &str) -> Option<Vec<u8>> {
 mod tests {
     use super::Metadata;
     use http::{HeaderMap, HeaderName, HeaderValue};
+
+    #[test]
+    fn first_reads_do_not_skip_invalid_values() {
+        let mut raw = HeaderMap::new();
+        raw.append(
+            HeaderName::from_static("x-text"),
+            HeaderValue::from_bytes(&[0xff]).expect("opaque HTTP header"),
+        );
+        raw.append(
+            HeaderName::from_static("x-text"),
+            HeaderValue::from_static("visible"),
+        );
+        raw.append(
+            HeaderName::from_static("x-data-bin"),
+            HeaderValue::from_static("!"),
+        );
+        raw.append(
+            HeaderName::from_static("x-data-bin"),
+            HeaderValue::from_static("AQ"),
+        );
+        let metadata = Metadata::from_headers(&raw);
+        assert_eq!(metadata.get("x-text"), None);
+        assert!(!metadata.contains("x-text"));
+        assert_eq!(
+            metadata.get_all("x-text").collect::<Vec<_>>(),
+            vec!["visible"]
+        );
+        assert_eq!(metadata.get_bin("x-data-bin"), None);
+        assert!(!metadata.contains_bin("x-data-bin"));
+        assert_eq!(
+            metadata.get_all_bin("x-data-bin").collect::<Vec<_>>(),
+            vec![vec![1]]
+        );
+    }
 
     #[test]
     fn ascii_and_bin_are_separate_namespaces() {
