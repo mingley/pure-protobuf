@@ -17,9 +17,12 @@ performance claim.
 | Read | Scope |
 |---|---|
 | [Receive accounting candidates](benchmarks/recv-budget-rpc-screen-20261110.md) | Unmerged candidates: loopback CPU and layout with a non-default frame budget, November 10 |
+| [Small-response reserve, native server](benchmarks/response-reserve-native-server.md) | Unmerged repair: native-server CPU and allocation samples, November 10 |
+| [Small-response reserve, longer follow-up](benchmarks/response-reserve-screen-long.md) | Historical prototype: longer CPU samples and Miri failure, November 10 |
 | [Small-response reserve, revised](benchmarks/response-reserve-screen-revised.md) | Historical prototype: loopback CPU and a later Miri failure, November 10 |
 | [Small-response reserve screen](benchmarks/response-reserve-screen.md) | Unmerged prototype: loopback CPU, allocations and functional limits, November 10 |
-| [Streaming Call poll-state screen](benchmarks/streaming-call-poll-screen-20261110.md) | Unmerged prototype; server/bidi calls end at response headers, November 10 |
+| [Synthetic Call polling](benchmarks/call-poll-component-screen-20261110.md) | Unmerged prototype: component CPU and controls, November 10 |
+| [Streaming Call poll-state screen](benchmarks/streaming-call-poll-screen-20261110.md) | Unmerged prototype; server/bidi `Call` futures end after response headers, November 10 |
 | [Unpolled-call cancellation screen](benchmarks/unary-unpolled-drop-screen-20261110.md) | Unmerged prototype: unary lifecycle and endpoint CPU, November 10 |
 | [Identity frame staging screen](benchmarks/identity-frame-staging-20261110.md) | Rejected chunk staging, whole-frame timing losses and synthetic backing retention, November 10 |
 | [Unary cancellation on 713](benchmarks/unary-cancel-713-screen-20261110.md) | Matched endpoint and unpolled-call CPU, allocations and controls, November 10 |

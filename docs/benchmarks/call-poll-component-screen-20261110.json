@@ -1,0 +1,5814 @@
+{
+  "schema": "call-poll-component-evidence/1",
+  "short": {
+    "run_id": 42744949857,
+    "scratch_commit": "80d8e72fddbaea2093d45f003eddbbb9382c6e23",
+    "artifact_id": 13730448587,
+    "artifact_sha256": "959364ec9abe97d38f3dbb10d9a2876b2e1d56c668aa4ee72affeac3bcd5cfde",
+    "artifact_expires_at": "2026-11-24T02:49:08Z",
+    "screen": {
+      "baseline": "b683681518a277afc421dde3b3cd56e45c421cc0",
+      "binary_sha256": {
+        "baseline": "e7ab9a5bf2ab941f6e6cfb04ad4d561d8635fa6685c99535b52228ad90f5e35f",
+        "candidate": "a0634d0a7c5daab435c78d79d462a5d6f65950dd77bf7eb6c2cfccbae318454e"
+      },
+      "cancel_blob": "ea8af05fea2dac14a79026ab9371ebb45e9cda50",
+      "candidate": "bc3e22b09d0e5c2f47998c6a719effeeef3a6cca",
+      "cpu": 0,
+      "fixture_blob": "f7f50d9224c0be5ba7fc424566195a9e883269dc",
+      "request_blob": "3e7721da17eb106309644a7d55014049c2dcdffb",
+      "results": {
+        "pending": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 0.9959360875443215,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 74818766,
+                  "wall_ns": 74823731
+                },
+                "baseline1": {
+                  "cpu_ns": 76776035,
+                  "wall_ns": 76880205
+                },
+                "candidate0": {
+                  "cpu_ns": 76907912,
+                  "wall_ns": 76919806
+                },
+                "candidate1": {
+                  "cpu_ns": 74070821,
+                  "wall_ns": 74074237
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9985813449719604,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76511201,
+                      "wall_ns": 76523265
+                    },
+                    "second": {
+                      "cpu_ns": 76402658,
+                      "wall_ns": 76406288
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0023196482463408,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76323641,
+                      "wall_ns": 76327989
+                    },
+                    "second": {
+                      "cpu_ns": 76500685,
+                      "wall_ns": 76527411
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9584600731432169,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 85169751,
+                  "wall_ns": 85173946
+                },
+                "baseline1": {
+                  "cpu_ns": 76915272,
+                  "wall_ns": 76927126
+                },
+                "candidate0": {
+                  "cpu_ns": 77328558,
+                  "wall_ns": 77340583
+                },
+                "candidate1": {
+                  "cpu_ns": 78023465,
+                  "wall_ns": 78027223
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0027267459557017,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76417460,
+                      "wall_ns": 76421210
+                    },
+                    "second": {
+                      "cpu_ns": 76625831,
+                      "wall_ns": 76629295
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0149910502465422,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76217742,
+                      "wall_ns": 76240167
+                    },
+                    "second": {
+                      "cpu_ns": 77360326,
+                      "wall_ns": 77363868
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.023219078115425,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 75863674,
+                  "wall_ns": 75897047
+                },
+                "baseline1": {
+                  "cpu_ns": 76526011,
+                  "wall_ns": 76538057
+                },
+                "candidate0": {
+                  "cpu_ns": 78434267,
+                  "wall_ns": 78447219
+                },
+                "candidate1": {
+                  "cpu_ns": 77493766,
+                  "wall_ns": 77506605
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0066623634322556,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76732980,
+                      "wall_ns": 76736690
+                    },
+                    "second": {
+                      "cpu_ns": 77244203,
+                      "wall_ns": 77255987
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9855518554074791,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 77569268,
+                      "wall_ns": 77583042
+                    },
+                    "second": {
+                      "cpu_ns": 76448536,
+                      "wall_ns": 76452360
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.986096800461544,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 79796149,
+                  "wall_ns": 79800049
+                },
+                "baseline1": {
+                  "cpu_ns": 76309429,
+                  "wall_ns": 76322744
+                },
+                "candidate0": {
+                  "cpu_ns": 76501566,
+                  "wall_ns": 76517138
+                },
+                "candidate1": {
+                  "cpu_ns": 77433645,
+                  "wall_ns": 77437552
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0477935633586182,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 75394755,
+                      "wall_ns": 75405795
+                    },
+                    "second": {
+                      "cpu_ns": 78998139,
+                      "wall_ns": 79018605
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9840173319935372,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76745009,
+                      "wall_ns": 76764433
+                    },
+                    "second": {
+                      "cpu_ns": 75518419,
+                      "wall_ns": 75521651
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9904437758056569,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 81114314,
+                  "wall_ns": 81425060
+                },
+                "baseline1": {
+                  "cpu_ns": 80156285,
+                  "wall_ns": 80160405
+                },
+                "candidate0": {
+                  "cpu_ns": 78548638,
+                  "wall_ns": 78553882
+                },
+                "candidate1": {
+                  "cpu_ns": 81180823,
+                  "wall_ns": 81193419
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9511122419760852,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 80253220,
+                      "wall_ns": 80257813
+                    },
+                    "second": {
+                      "cpu_ns": 76329820,
+                      "wall_ns": 76344136
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9879756367965475,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79611534,
+                      "wall_ns": 79623963
+                    },
+                    "second": {
+                      "cpu_ns": 78654256,
+                      "wall_ns": 78659041
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0108332017453168,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 76003974,
+                  "wall_ns": 76035809
+                },
+                "baseline1": {
+                  "cpu_ns": 79664963,
+                  "wall_ns": 79680008
+                },
+                "candidate0": {
+                  "cpu_ns": 78175602,
+                  "wall_ns": 78194668
+                },
+                "candidate1": {
+                  "cpu_ns": 79179728,
+                  "wall_ns": 79196856
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0020172564161671,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76624369,
+                      "wall_ns": 76629048
+                    },
+                    "second": {
+                      "cpu_ns": 76778940,
+                      "wall_ns": 77036094
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0087756392723526,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76819019,
+                      "wall_ns": 76831424
+                    },
+                    "second": {
+                      "cpu_ns": 77493155,
+                      "wall_ns": 77497002
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0405898643374847,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 76805379,
+                  "wall_ns": 76809891
+                },
+                "baseline1": {
+                  "cpu_ns": 76385574,
+                  "wall_ns": 76394122
+                },
+                "candidate0": {
+                  "cpu_ns": 79872322,
+                  "wall_ns": 79876475
+                },
+                "candidate1": {
+                  "cpu_ns": 79536631,
+                  "wall_ns": 79541037
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9851212215504902,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 75229899,
+                      "wall_ns": 75233824
+                    },
+                    "second": {
+                      "cpu_ns": 74110570,
+                      "wall_ns": 74131455
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0212036499737727,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 74706619,
+                      "wall_ns": 74717893
+                    },
+                    "second": {
+                      "cpu_ns": 76290672,
+                      "wall_ns": 76294401
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0579670343671306,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 73724445,
+                  "wall_ns": 73937311
+                },
+                "baseline1": {
+                  "cpu_ns": 74224421,
+                  "wall_ns": 74235123
+                },
+                "candidate0": {
+                  "cpu_ns": 77936185,
+                  "wall_ns": 77940734
+                },
+                "candidate1": {
+                  "cpu_ns": 78588838,
+                  "wall_ns": 78594013
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0151846826608977,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 73550895,
+                      "wall_ns": 73564737
+                    },
+                    "second": {
+                      "cpu_ns": 74667742,
+                      "wall_ns": 74672154
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9957415527862468,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 77686533,
+                      "wall_ns": 77690795
+                    },
+                    "second": {
+                      "cpu_ns": 77355709,
+                      "wall_ns": 77359133
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9872346417770924,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 80823711,
+                  "wall_ns": 80828146
+                },
+                "baseline1": {
+                  "cpu_ns": 73361543,
+                  "wall_ns": 73376212
+                },
+                "candidate0": {
+                  "cpu_ns": 78213458,
+                  "wall_ns": 78218454
+                },
+                "candidate1": {
+                  "cpu_ns": 74003566,
+                  "wall_ns": 74055480
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9682070732886054,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 76377712,
+                      "wall_ns": 76392379
+                    },
+                    "second": {
+                      "cpu_ns": 73949441,
+                      "wall_ns": 73968148
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9741385238254575,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79460468,
+                      "wall_ns": 79656953
+                    },
+                    "second": {
+                      "cpu_ns": 77405503,
+                      "wall_ns": 77410791
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0092717628046217,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 80276975,
+                  "wall_ns": 80282030
+                },
+                "baseline1": {
+                  "cpu_ns": 76380074,
+                  "wall_ns": 76384838
+                },
+                "candidate0": {
+                  "cpu_ns": 79865191,
+                  "wall_ns": 79870136
+                },
+                "candidate1": {
+                  "cpu_ns": 78244345,
+                  "wall_ns": 78249031
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0048599765766237,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 77403871,
+                      "wall_ns": 77408568
+                    },
+                    "second": {
+                      "cpu_ns": 77780052,
+                      "wall_ns": 77792619
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.008952186245103,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 77519053,
+                      "wall_ns": 77523362
+                    },
+                    "second": {
+                      "cpu_ns": 78213018,
+                      "wall_ns": 78234359
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 10000000,
+          "max": 1.0579670343671306,
+          "median": 1.0026039251744716,
+          "min": 0.9584600731432169
+        },
+        "ready_first": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 1.018794495351856,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2770180,
+                  "wall_ns": 2773722
+                },
+                "baseline1": {
+                  "cpu_ns": 2855829,
+                  "wall_ns": 2860743
+                },
+                "candidate0": {
+                  "cpu_ns": 2805974,
+                  "wall_ns": 2810607
+                },
+                "candidate1": {
+                  "cpu_ns": 2925773,
+                  "wall_ns": 2930048
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9860703678767303,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2799715,
+                      "wall_ns": 2803646
+                    },
+                    "second": {
+                      "cpu_ns": 2760716,
+                      "wall_ns": 2783506
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9898565516966874,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2813836,
+                      "wall_ns": 2818469
+                    },
+                    "second": {
+                      "cpu_ns": 2785294,
+                      "wall_ns": 2789395
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9396958397795397,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 3333290,
+                  "wall_ns": 3337596
+                },
+                "baseline1": {
+                  "cpu_ns": 3285590,
+                  "wall_ns": 3288912
+                },
+                "candidate0": {
+                  "cpu_ns": 2831211,
+                  "wall_ns": 2834453
+                },
+                "candidate1": {
+                  "cpu_ns": 3388523,
+                  "wall_ns": 3392308
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0089816392633777,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2845583,
+                      "wall_ns": 2849767
+                    },
+                    "second": {
+                      "cpu_ns": 2871141,
+                      "wall_ns": 2875195
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9714631354945923,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2895658,
+                      "wall_ns": 2899902
+                    },
+                    "second": {
+                      "cpu_ns": 2813025,
+                      "wall_ns": 2817567
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.01775520525763,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2774387,
+                  "wall_ns": 2778168
+                },
+                "baseline1": {
+                  "cpu_ns": 2793445,
+                  "wall_ns": 2797417
+                },
+                "candidate0": {
+                  "cpu_ns": 2820656,
+                  "wall_ns": 2824238
+                },
+                "candidate1": {
+                  "cpu_ns": 2846034,
+                  "wall_ns": 2849286
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.003820783374166,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2773515,
+                      "wall_ns": 2777487
+                    },
+                    "second": {
+                      "cpu_ns": 2784112,
+                      "wall_ns": 2787542
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0256359142157914,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2774077,
+                      "wall_ns": 2778158
+                    },
+                    "second": {
+                      "cpu_ns": 2845193,
+                      "wall_ns": 2849566
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0137714802769946,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2797181,
+                  "wall_ns": 2801333
+                },
+                "baseline1": {
+                  "cpu_ns": 2787186,
+                  "wall_ns": 2790997
+                },
+                "candidate0": {
+                  "cpu_ns": 2874376,
+                  "wall_ns": 2878059
+                },
+                "candidate1": {
+                  "cpu_ns": 2786896,
+                  "wall_ns": 2790817
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9750418443075951,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2849850,
+                      "wall_ns": 2854684
+                    },
+                    "second": {
+                      "cpu_ns": 2778723,
+                      "wall_ns": 2783035
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9779176323167352,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2921607,
+                      "wall_ns": 2925521
+                    },
+                    "second": {
+                      "cpu_ns": 2857091,
+                      "wall_ns": 2861164
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0043619089281701,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2872663,
+                  "wall_ns": 2877018
+                },
+                "baseline1": {
+                  "cpu_ns": 2810170,
+                  "wall_ns": 2814213
+                },
+                "candidate0": {
+                  "cpu_ns": 2857541,
+                  "wall_ns": 2861555
+                },
+                "candidate1": {
+                  "cpu_ns": 2850080,
+                  "wall_ns": 2854374
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0473072778081174,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2754016,
+                      "wall_ns": 2758257
+                    },
+                    "second": {
+                      "cpu_ns": 2884301,
+                      "wall_ns": 2888925
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9652439309020089,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2849229,
+                      "wall_ns": 2854063
+                    },
+                    "second": {
+                      "cpu_ns": 2750201,
+                      "wall_ns": 2754663
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0094739916215727,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2801447,
+                  "wall_ns": 2806761
+                },
+                "baseline1": {
+                  "cpu_ns": 2653276,
+                  "wall_ns": 2657585
+                },
+                "candidate0": {
+                  "cpu_ns": 2772254,
+                  "wall_ns": 2777227
+                },
+                "candidate1": {
+                  "cpu_ns": 2734147,
+                  "wall_ns": 2738127
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0029750072981565,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2726716,
+                      "wall_ns": 2731567
+                    },
+                    "second": {
+                      "cpu_ns": 2734828,
+                      "wall_ns": 2739399
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9939520946341952,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2753846,
+                      "wall_ns": 2757687
+                    },
+                    "second": {
+                      "cpu_ns": 2737191,
+                      "wall_ns": 2740661
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0558250528788071,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2647228,
+                  "wall_ns": 2651156
+                },
+                "baseline1": {
+                  "cpu_ns": 2684303,
+                  "wall_ns": 2688953
+                },
+                "candidate0": {
+                  "cpu_ns": 2826665,
+                  "wall_ns": 2830868
+                },
+                "candidate1": {
+                  "cpu_ns": 2802499,
+                  "wall_ns": 2806311
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0049759006965884,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2646757,
+                      "wall_ns": 2650595
+                    },
+                    "second": {
+                      "cpu_ns": 2659927,
+                      "wall_ns": 2664586
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0319216784325993,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2723541,
+                      "wall_ns": 2728213
+                    },
+                    "second": {
+                      "cpu_ns": 2810481,
+                      "wall_ns": 2814663
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0003983106445056,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2743371,
+                  "wall_ns": 2747481
+                },
+                "baseline1": {
+                  "cpu_ns": 2812594,
+                  "wall_ns": 2816946
+                },
+                "candidate0": {
+                  "cpu_ns": 2801097,
+                  "wall_ns": 2805690
+                },
+                "candidate1": {
+                  "cpu_ns": 2757081,
+                  "wall_ns": 2762214
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.013830822574259,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2702370,
+                      "wall_ns": 2706459
+                    },
+                    "second": {
+                      "cpu_ns": 2739746,
+                      "wall_ns": 2744917
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9870950092642881,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2737933,
+                      "wall_ns": 2743074
+                    },
+                    "second": {
+                      "cpu_ns": 2702600,
+                      "wall_ns": 2707111
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0166084036005238,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2676681,
+                  "wall_ns": 2681051
+                },
+                "baseline1": {
+                  "cpu_ns": 2790190,
+                  "wall_ns": 2794443
+                },
+                "candidate0": {
+                  "cpu_ns": 2799936,
+                  "wall_ns": 2803857
+                },
+                "candidate1": {
+                  "cpu_ns": 2757731,
+                  "wall_ns": 2773551
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0161478085611133,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2746255,
+                      "wall_ns": 2751088
+                    },
+                    "second": {
+                      "cpu_ns": 2790601,
+                      "wall_ns": 2794242
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0189056668123326,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2762029,
+                      "wall_ns": 2766471
+                    },
+                    "second": {
+                      "cpu_ns": 2814247,
+                      "wall_ns": 2818338
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0381126050283225,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 2704463,
+                  "wall_ns": 2708483
+                },
+                "baseline1": {
+                  "cpu_ns": 2695509,
+                  "wall_ns": 2699739
+                },
+                "candidate0": {
+                  "cpu_ns": 2773276,
+                  "wall_ns": 2777817
+                },
+                "candidate1": {
+                  "cpu_ns": 2832503,
+                  "wall_ns": 2836897
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.997401855735544,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2794687,
+                      "wall_ns": 2799590
+                    },
+                    "second": {
+                      "cpu_ns": 2787426,
+                      "wall_ns": 2791888
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9891543126853455,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 2794106,
+                      "wall_ns": 2798118
+                    },
+                    "second": {
+                      "cpu_ns": 2763802,
+                      "wall_ns": 2768073
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 250000,
+          "max": 1.0558250528788071,
+          "median": 1.0151899419387593,
+          "min": 0.9396958397795397
+        },
+        "ready_repoll": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 1.0355088726333679,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 81747247,
+                  "wall_ns": 81759256
+                },
+                "baseline1": {
+                  "cpu_ns": 80146741,
+                  "wall_ns": 80159934
+                },
+                "candidate0": {
+                  "cpu_ns": 83492521,
+                  "wall_ns": 83497238
+                },
+                "candidate1": {
+                  "cpu_ns": 84150140,
+                  "wall_ns": 84360024
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0005419813168606,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 78569129,
+                      "wall_ns": 78573903
+                    },
+                    "second": {
+                      "cpu_ns": 78611712,
+                      "wall_ns": 78616767
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0667023189740625,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 80194903,
+                      "wall_ns": 80199905
+                    },
+                    "second": {
+                      "cpu_ns": 85544089,
+                      "wall_ns": 85548925
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.038021014753575,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 78958168,
+                  "wall_ns": 78963833
+                },
+                "baseline1": {
+                  "cpu_ns": 78534709,
+                  "wall_ns": 78563166
+                },
+                "candidate0": {
+                  "cpu_ns": 83385029,
+                  "wall_ns": 83397096
+                },
+                "candidate1": {
+                  "cpu_ns": 80095887,
+                  "wall_ns": 80125553
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0629298367993867,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 78901603,
+                      "wall_ns": 78922350
+                    },
+                    "second": {
+                      "cpu_ns": 83866868,
+                      "wall_ns": 83880327
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9976162260571253,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79564172,
+                      "wall_ns": 79568608
+                    },
+                    "second": {
+                      "cpu_ns": 79374509,
+                      "wall_ns": 79602710
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0332138118264793,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 78640815,
+                  "wall_ns": 78652642
+                },
+                "baseline1": {
+                  "cpu_ns": 79020071,
+                  "wall_ns": 79024756
+                },
+                "candidate0": {
+                  "cpu_ns": 81982819,
+                  "wall_ns": 81988013
+                },
+                "candidate1": {
+                  "cpu_ns": 80914586,
+                  "wall_ns": 80919845
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9970379420577437,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 78755718,
+                      "wall_ns": 78770691
+                    },
+                    "second": {
+                      "cpu_ns": 78522439,
+                      "wall_ns": 78526831
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.004827259207889,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 82088196,
+                      "wall_ns": 82109085
+                    },
+                    "second": {
+                      "cpu_ns": 82484457,
+                      "wall_ns": 82497524
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.008397210666338,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 78461929,
+                  "wall_ns": 78466009
+                },
+                "baseline1": {
+                  "cpu_ns": 81423425,
+                  "wall_ns": 81626956
+                },
+                "candidate0": {
+                  "cpu_ns": 80376363,
+                  "wall_ns": 80380919
+                },
+                "candidate1": {
+                  "cpu_ns": 80851582,
+                  "wall_ns": 80863059
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0152005458353217,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79432016,
+                      "wall_ns": 79443680
+                    },
+                    "second": {
+                      "cpu_ns": 80639426,
+                      "wall_ns": 80656075
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9766616981555497,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 82771275,
+                      "wall_ns": 82775525
+                    },
+                    "second": {
+                      "cpu_ns": 80839534,
+                      "wall_ns": 80844100
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0145377298993195,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 81621570,
+                  "wall_ns": 81626555
+                },
+                "baseline1": {
+                  "cpu_ns": 82706287,
+                  "wall_ns": 82722255
+                },
+                "candidate0": {
+                  "cpu_ns": 82657255,
+                  "wall_ns": 82661112
+                },
+                "candidate1": {
+                  "cpu_ns": 84059556,
+                  "wall_ns": 84087873
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.002779922408184,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 80597933,
+                      "wall_ns": 80619650
+                    },
+                    "second": {
+                      "cpu_ns": 80821989,
+                      "wall_ns": 80826714
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9933930859832023,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79800645,
+                      "wall_ns": 79948349
+                    },
+                    "second": {
+                      "cpu_ns": 79273409,
+                      "wall_ns": 79278491
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.011117320912734,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 82489765,
+                  "wall_ns": 82494432
+                },
+                "baseline1": {
+                  "cpu_ns": 79921936,
+                  "wall_ns": 79926843
+                },
+                "candidate0": {
+                  "cpu_ns": 81234033,
+                  "wall_ns": 81238860
+                },
+                "candidate1": {
+                  "cpu_ns": 82983251,
+                  "wall_ns": 82988160
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9952299313453639,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 79807866,
+                      "wall_ns": 79812109
+                    },
+                    "second": {
+                      "cpu_ns": 79427177,
+                      "wall_ns": 79439284
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0232429197338595,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 82741240,
+                      "wall_ns": 82752673
+                    },
+                    "second": {
+                      "cpu_ns": 84664388,
+                      "wall_ns": 84691981
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9995900908879428,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 80452287,
+                  "wall_ns": 80457036
+                },
+                "baseline1": {
+                  "cpu_ns": 85296651,
+                  "wall_ns": 85302165
+                },
+                "candidate0": {
+                  "cpu_ns": 83446041,
+                  "wall_ns": 83456569
+                },
+                "candidate1": {
+                  "cpu_ns": 82234955,
+                  "wall_ns": 82311976
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0276886089476382,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 82385540,
+                      "wall_ns": 82391296
+                    },
+                    "second": {
+                      "cpu_ns": 84666681,
+                      "wall_ns": 84672150
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9967967252111356,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 81972674,
+                      "wall_ns": 81976848
+                    },
+                    "second": {
+                      "cpu_ns": 81710093,
+                      "wall_ns": 81723245
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.045131824701154,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 78663530,
+                  "wall_ns": 78667836
+                },
+                "baseline1": {
+                  "cpu_ns": 78618943,
+                  "wall_ns": 78649418
+                },
+                "candidate0": {
+                  "cpu_ns": 83179484,
+                  "wall_ns": 83183957
+                },
+                "candidate1": {
+                  "cpu_ns": 81201434,
+                  "wall_ns": 81215866
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9879645256391124,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 81847958,
+                      "wall_ns": 81860271
+                    },
+                    "second": {
+                      "cpu_ns": 80862879,
+                      "wall_ns": 80884083
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.000817887824782,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 81012332,
+                      "wall_ns": 81016734
+                    },
+                    "second": {
+                      "cpu_ns": 81078591,
+                      "wall_ns": 81092579
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0483319227264294,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 78647236,
+                  "wall_ns": 78661036
+                },
+                "baseline1": {
+                  "cpu_ns": 82074365,
+                  "wall_ns": 82078903
+                },
+                "candidate0": {
+                  "cpu_ns": 84328958,
+                  "wall_ns": 84341129
+                },
+                "candidate1": {
+                  "cpu_ns": 84160627,
+                  "wall_ns": 84170501
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9975871349447241,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 85357861,
+                      "wall_ns": 85372000
+                    },
+                    "second": {
+                      "cpu_ns": 85151904,
+                      "wall_ns": 85155944
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9932915916187479,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 84175108,
+                      "wall_ns": 84195850
+                    },
+                    "second": {
+                      "cpu_ns": 83610427,
+                      "wall_ns": 83623413
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0028051370685218,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 79398055,
+                  "wall_ns": 79411162
+                },
+                "baseline1": {
+                  "cpu_ns": 83028589,
+                  "wall_ns": 83047179
+                },
+                "candidate0": {
+                  "cpu_ns": 80878953,
+                  "wall_ns": 80883943
+                },
+                "candidate1": {
+                  "cpu_ns": 82003320,
+                  "wall_ns": 82014265
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9963120245426188,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 78995645,
+                      "wall_ns": 79007501
+                    },
+                    "second": {
+                      "cpu_ns": 78704311,
+                      "wall_ns": 78709159
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0268392920285683,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 78933863,
+                      "wall_ns": 78938977
+                    },
+                    "second": {
+                      "cpu_ns": 81052392,
+                      "wall_ns": 81056504
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 10000000,
+          "max": 1.0483319227264294,
+          "median": 1.0238757708628994,
+          "min": 0.9995900908879428
+        }
+      },
+      "schema": "call-poll-component-screen/1",
+      "scope": "synthetic component test, not network RPC: identical temporary public constructor appended to both request modules and re-exported from lib; Call poll/drop source otherwise pinned. A boxed arithmetic future performs four wrapping multiply/rotate/xor rounds with black_box and always returns Pending or Ready. No per-poll measurement counters or allocation instrumentation. Pending and repollable Ready cases use one Call for 10 million polls after 20k warmups; first-Ready polls 250k preconstructed calls once, with construction outside timing. Repolling a completed real RPC is not recommended; that case deliberately uses a repollable synthetic future. Each poll result is validated in timing. Ten ABBA/BAAB blocks and same-binary controls, process CPU on one CPU of a shared runner."
+    }
+  },
+  "long": {
+    "run_id": 42745580759,
+    "scratch_commit": "0c1a2f83dbee4536db214264e12ce9c3ef23c19f",
+    "artifact_id": 13731132897,
+    "artifact_sha256": "9a91afa1e281e887542fd056558852ca7da2f657432ecb3a31ec8f02738ef465",
+    "artifact_expires_at": "2026-11-24T02:56:22Z",
+    "screen": {
+      "baseline": "b683681518a277afc421dde3b3cd56e45c421cc0",
+      "binary_sha256": {
+        "baseline": "19ae6d8280ed6ce1e71fde9508efae03c2dd974f6b1869e08d19845147598f8b",
+        "candidate": "17f4d08a5fdd8d902eed64d630242b6d167679ce1a494d6aac0966a8f7e0d426"
+      },
+      "cancel_blob": "ea8af05fea2dac14a79026ab9371ebb45e9cda50",
+      "candidate": "bc3e22b09d0e5c2f47998c6a719effeeef3a6cca",
+      "cpu": 0,
+      "fixture_blob": "ec36668e2bc0118cbf94f8998ef4f758a7577f04",
+      "request_blob": "3e7721da17eb106309644a7d55014049c2dcdffb",
+      "results": {
+        "pending": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 0.9984978430648954,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 109653699,
+                  "wall_ns": 109687712
+                },
+                "baseline1": {
+                  "cpu_ns": 106451551,
+                  "wall_ns": 106708973
+                },
+                "candidate0": {
+                  "cpu_ns": 109307152,
+                  "wall_ns": 109322229
+                },
+                "candidate1": {
+                  "cpu_ns": 106473474,
+                  "wall_ns": 106478605
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9981872218607521,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106697006,
+                      "wall_ns": 106715473
+                    },
+                    "second": {
+                      "cpu_ns": 106503588,
+                      "wall_ns": 106517764
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9990398434218009,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106787791,
+                      "wall_ns": 106793151
+                    },
+                    "second": {
+                      "cpu_ns": 106685258,
+                      "wall_ns": 106690505
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0308487504451254,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106584419,
+                  "wall_ns": 106616373
+                },
+                "baseline1": {
+                  "cpu_ns": 110163485,
+                  "wall_ns": 110168730
+                },
+                "candidate0": {
+                  "cpu_ns": 109228046,
+                  "wall_ns": 109240265
+                },
+                "candidate1": {
+                  "cpu_ns": 114206260,
+                  "wall_ns": 114220743
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9980212082438735,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106672670,
+                      "wall_ns": 106689013
+                    },
+                    "second": {
+                      "cpu_ns": 106461587,
+                      "wall_ns": 106752619
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.999624774148182,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109240874,
+                      "wall_ns": 109256480
+                    },
+                    "second": {
+                      "cpu_ns": 109199884,
+                      "wall_ns": 109212443
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.999643487546121,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106426414,
+                  "wall_ns": 106440197
+                },
+                "baseline1": {
+                  "cpu_ns": 106444130,
+                  "wall_ns": 106463221
+                },
+                "candidate0": {
+                  "cpu_ns": 106377461,
+                  "wall_ns": 106382228
+                },
+                "candidate1": {
+                  "cpu_ns": 106417192,
+                  "wall_ns": 106440106
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.026355258193161,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106466724,
+                      "wall_ns": 106472225
+                    },
+                    "second": {
+                      "cpu_ns": 109272682,
+                      "wall_ns": 109493187
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9736824936020311,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109344858,
+                      "wall_ns": 109365915
+                    },
+                    "second": {
+                      "cpu_ns": 106467174,
+                      "wall_ns": 106482420
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0027067588048841,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106404942,
+                  "wall_ns": 106410091
+                },
+                "baseline1": {
+                  "cpu_ns": 106431532,
+                  "wall_ns": 106436811
+                },
+                "candidate0": {
+                  "cpu_ns": 106782183,
+                  "wall_ns": 106793972
+                },
+                "candidate1": {
+                  "cpu_ns": 106630388,
+                  "wall_ns": 106666699
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9989528265914309,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106530589,
+                      "wall_ns": 106541890
+                    },
+                    "second": {
+                      "cpu_ns": 106419033,
+                      "wall_ns": 106424072
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0262958245054155,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106454886,
+                      "wall_ns": 106465194
+                    },
+                    "second": {
+                      "cpu_ns": 109254205,
+                      "wall_ns": 109460137
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.010131857719906,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106469397,
+                  "wall_ns": 106474679
+                },
+                "baseline1": {
+                  "cpu_ns": 106423940,
+                  "wall_ns": 106428849
+                },
+                "candidate0": {
+                  "cpu_ns": 106805427,
+                  "wall_ns": 106811518
+                },
+                "candidate1": {
+                  "cpu_ns": 108244915,
+                  "wall_ns": 108256946
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0040526059659447,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106479634,
+                      "wall_ns": 106503162
+                    },
+                    "second": {
+                      "cpu_ns": 106911154,
+                      "wall_ns": 106931410
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0007214850991792,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106454035,
+                      "wall_ns": 106459316
+                    },
+                    "second": {
+                      "cpu_ns": 106530840,
+                      "wall_ns": 106544534
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9987006620532655,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106497220,
+                  "wall_ns": 106515030
+                },
+                "baseline1": {
+                  "cpu_ns": 106789093,
+                  "wall_ns": 106796316
+                },
+                "candidate0": {
+                  "cpu_ns": 106494136,
+                  "wall_ns": 106672398
+                },
+                "candidate1": {
+                  "cpu_ns": 106515046,
+                  "wall_ns": 106520618
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0294802886608645,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106500755,
+                      "wall_ns": 106524514
+                    },
+                    "second": {
+                      "cpu_ns": 109640428,
+                      "wall_ns": 109651638
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9996515500175098,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106511700,
+                      "wall_ns": 106524454
+                    },
+                    "second": {
+                      "cpu_ns": 106474586,
+                      "wall_ns": 106480788
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9999294928479032,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106453474,
+                  "wall_ns": 106624025
+                },
+                "baseline1": {
+                  "cpu_ns": 106602926,
+                  "wall_ns": 106608050
+                },
+                "candidate0": {
+                  "cpu_ns": 106457400,
+                  "wall_ns": 106463402
+                },
+                "candidate1": {
+                  "cpu_ns": 106583978,
+                  "wall_ns": 106589662
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9697896775759091,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109750732,
+                      "wall_ns": 109767593
+                    },
+                    "second": {
+                      "cpu_ns": 106435127,
+                      "wall_ns": 106440758
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9744314772542845,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109244090,
+                      "wall_ns": 109267706
+                    },
+                    "second": {
+                      "cpu_ns": 106450880,
+                      "wall_ns": 106465234
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9862590923572387,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106475588,
+                  "wall_ns": 106481569
+                },
+                "baseline1": {
+                  "cpu_ns": 109703363,
+                  "wall_ns": 109861716
+                },
+                "candidate0": {
+                  "cpu_ns": 106497209,
+                  "wall_ns": 106502701
+                },
+                "candidate1": {
+                  "cpu_ns": 106711247,
+                  "wall_ns": 106732799
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9997550624834393,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106472052,
+                      "wall_ns": 106477736
+                    },
+                    "second": {
+                      "cpu_ns": 106445973,
+                      "wall_ns": 106459786
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9745192442096668,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109242678,
+                      "wall_ns": 109266616
+                    },
+                    "second": {
+                      "cpu_ns": 106459092,
+                      "wall_ns": 106464765
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9980144264386197,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 109666427,
+                  "wall_ns": 109671488
+                },
+                "baseline1": {
+                  "cpu_ns": 106404641,
+                  "wall_ns": 106540850
+                },
+                "candidate0": {
+                  "cpu_ns": 109224321,
+                  "wall_ns": 109241447
+                },
+                "candidate1": {
+                  "cpu_ns": 106417722,
+                  "wall_ns": 106423582
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.997859115693137,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106647052,
+                      "wall_ns": 106652819
+                    },
+                    "second": {
+                      "cpu_ns": 106418733,
+                      "wall_ns": 106424423
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9989389740595318,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106526142,
+                      "wall_ns": 106541681
+                    },
+                    "second": {
+                      "cpu_ns": 106413115,
+                      "wall_ns": 106418664
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0126544250875589,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 106556658,
+                  "wall_ns": 106562412
+                },
+                "baseline1": {
+                  "cpu_ns": 106433184,
+                  "wall_ns": 106438134
+                },
+                "candidate0": {
+                  "cpu_ns": 106454787,
+                  "wall_ns": 106479407
+                },
+                "candidate1": {
+                  "cpu_ns": 109230319,
+                  "wall_ns": 109235648
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9983696899845474,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 106568075,
+                      "wall_ns": 106580500
+                    },
+                    "second": {
+                      "cpu_ns": 106394336,
+                      "wall_ns": 106497083
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0000394919469002,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 109288104,
+                      "wall_ns": 109293375
+                    },
+                    "second": {
+                      "cpu_ns": 109292420,
+                      "wall_ns": 109305013
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 10000000,
+          "max": 1.0308487504451254,
+          "median": 0.9997864901970122,
+          "min": 0.9862590923572387
+        },
+        "ready_first": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 1.0285640002910705,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 58317144,
+                  "wall_ns": 58376464
+                },
+                "baseline1": {
+                  "cpu_ns": 58314349,
+                  "wall_ns": 58372423
+                },
+                "candidate0": {
+                  "cpu_ns": 60006924,
+                  "wall_ns": 60074466
+                },
+                "candidate1": {
+                  "cpu_ns": 59956031,
+                  "wall_ns": 60030651
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9696450895408085,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60333105,
+                      "wall_ns": 60397916
+                    },
+                    "second": {
+                      "cpu_ns": 58501699,
+                      "wall_ns": 58562807
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.006859647902863,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 59766916,
+                      "wall_ns": 59835451
+                    },
+                    "second": {
+                      "cpu_ns": 60176896,
+                      "wall_ns": 60246582
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0308261249410753,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 58446087,
+                  "wall_ns": 58507518
+                },
+                "baseline1": {
+                  "cpu_ns": 58576309,
+                  "wall_ns": 58641799
+                },
+                "candidate0": {
+                  "cpu_ns": 60129144,
+                  "wall_ns": 60196303
+                },
+                "candidate1": {
+                  "cpu_ns": 60500599,
+                  "wall_ns": 60563307
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.037446642945808,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 58476804,
+                      "wall_ns": 58591103
+                    },
+                    "second": {
+                      "cpu_ns": 60666564,
+                      "wall_ns": 60728438
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0034971144984643,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 59543375,
+                      "wall_ns": 59603787
+                    },
+                    "second": {
+                      "cpu_ns": 59751605,
+                      "wall_ns": 59827706
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0283832095025438,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 58368443,
+                  "wall_ns": 58428200
+                },
+                "baseline1": {
+                  "cpu_ns": 58275272,
+                  "wall_ns": 58351875
+                },
+                "candidate0": {
+                  "cpu_ns": 59959121,
+                  "wall_ns": 60017849
+                },
+                "candidate1": {
+                  "cpu_ns": 59995317,
+                  "wall_ns": 60085330
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.005123839561959,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 58287149,
+                      "wall_ns": 58345246
+                    },
+                    "second": {
+                      "cpu_ns": 58585803,
+                      "wall_ns": 58661780
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.8866916736709135,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 67375790,
+                      "wall_ns": 67442330
+                    },
+                    "second": {
+                      "cpu_ns": 59741552,
+                      "wall_ns": 59799511
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9968675880506579,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 60415711,
+                  "wall_ns": 60477886
+                },
+                "baseline1": {
+                  "cpu_ns": 59194355,
+                  "wall_ns": 59252537
+                },
+                "candidate0": {
+                  "cpu_ns": 59706086,
+                  "wall_ns": 59798766
+                },
+                "candidate1": {
+                  "cpu_ns": 59529312,
+                  "wall_ns": 59589837
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0340131467938958,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 58483004,
+                      "wall_ns": 58545510
+                    },
+                    "second": {
+                      "cpu_ns": 60472195,
+                      "wall_ns": 60539696
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0183069977945187,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 59638233,
+                      "wall_ns": 59698185
+                    },
+                    "second": {
+                      "cpu_ns": 60730030,
+                      "wall_ns": 60822305
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0258354058499077,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 59668709,
+                  "wall_ns": 59726637
+                },
+                "baseline1": {
+                  "cpu_ns": 58617840,
+                  "wall_ns": 58679534
+                },
+                "candidate0": {
+                  "cpu_ns": 61000630,
+                  "wall_ns": 61070199
+                },
+                "candidate1": {
+                  "cpu_ns": 60341900,
+                  "wall_ns": 60416840
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9663451320612169,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 63581233,
+                      "wall_ns": 63653184
+                    },
+                    "second": {
+                      "cpu_ns": 61441415,
+                      "wall_ns": 61511307
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0355896246792,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60603196,
+                      "wall_ns": 60661898
+                    },
+                    "second": {
+                      "cpu_ns": 62760041,
+                      "wall_ns": 62822451
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.021838572334776,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 59183490,
+                  "wall_ns": 59255032
+                },
+                "baseline1": {
+                  "cpu_ns": 57732715,
+                  "wall_ns": 57792423
+                },
+                "candidate0": {
+                  "cpu_ns": 59470666,
+                  "wall_ns": 59527772
+                },
+                "candidate1": {
+                  "cpu_ns": 59998822,
+                  "wall_ns": 60059774
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0103864242723006,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60045400,
+                      "wall_ns": 60104929
+                    },
+                    "second": {
+                      "cpu_ns": 60669057,
+                      "wall_ns": 60731990
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9908128299810898,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60224095,
+                      "wall_ns": 60297061
+                    },
+                    "second": {
+                      "cpu_ns": 59670806,
+                      "wall_ns": 59754982
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0299044187823991,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 58552493,
+                  "wall_ns": 58616248
+                },
+                "baseline1": {
+                  "cpu_ns": 60233397,
+                  "wall_ns": 60293519
+                },
+                "candidate0": {
+                  "cpu_ns": 61913678,
+                  "wall_ns": 61984349
+                },
+                "candidate1": {
+                  "cpu_ns": 60424435,
+                  "wall_ns": 60489528
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.024484314663258,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 58490998,
+                      "wall_ns": 58553033
+                    },
+                    "second": {
+                      "cpu_ns": 59923110,
+                      "wall_ns": 59982672
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0332909773647019,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 59706658,
+                      "wall_ns": 59765077
+                    },
+                    "second": {
+                      "cpu_ns": 61694351,
+                      "wall_ns": 61780421
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0339088154876652,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 58435753,
+                  "wall_ns": 58497077
+                },
+                "baseline1": {
+                  "cpu_ns": 58054161,
+                  "wall_ns": 58115791
+                },
+                "candidate0": {
+                  "cpu_ns": 60883314,
+                  "wall_ns": 60962153
+                },
+                "candidate1": {
+                  "cpu_ns": 59556635,
+                  "wall_ns": 59615537
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9928146444755543,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60244479,
+                      "wall_ns": 60307784
+                    },
+                    "second": {
+                      "cpu_ns": 59811601,
+                      "wall_ns": 59872254
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9884981541419591,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60506549,
+                      "wall_ns": 60579668
+                    },
+                    "second": {
+                      "cpu_ns": 59810612,
+                      "wall_ns": 59883201
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0143661208782948,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 60414589,
+                  "wall_ns": 60478182
+                },
+                "baseline1": {
+                  "cpu_ns": 58663067,
+                  "wall_ns": 58747652
+                },
+                "candidate0": {
+                  "cpu_ns": 59966175,
+                  "wall_ns": 60026857
+                },
+                "candidate1": {
+                  "cpu_ns": 60822165,
+                  "wall_ns": 60883289
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9728371998147823,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 60475871,
+                      "wall_ns": 60551532
+                    },
+                    "second": {
+                      "cpu_ns": 58833177,
+                      "wall_ns": 58927248
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9787080824816926,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 61321438,
+                      "wall_ns": 61387534
+                    },
+                    "second": {
+                      "cpu_ns": 60015787,
+                      "wall_ns": 60075620
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0072250984942293,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 60456470,
+                  "wall_ns": 60527413
+                },
+                "baseline1": {
+                  "cpu_ns": 58659138,
+                  "wall_ns": 58724311
+                },
+                "candidate0": {
+                  "cpu_ns": 60264816,
+                  "wall_ns": 60336995
+                },
+                "candidate1": {
+                  "cpu_ns": 59711414,
+                  "wall_ns": 59802673
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0419929233261804,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 57985151,
+                      "wall_ns": 58047733
+                    },
+                    "second": {
+                      "cpu_ns": 60420117,
+                      "wall_ns": 60479246
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9971134531206591,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 59805715,
+                      "wall_ns": 59875613
+                    },
+                    "second": {
+                      "cpu_ns": 59633083,
+                      "wall_ns": 59710315
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 5000000,
+          "max": 1.0339088154876652,
+          "median": 1.0271093076762257,
+          "min": 0.9968675880506579
+        },
+        "ready_repoll": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 0.9862923652863537,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 113976639,
+                  "wall_ns": 113981741
+                },
+                "baseline1": {
+                  "cpu_ns": 117115892,
+                  "wall_ns": 117127102
+                },
+                "candidate0": {
+                  "cpu_ns": 114317688,
+                  "wall_ns": 114364250
+                },
+                "candidate1": {
+                  "cpu_ns": 113607111,
+                  "wall_ns": 113627906
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0273247082517074,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113614461,
+                      "wall_ns": 113631762
+                    },
+                    "second": {
+                      "cpu_ns": 116718943,
+                      "wall_ns": 116730371
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9944664820716604,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 117490719,
+                      "wall_ns": 117496701
+                    },
+                    "second": {
+                      "cpu_ns": 116840582,
+                      "wall_ns": 116855120
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9993641373155041,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 113476316,
+                  "wall_ns": 113489196
+                },
+                "baseline1": {
+                  "cpu_ns": 113402857,
+                  "wall_ns": 113427282
+                },
+                "candidate0": {
+                  "cpu_ns": 113408506,
+                  "wall_ns": 113421574
+                },
+                "candidate1": {
+                  "cpu_ns": 113326403,
+                  "wall_ns": 113343546
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.967954551628184,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 117287546,
+                      "wall_ns": 117312793
+                    },
+                    "second": {
+                      "cpu_ns": 113529014,
+                      "wall_ns": 113534615
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9714909111164859,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 116833162,
+                      "wall_ns": 116860568
+                    },
+                    "second": {
+                      "cpu_ns": 113502355,
+                      "wall_ns": 113518430
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.994953168036745,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 117731827,
+                  "wall_ns": 117737215
+                },
+                "baseline1": {
+                  "cpu_ns": 113711385,
+                  "wall_ns": 113716971
+                },
+                "candidate0": {
+                  "cpu_ns": 113455745,
+                  "wall_ns": 113468094
+                },
+                "candidate1": {
+                  "cpu_ns": 116819412,
+                  "wall_ns": 116867399
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9732366127706127,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 116966510,
+                      "wall_ns": 116980179
+                    },
+                    "second": {
+                      "cpu_ns": 113836090,
+                      "wall_ns": 113841459
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0018855709104697,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113370438,
+                      "wall_ns": 113390296
+                    },
+                    "second": {
+                      "cpu_ns": 113584206,
+                      "wall_ns": 113595306
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9958078300063542,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 113659849,
+                  "wall_ns": 113679174
+                },
+                "baseline1": {
+                  "cpu_ns": 114145560,
+                  "wall_ns": 114157978
+                },
+                "candidate0": {
+                  "cpu_ns": 113445470,
+                  "wall_ns": 113451408
+                },
+                "candidate1": {
+                  "cpu_ns": 113404940,
+                  "wall_ns": 113429005
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9940040143618425,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 114097338,
+                      "wall_ns": 114102865
+                    },
+                    "second": {
+                      "cpu_ns": 113413212,
+                      "wall_ns": 113426541
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9992404571676139,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113488004,
+                      "wall_ns": 113500633
+                    },
+                    "second": {
+                      "cpu_ns": 113401805,
+                      "wall_ns": 113428163
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0165459831857453,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 114254593,
+                  "wall_ns": 114276587
+                },
+                "baseline1": {
+                  "cpu_ns": 113537008,
+                  "wall_ns": 113553383
+                },
+                "candidate0": {
+                  "cpu_ns": 118124350,
+                  "wall_ns": 118129539
+                },
+                "candidate1": {
+                  "cpu_ns": 113436287,
+                  "wall_ns": 113442055
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9996156870323667,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113488234,
+                      "wall_ns": 113512231
+                    },
+                    "second": {
+                      "cpu_ns": 113444619,
+                      "wall_ns": 113455886
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0032499230958154,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113423607,
+                      "wall_ns": 113428634
+                    },
+                    "second": {
+                      "cpu_ns": 113792225,
+                      "wall_ns": 113814007
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9834182700701067,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 117245545,
+                  "wall_ns": 117251350
+                },
+                "baseline1": {
+                  "cpu_ns": 113843311,
+                  "wall_ns": 113863973
+                },
+                "candidate0": {
+                  "cpu_ns": 113957450,
+                  "wall_ns": 113963003
+                },
+                "candidate1": {
+                  "cpu_ns": 113299553,
+                  "wall_ns": 113304867
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9665029767036286,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 117417299,
+                      "wall_ns": 117432414
+                    },
+                    "second": {
+                      "cpu_ns": 113484169,
+                      "wall_ns": 113507984
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9958821229844981,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113875669,
+                      "wall_ns": 113904374
+                    },
+                    "second": {
+                      "cpu_ns": 113406743,
+                      "wall_ns": 113411879
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9852423453785509,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 117052809,
+                  "wall_ns": 117071498
+                },
+                "baseline1": {
+                  "cpu_ns": 113437949,
+                  "wall_ns": 113451388
+                },
+                "candidate0": {
+                  "cpu_ns": 113381656,
+                  "wall_ns": 113395594
+                },
+                "candidate1": {
+                  "cpu_ns": 113707599,
+                  "wall_ns": 113719544
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9697468097224963,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 117189492,
+                      "wall_ns": 117194904
+                    },
+                    "second": {
+                      "cpu_ns": 113644136,
+                      "wall_ns": 113668016
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0014634832898848,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113596104,
+                      "wall_ns": 113609006
+                    },
+                    "second": {
+                      "cpu_ns": 113762350,
+                      "wall_ns": 113768137
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9934958095914687,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 114801404,
+                  "wall_ns": 114806540
+                },
+                "baseline1": {
+                  "cpu_ns": 113547692,
+                  "wall_ns": 113553532
+                },
+                "candidate0": {
+                  "cpu_ns": 113456947,
+                  "wall_ns": 113482856
+                },
+                "candidate1": {
+                  "cpu_ns": 113406923,
+                  "wall_ns": 113420661
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9962268079169112,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113969549,
+                      "wall_ns": 113994129
+                    },
+                    "second": {
+                      "cpu_ns": 113539520,
+                      "wall_ns": 113546092
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0002479187620619,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113428285,
+                      "wall_ns": 113433832
+                    },
+                    "second": {
+                      "cpu_ns": 113456406,
+                      "wall_ns": 113470036
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9995168035135756,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 113946044,
+                  "wall_ns": 113964725
+                },
+                "baseline1": {
+                  "cpu_ns": 113524567,
+                  "wall_ns": 113530207
+                },
+                "candidate0": {
+                  "cpu_ns": 113987265,
+                  "wall_ns": 114003774
+                },
+                "candidate1": {
+                  "cpu_ns": 113373433,
+                  "wall_ns": 113394602
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0046633497675923,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113510036,
+                      "wall_ns": 113515425
+                    },
+                    "second": {
+                      "cpu_ns": 114039373,
+                      "wall_ns": 114045147
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.004023871863862,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113469816,
+                      "wall_ns": 113495144
+                    },
+                    "second": {
+                      "cpu_ns": 113926404,
+                      "wall_ns": 113939697
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9984942638520239,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 113504629,
+                  "wall_ns": 113531459
+                },
+                "baseline1": {
+                  "cpu_ns": 113705165,
+                  "wall_ns": 113710430
+                },
+                "candidate0": {
+                  "cpu_ns": 113438089,
+                  "wall_ns": 113449214
+                },
+                "candidate1": {
+                  "cpu_ns": 113429587,
+                  "wall_ns": 113435584
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9832154983979331,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 115455856,
+                      "wall_ns": 115476414
+                    },
+                    "second": {
+                      "cpu_ns": 113517987,
+                      "wall_ns": 113528685
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0299327020750058,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 113405131,
+                      "wall_ns": 113417998
+                    },
+                    "second": {
+                      "cpu_ns": 116799653,
+                      "wall_ns": 116839246
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 10000000,
+          "max": 1.0165459831857453,
+          "median": 0.9953804990215496,
+          "min": 0.9834182700701067
+        }
+      },
+      "schema": "call-poll-long-component-screen/1",
+      "scope": "synthetic component test, not network RPC: identical temporary public constructor appended to both request modules and re-exported from lib; Call poll/drop source otherwise pinned. A boxed arithmetic future performs four wrapping multiply/rotate/xor rounds with black_box and always returns Pending or Ready. No per-poll measurement counters or allocation instrumentation. Pending and repollable Ready cases use one Call for 10 million polls after 20k warmups; first-Ready polls five million preconstructed calls once in 250k-call batches, summing per-batch poll-only CPU and wall durations with construction outside timing; repeated clock reads and per-poll result checks remain. Repolling a completed real RPC is not recommended; that case deliberately uses a repollable synthetic future. Each poll result is validated in timing. Ten ABBA/BAAB blocks and same-binary controls, process CPU on one CPU of a shared runner."
+    }
+  },
+  "longer": {
+    "run_id": 42746347933,
+    "scratch_commit": "eced9e7fe8945d85a68e57dfdbe8f3670f51f438",
+    "artifact_id": 13732160732,
+    "artifact_sha256": "6bbafa27dad0e2ea5d046944f132172b27180ce1a0f93acf48eccfac26fca890",
+    "artifact_expires_at": "2026-11-24T03:05:33Z",
+    "screen": {
+      "baseline": "b683681518a277afc421dde3b3cd56e45c421cc0",
+      "binary_sha256": {
+        "baseline": "19ae6d8280ed6ce1e71fde9508efae03c2dd974f6b1869e08d19845147598f8b",
+        "candidate": "17f4d08a5fdd8d902eed64d630242b6d167679ce1a494d6aac0966a8f7e0d426"
+      },
+      "cancel_blob": "ea8af05fea2dac14a79026ab9371ebb45e9cda50",
+      "candidate": "bc3e22b09d0e5c2f47998c6a719effeeef3a6cca",
+      "cpu": 0,
+      "fixture_blob": "ec36668e2bc0118cbf94f8998ef4f758a7577f04",
+      "request_blob": "3e7721da17eb106309644a7d55014049c2dcdffb",
+      "results": {
+        "pending": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 0.9771157414342588,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 185918335,
+                  "wall_ns": 185940975
+                },
+                "baseline1": {
+                  "cpu_ns": 192586565,
+                  "wall_ns": 192578308
+                },
+                "candidate0": {
+                  "cpu_ns": 184821517,
+                  "wall_ns": 185049177
+                },
+                "candidate1": {
+                  "cpu_ns": 185021579,
+                  "wall_ns": 185021704
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0052463929526623,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 184810785,
+                      "wall_ns": 184802549
+                    },
+                    "second": {
+                      "cpu_ns": 185780375,
+                      "wall_ns": 185815929
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0290987379905991,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185063043,
+                      "wall_ns": 185353738
+                    },
+                    "second": {
+                      "cpu_ns": 190448144,
+                      "wall_ns": 190439723
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9893456391445591,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 187417014,
+                  "wall_ns": 187420599
+                },
+                "baseline1": {
+                  "cpu_ns": 190959883,
+                  "wall_ns": 190963278
+                },
+                "candidate0": {
+                  "cpu_ns": 185488420,
+                  "wall_ns": 185480782
+                },
+                "candidate1": {
+                  "cpu_ns": 188857113,
+                  "wall_ns": 189153825
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9994142088693794,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185240087,
+                      "wall_ns": 185232343
+                    },
+                    "second": {
+                      "cpu_ns": 185131575,
+                      "wall_ns": 185123410
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9700163122139582,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190652232,
+                      "wall_ns": 190648715
+                    },
+                    "second": {
+                      "cpu_ns": 184935775,
+                      "wall_ns": 184933733
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9814085308547458,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 192514835,
+                  "wall_ns": 192540273
+                },
+                "baseline1": {
+                  "cpu_ns": 190546124,
+                  "wall_ns": 190538048
+                },
+                "candidate0": {
+                  "cpu_ns": 184973112,
+                  "wall_ns": 185257282
+                },
+                "candidate1": {
+                  "cpu_ns": 190966181,
+                  "wall_ns": 190958126
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9661465501963792,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 192421837,
+                      "wall_ns": 192430680
+                    },
+                    "second": {
+                      "cpu_ns": 185907694,
+                      "wall_ns": 185923037
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0324905186956685,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 184893601,
+                      "wall_ns": 185142142
+                    },
+                    "second": {
+                      "cpu_ns": 190900890,
+                      "wall_ns": 190901356
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0079409671118638,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 185222294,
+                  "wall_ns": 185214084
+                },
+                "baseline1": {
+                  "cpu_ns": 187348195,
+                  "wall_ns": 187360156
+                },
+                "candidate0": {
+                  "cpu_ns": 184990227,
+                  "wall_ns": 184982442
+                },
+                "candidate1": {
+                  "cpu_ns": 190538832,
+                  "wall_ns": 190775959
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.029818711611859,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 184994143,
+                      "wall_ns": 184985882
+                    },
+                    "second": {
+                      "cpu_ns": 190510430,
+                      "wall_ns": 190509504
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9948863978390241,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185824194,
+                      "wall_ns": 185822783
+                    },
+                    "second": {
+                      "cpu_ns": 184873963,
+                      "wall_ns": 184877478
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.985437319748174,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 190625956,
+                  "wall_ns": 190818769
+                },
+                "baseline1": {
+                  "cpu_ns": 185073428,
+                  "wall_ns": 185065676
+                },
+                "candidate0": {
+                  "cpu_ns": 185173052,
+                  "wall_ns": 185164785
+                },
+                "candidate1": {
+                  "cpu_ns": 185055142,
+                  "wall_ns": 185046826
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.001277523665437,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185140993,
+                      "wall_ns": 185143298
+                    },
+                    "second": {
+                      "cpu_ns": 185377515,
+                      "wall_ns": 185408900
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9947854896189334,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 186135980,
+                      "wall_ns": 186166827
+                    },
+                    "second": {
+                      "cpu_ns": 185165372,
+                      "wall_ns": 185157059
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9990495357193337,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 185017789,
+                  "wall_ns": 185016935
+                },
+                "baseline1": {
+                  "cpu_ns": 190831159,
+                  "wall_ns": 190854088
+                },
+                "candidate0": {
+                  "cpu_ns": 190560243,
+                  "wall_ns": 190551551
+                },
+                "candidate1": {
+                  "cpu_ns": 184931474,
+                  "wall_ns": 184939428
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9703149318290241,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190673741,
+                      "wall_ns": 190670988
+                    },
+                    "second": {
+                      "cpu_ns": 185013578,
+                      "wall_ns": 185014852
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9692943218828427,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190821547,
+                      "wall_ns": 190832846
+                    },
+                    "second": {
+                      "cpu_ns": 184962242,
+                      "wall_ns": 184954387
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9976577391277033,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 186105287,
+                  "wall_ns": 186131009
+                },
+                "baseline1": {
+                  "cpu_ns": 184952442,
+                  "wall_ns": 184958584
+                },
+                "candidate0": {
+                  "cpu_ns": 185068883,
+                  "wall_ns": 185079314
+                },
+                "candidate1": {
+                  "cpu_ns": 185119732,
+                  "wall_ns": 185111926
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9714025060970348,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190645132,
+                      "wall_ns": 190643716
+                    },
+                    "second": {
+                      "cpu_ns": 185193159,
+                      "wall_ns": 185213201
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0013328733774562,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 184980062,
+                      "wall_ns": 184980575
+                    },
+                    "second": {
+                      "cpu_ns": 185226617,
+                      "wall_ns": 185218551
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9930874971952255,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 190681984,
+                  "wall_ns": 190673841
+                },
+                "baseline1": {
+                  "cpu_ns": 185177104,
+                  "wall_ns": 185196127
+                },
+                "candidate0": {
+                  "cpu_ns": 188194824,
+                  "wall_ns": 188186797
+                },
+                "candidate1": {
+                  "cpu_ns": 185066137,
+                  "wall_ns": 185078952
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9691122525165915,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190989874,
+                      "wall_ns": 190981633
+                    },
+                    "second": {
+                      "cpu_ns": 185090627,
+                      "wall_ns": 185082477
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9657942438964836,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 191979209,
+                      "wall_ns": 191995615
+                    },
+                    "second": {
+                      "cpu_ns": 185412415,
+                      "wall_ns": 185411629
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.015509912071833,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 185106350,
+                  "wall_ns": 185127504
+                },
+                "baseline1": {
+                  "cpu_ns": 184967895,
+                  "wall_ns": 184959799
+                },
+                "candidate0": {
+                  "cpu_ns": 185046988,
+                  "wall_ns": 185038979
+                },
+                "candidate1": {
+                  "cpu_ns": 190767076,
+                  "wall_ns": 190778763
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.1097379648841421,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 190355708,
+                      "wall_ns": 190347608
+                    },
+                    "second": {
+                      "cpu_ns": 211244956,
+                      "wall_ns": 211274821
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0002140644979878,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185028346,
+                      "wall_ns": 185049412
+                    },
+                    "second": {
+                      "cpu_ns": 185067954,
+                      "wall_ns": 185060431
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9980267614580804,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 185183517,
+                  "wall_ns": 185184954
+                },
+                "baseline1": {
+                  "cpu_ns": 185378878,
+                  "wall_ns": 185400359
+                },
+                "candidate0": {
+                  "cpu_ns": 184921020,
+                  "wall_ns": 184925004
+                },
+                "candidate1": {
+                  "cpu_ns": 184910167,
+                  "wall_ns": 184919105
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0240233465038946,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 186482054,
+                      "wall_ns": 186474339
+                    },
+                    "second": {
+                      "cpu_ns": 190961977,
+                      "wall_ns": 190954393
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9994478626643039,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 185091631,
+                      "wall_ns": 185104066
+                    },
+                    "second": {
+                      "cpu_ns": 184989435,
+                      "wall_ns": 184986490
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 20000000,
+          "max": 1.015509912071833,
+          "median": 0.9953726181614644,
+          "min": 0.9771157414342588
+        },
+        "ready_first": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 1.0175811669703474,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 97216085,
+                  "wall_ns": 97266674
+                },
+                "baseline1": {
+                  "cpu_ns": 99151938,
+                  "wall_ns": 99259537
+                },
+                "candidate0": {
+                  "cpu_ns": 100256363,
+                  "wall_ns": 100310030
+                },
+                "candidate1": {
+                  "cpu_ns": 99564039,
+                  "wall_ns": 99615249
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0161720541620827,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95214064,
+                      "wall_ns": 95270370
+                    },
+                    "second": {
+                      "cpu_ns": 96753871,
+                      "wall_ns": 96809935
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0476342353192798,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95647573,
+                      "wall_ns": 95709172
+                    },
+                    "second": {
+                      "cpu_ns": 100203672,
+                      "wall_ns": 100262119
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0150188813170113,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 98721325,
+                  "wall_ns": 98774171
+                },
+                "baseline1": {
+                  "cpu_ns": 94391793,
+                  "wall_ns": 94440415
+                },
+                "candidate0": {
+                  "cpu_ns": 100032641,
+                  "wall_ns": 100204898
+                },
+                "candidate1": {
+                  "cpu_ns": 95980820,
+                  "wall_ns": 96043917
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.951399415154342,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 98960126,
+                      "wall_ns": 99017371
+                    },
+                    "second": {
+                      "cpu_ns": 94150606,
+                      "wall_ns": 94195394
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9976067976466256,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95299923,
+                      "wall_ns": 95360604
+                    },
+                    "second": {
+                      "cpu_ns": 95071851,
+                      "wall_ns": 95122530
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0202990586030725,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 94154932,
+                  "wall_ns": 94216834
+                },
+                "baseline1": {
+                  "cpu_ns": 98494199,
+                  "wall_ns": 98556025
+                },
+                "candidate0": {
+                  "cpu_ns": 95663027,
+                  "wall_ns": 95720473
+                },
+                "candidate1": {
+                  "cpu_ns": 100896700,
+                  "wall_ns": 100951379
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0696778984498678,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 94045589,
+                      "wall_ns": 94094827
+                    },
+                    "second": {
+                      "cpu_ns": 100598488,
+                      "wall_ns": 100672680
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9672176273051615,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 98352277,
+                      "wall_ns": 98404322
+                    },
+                    "second": {
+                      "cpu_ns": 95128056,
+                      "wall_ns": 95199861
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0598881347993163,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 94210621,
+                  "wall_ns": 94260946
+                },
+                "baseline1": {
+                  "cpu_ns": 93785466,
+                  "wall_ns": 93830095
+                },
+                "candidate0": {
+                  "cpu_ns": 99633983,
+                  "wall_ns": 99685270
+                },
+                "candidate1": {
+                  "cpu_ns": 99620839,
+                  "wall_ns": 99668431
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0070405452049769,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 98433144,
+                      "wall_ns": 98480560
+                    },
+                    "second": {
+                      "cpu_ns": 99126167,
+                      "wall_ns": 99170956
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0005035081022369,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95202043,
+                      "wall_ns": 95253451
+                    },
+                    "second": {
+                      "cpu_ns": 95249978,
+                      "wall_ns": 95301428
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0506580951447115,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 93919398,
+                  "wall_ns": 93967058
+                },
+                "baseline1": {
+                  "cpu_ns": 94397217,
+                  "wall_ns": 94450637
+                },
+                "candidate0": {
+                  "cpu_ns": 99497552,
+                  "wall_ns": 99545561
+                },
+                "candidate1": {
+                  "cpu_ns": 98358824,
+                  "wall_ns": 98419333
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0744871203118598,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 94012253,
+                      "wall_ns": 94063740
+                    },
+                    "second": {
+                      "cpu_ns": 101014955,
+                      "wall_ns": 101066188
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.000222290345619,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95330276,
+                      "wall_ns": 95395998
+                    },
+                    "second": {
+                      "cpu_ns": 95351467,
+                      "wall_ns": 95410381
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9944174571850304,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 96716931,
+                  "wall_ns": 96779181
+                },
+                "baseline1": {
+                  "cpu_ns": 98655507,
+                  "wall_ns": 98728528
+                },
+                "candidate0": {
+                  "cpu_ns": 96025479,
+                  "wall_ns": 96078842
+                },
+                "candidate1": {
+                  "cpu_ns": 98256284,
+                  "wall_ns": 98312362
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9748876852115937,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 96619289,
+                      "wall_ns": 96669957
+                    },
+                    "second": {
+                      "cpu_ns": 94192955,
+                      "wall_ns": 94242856
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0043300411628164,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95148980,
+                      "wall_ns": 95212260
+                    },
+                    "second": {
+                      "cpu_ns": 95560979,
+                      "wall_ns": 95612132
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0102869710945142,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 94909623,
+                  "wall_ns": 94997125
+                },
+                "baseline1": {
+                  "cpu_ns": 98931886,
+                  "wall_ns": 98983934
+                },
+                "candidate0": {
+                  "cpu_ns": 100088917,
+                  "wall_ns": 100147565
+                },
+                "candidate1": {
+                  "cpu_ns": 95746634,
+                  "wall_ns": 95802156
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.000410209748415,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 96796822,
+                      "wall_ns": 96954782
+                    },
+                    "second": {
+                      "cpu_ns": 96836529,
+                      "wall_ns": 96887138
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9567394500319244,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 99690041,
+                      "wall_ns": 99748161
+                    },
+                    "second": {
+                      "cpu_ns": 95377395,
+                      "wall_ns": 95431946
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9995542024227572,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 96644158,
+                  "wall_ns": 96694491
+                },
+                "baseline1": {
+                  "cpu_ns": 93980476,
+                  "wall_ns": 94037931
+                },
+                "candidate0": {
+                  "cpu_ns": 94996900,
+                  "wall_ns": 95045209
+                },
+                "candidate1": {
+                  "cpu_ns": 95542754,
+                  "wall_ns": 95597178
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9696811008984901,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 98441701,
+                      "wall_ns": 98487682
+                    },
+                    "second": {
+                      "cpu_ns": 95457057,
+                      "wall_ns": 95515016
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9623901053647945,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 99555929,
+                      "wall_ns": 99620422
+                    },
+                    "second": {
+                      "cpu_ns": 95811641,
+                      "wall_ns": 95858043
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0108756396408378,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 93945417,
+                  "wall_ns": 93988395
+                },
+                "baseline1": {
+                  "cpu_ns": 93977231,
+                  "wall_ns": 94032169
+                },
+                "candidate0": {
+                  "cpu_ns": 95079429,
+                  "wall_ns": 95125791
+                },
+                "candidate1": {
+                  "cpu_ns": 94886998,
+                  "wall_ns": 94946817
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9971447394249661,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 96557562,
+                      "wall_ns": 96618293
+                    },
+                    "second": {
+                      "cpu_ns": 96281865,
+                      "wall_ns": 96338395
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9535774709460481,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 99695904,
+                      "wall_ns": 99743202
+                    },
+                    "second": {
+                      "cpu_ns": 95067768,
+                      "wall_ns": 95116362
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0297088800421637,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 93868194,
+                  "wall_ns": 93913122
+                },
+                "baseline1": {
+                  "cpu_ns": 93935385,
+                  "wall_ns": 94000623
+                },
+                "candidate0": {
+                  "cpu_ns": 95149474,
+                  "wall_ns": 95214623
+                },
+                "candidate1": {
+                  "cpu_ns": 98233539,
+                  "wall_ns": 98293505
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0476526251787255,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 94029636,
+                      "wall_ns": 94081277
+                    },
+                    "second": {
+                      "cpu_ns": 98510395,
+                      "wall_ns": 98561539
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.045428383550953,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 95086214,
+                      "wall_ns": 95157560
+                    },
+                    "second": {
+                      "cpu_ns": 99405827,
+                      "wall_ns": 99491192
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 10000000,
+          "max": 1.0598881347993163,
+          "median": 1.0163000241436793,
+          "min": 0.9944174571850304
+        },
+        "ready_repoll": {
+          "blocks": [
+            {
+              "candidate_over_baseline": 0.9862901581403498,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 201796987,
+                  "wall_ns": 201810321
+                },
+                "baseline1": {
+                  "cpu_ns": 201820433,
+                  "wall_ns": 201823540
+                },
+                "candidate0": {
+                  "cpu_ns": 196335718,
+                  "wall_ns": 196335316
+                },
+                "candidate1": {
+                  "cpu_ns": 201748171,
+                  "wall_ns": 201747713
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9455557589416619,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 207443428,
+                      "wall_ns": 207456594
+                    },
+                    "second": {
+                      "cpu_ns": 196149328,
+                      "wall_ns": 196160594
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9960763850669004,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 196859787,
+                      "wall_ns": 196860724
+                    },
+                    "second": {
+                      "cpu_ns": 196087385,
+                      "wall_ns": 196079117
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0010541466895715,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 203535392,
+                  "wall_ns": 203553011
+                },
+                "baseline1": {
+                  "cpu_ns": 202343604,
+                  "wall_ns": 202357466
+                },
+                "candidate0": {
+                  "cpu_ns": 209482015,
+                  "wall_ns": 209473168
+                },
+                "candidate1": {
+                  "cpu_ns": 196824837,
+                  "wall_ns": 196826957
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.8142200312640443,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 240971383,
+                      "wall_ns": 240973494
+                    },
+                    "second": {
+                      "cpu_ns": 196203727,
+                      "wall_ns": 196195410
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9509826762466411,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 207445230,
+                      "wall_ns": 207444451
+                    },
+                    "second": {
+                      "cpu_ns": 197276820,
+                      "wall_ns": 197308586
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9332149290106345,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 196498312,
+                  "wall_ns": 196496873
+                },
+                "baseline1": {
+                  "cpu_ns": 232034466,
+                  "wall_ns": 232066592
+                },
+                "candidate0": {
+                  "cpu_ns": 201678033,
+                  "wall_ns": 201669090
+                },
+                "candidate1": {
+                  "cpu_ns": 198235153,
+                  "wall_ns": 198232417
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9741671040017861,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 201733170,
+                      "wall_ns": 201732273
+                    },
+                    "second": {
+                      "cpu_ns": 196521818,
+                      "wall_ns": 196513767
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0006589083916388,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 196121345,
+                      "wall_ns": 196124158
+                    },
+                    "second": {
+                      "cpu_ns": 196250571,
+                      "wall_ns": 196271460
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.0383495174059358,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 196248888,
+                  "wall_ns": 196240334
+                },
+                "baseline1": {
+                  "cpu_ns": 196324631,
+                  "wall_ns": 196324221
+                },
+                "candidate0": {
+                  "cpu_ns": 209467866,
+                  "wall_ns": 209471769
+                },
+                "candidate1": {
+                  "cpu_ns": 198160658,
+                  "wall_ns": 198152419
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.029422131032508,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 196308690,
+                      "wall_ns": 196319441
+                    },
+                    "second": {
+                      "cpu_ns": 202084510,
+                      "wall_ns": 202090920
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9455159606729746,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 207652115,
+                      "wall_ns": 207652979
+                    },
+                    "second": {
+                      "cpu_ns": 196338389,
+                      "wall_ns": 196337628
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9708002935820567,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 208680074,
+                  "wall_ns": 208690769
+                },
+                "baseline1": {
+                  "cpu_ns": 201971726,
+                  "wall_ns": 201962894
+                },
+                "candidate0": {
+                  "cpu_ns": 198481399,
+                  "wall_ns": 198502700
+                },
+                "candidate1": {
+                  "cpu_ns": 200179489,
+                  "wall_ns": 200195522
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0461765496043447,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 196594312,
+                      "wall_ns": 196593965
+                    },
+                    "second": {
+                      "cpu_ns": 205672359,
+                      "wall_ns": 205664323
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.055895822298414,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 199025393,
+                      "wall_ns": 199040524
+                    },
+                    "second": {
+                      "cpu_ns": 210150081,
+                      "wall_ns": 210166582
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.043968884420131,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 204534358,
+                  "wall_ns": 204532993
+                },
+                "baseline1": {
+                  "cpu_ns": 198381482,
+                  "wall_ns": 198395416
+                },
+                "candidate0": {
+                  "cpu_ns": 209826473,
+                  "wall_ns": 209817631
+                },
+                "candidate1": {
+                  "cpu_ns": 210805127,
+                  "wall_ns": 210823145
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0280115053388856,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 198545738,
+                      "wall_ns": 198544905
+                    },
+                    "second": {
+                      "cpu_ns": 204107303,
+                      "wall_ns": 204113289
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 1.0013654546259907,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 204290201,
+                      "wall_ns": 204288582
+                    },
+                    "second": {
+                      "cpu_ns": 204569150,
+                      "wall_ns": 204561198
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.9698137146014643,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 211658656,
+                  "wall_ns": 211676567
+                },
+                "baseline1": {
+                  "cpu_ns": 197891371,
+                  "wall_ns": 197902028
+                },
+                "candidate0": {
+                  "cpu_ns": 198633253,
+                  "wall_ns": 198646840
+                },
+                "candidate1": {
+                  "cpu_ns": 198553980,
+                  "wall_ns": 198545527
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 1.0080674049492384,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 204302624,
+                      "wall_ns": 204301602
+                    },
+                    "second": {
+                      "cpu_ns": 205950816,
+                      "wall_ns": 205970862
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9812277498235581,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 209614349,
+                      "wall_ns": 209621771
+                    },
+                    "second": {
+                      "cpu_ns": 205679416,
+                      "wall_ns": 205670767
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 0.957196564189669,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 212235598,
+                  "wall_ns": 212251657
+                },
+                "baseline1": {
+                  "cpu_ns": 216931282,
+                  "wall_ns": 216944439
+                },
+                "candidate0": {
+                  "cpu_ns": 211997379,
+                  "wall_ns": 211998343
+                },
+                "candidate1": {
+                  "cpu_ns": 198799684,
+                  "wall_ns": 198791517
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9757643563582453,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 204113498,
+                      "wall_ns": 204111931
+                    },
+                    "second": {
+                      "cpu_ns": 199166676,
+                      "wall_ns": 199168089
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9475993718763625,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 209709032,
+                      "wall_ns": 209716145
+                    },
+                    "second": {
+                      "cpu_ns": 198720147,
+                      "wall_ns": 198741332
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.011873012387001,
+              "order": [
+                "baseline0",
+                "candidate0",
+                "candidate1",
+                "baseline1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 199771184,
+                  "wall_ns": 199768445
+                },
+                "baseline1": {
+                  "cpu_ns": 204292321,
+                  "wall_ns": 204304185
+                },
+                "candidate0": {
+                  "cpu_ns": 204427393,
+                  "wall_ns": 204418953
+                },
+                "candidate1": {
+                  "cpu_ns": 204433563,
+                  "wall_ns": 204434088
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9599561793692772,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 209557002,
+                      "wall_ns": 209573712
+                    },
+                    "second": {
+                      "cpu_ns": 201165539,
+                      "wall_ns": 201157585
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "first",
+                    "second"
+                  ],
+                  "ratio": 0.9975368825206612,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 210261185,
+                      "wall_ns": 210266402
+                    },
+                    "second": {
+                      "cpu_ns": 209743287,
+                      "wall_ns": 209748405
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "candidate_over_baseline": 1.001984736102997,
+              "order": [
+                "candidate0",
+                "baseline0",
+                "baseline1",
+                "candidate1"
+              ],
+              "runs": {
+                "baseline0": {
+                  "cpu_ns": 204059791,
+                  "wall_ns": 204064242
+                },
+                "baseline1": {
+                  "cpu_ns": 199020497,
+                  "wall_ns": 199011999
+                },
+                "candidate0": {
+                  "cpu_ns": 205478958,
+                  "wall_ns": 205495687
+                },
+                "candidate1": {
+                  "cpu_ns": 198401338,
+                  "wall_ns": 198393478
+                }
+              },
+              "same_binary_controls": {
+                "baseline": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9713313650604093,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 210015929,
+                      "wall_ns": 210037949
+                    },
+                    "second": {
+                      "cpu_ns": 203995059,
+                      "wall_ns": 204000369
+                    }
+                  }
+                },
+                "candidate": {
+                  "order": [
+                    "second",
+                    "first"
+                  ],
+                  "ratio": 0.9732909671270098,
+                  "values": {
+                    "first": {
+                      "cpu_ns": 204269096,
+                      "wall_ns": 204260620
+                    },
+                    "second": {
+                      "cpu_ns": 198813266,
+                      "wall_ns": 198828253
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "iterations": 20000000,
+          "max": 1.043968884420131,
+          "median": 0.9936721524149607,
+          "min": 0.9332149290106345
+        }
+      },
+      "schema": "call-poll-longer-component-screen/1",
+      "scope": "synthetic component test, not network RPC: identical temporary public constructor appended to both request modules and re-exported from lib; Call poll/drop source otherwise pinned. A boxed arithmetic future performs four wrapping multiply/rotate/xor rounds with black_box and always returns Pending or Ready. No per-poll measurement counters or allocation instrumentation. Pending and repollable Ready cases use one Call for 20 million polls after 20k warmups; first-Ready polls ten million preconstructed calls once in 250k-call batches, summing per-batch poll-only CPU and wall durations with construction outside timing; repeated clock reads and per-poll result checks remain. Repolling a completed real RPC is not recommended; that case deliberately uses a repollable synthetic future. Each poll result is validated in timing. Ten ABBA/BAAB blocks and same-binary controls, process CPU on one CPU of a shared runner."
+    }
+  }
+}

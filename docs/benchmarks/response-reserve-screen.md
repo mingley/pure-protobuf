@@ -5,9 +5,10 @@ This is a screen of an isolated prototype, not a current-main benchmark or a ton
 A later, different [208d prototype](https://github.com/mingley/pure-protobuf/commit/208d4d2d40a1891e14c6807d61c4720b319dc5ed)
 failed a [real-frame Miri test](https://github.com/mingley/pure-protobuf/actions/runs/42744927524)
 on a stream-slot pointer reborrow. A later [a675 repair](https://github.com/mingley/pure-protobuf/commit/a675c45d65a50c7e22fc332b71a16405ed6bf33b)
-passed that test and two narrow controls in [Miri](https://github.com/mingley/pure-protobuf/actions/runs/42745861047);
-padded/error cases and the full gate remain open. Neither result validates this
-older 686 prototype. The [revised screen](response-reserve-screen-revised.md)
+passed that test and two narrow controls in [Miri](https://github.com/mingley/pure-protobuf/actions/runs/42745861047).
+Additional [padded/error Miri checks](https://github.com/mingley/pure-protobuf/actions/runs/42746638162)
+and [lifecycle and compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42746357968)
+passed on a675. These results do not validate the older 686 prototype. The [revised screen](response-reserve-screen-revised.md)
 measured 208d separately, not the repair.
 
 ## Method

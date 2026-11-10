@@ -10,7 +10,10 @@ prototype credits discarded-frame allowance in
 before flow-control release can fail and prevent the data from being returned.
 A [later two-allowance variant](https://github.com/mingley/pure-protobuf/blob/43852fa2cd6a39346bd9524dd420f802c91ab4b1/pbrs-grpc/src/h2_backend/proto/streams/streams.rs#L2522)
 has the same ordering. Both are held from integration; the later variant was
-not measured here. This timing screen did not exercise the failed-release
+not measured here. A [real-wire differential](https://github.com/mingley/pure-protobuf/actions/runs/42748301962)
+reproduced the unexpected credit on 43852; moving the credit after successful
+flow-control release passed the paired control. That witness did not run on the
+measured e8a prototype. This timing screen did not exercise the failed-release
 path or establish correctness.
 
 | Workload and concurrency | Cumulative / baseline CPU: median (range) | Read-progress / baseline CPU: median (range) |
