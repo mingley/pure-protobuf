@@ -5,15 +5,18 @@ PBRS_APT_TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "$PBRS_APT_TEST_ROOT"' EXIT
 
 run_case() {
-  local label="$1" failures="$2" update_exit="$3" install_exit="$4"
-  local expected_status="$5" expected_updates="$6" expected_installs="$7" expected_sleeps="$8"
-  shift 8
+  local label="$1" failures="$2" update_exit="$3" download_exit="$4" install_exit="$5"
+  local expected_status="$6" expected_updates="$7" expected_downloads="$8" expected_installs="$9"
+  local expected_sleeps="${10}"
+  shift 10
   local PBRS_APT_TEST_DIR="$PBRS_APT_TEST_ROOT/$label"
   mkdir -p "$PBRS_APT_TEST_DIR"
   local PBRS_APT_TEST_FAILURES="$failures"
   local PBRS_APT_TEST_UPDATE_EXIT="$update_exit"
+  local PBRS_APT_TEST_DOWNLOAD_EXIT="$download_exit"
   local PBRS_APT_TEST_INSTALL_EXIT="$install_exit"
-  local status updates=0 installs=0 sleeps=0 line
+  local PBRS_APT_TEST_PACKAGES="$*"
+  local status updates=0 downloads=0 installs=0 sleeps=0 line
 
   set +e
   (
@@ -24,7 +27,8 @@ run_case() {
       [[ "$1" == timeout && "$2" == --kill-after=5s ]] || return 98
       if [[ "${*: -1}" == update ]]; then
         [[ "$3" == 90s && "$*" == *"APT::Update::Error-Mode=any"* ]] || return 98
-        [[ "$*" == *"Acquire::http::Timeout=20"* && "$*" == *"Acquire::https::Timeout=20"* ]] || return 98
+        [[ "$*" == *"Acquire::Retries=1"* && "$*" == *"Acquire::http::Timeout=20"* &&
+           "$*" == *"Acquire::https::Timeout=20"* ]] || return 98
         local n=0
         if [[ -f "$PBRS_APT_TEST_DIR/updates" ]]; then
           read -r n < "$PBRS_APT_TEST_DIR/updates"
@@ -36,9 +40,19 @@ run_case() {
         fi
         return 0
       fi
-      if [[ "$*" == *" install -y "* ]]; then
+      if [[ "$*" == *" install --download-only -y "* ]]; then
+        [[ "$3" == 600s && "$*" == *"DPkg::Lock::Timeout=30"* ]] || return 98
+        [[ "$*" == *"Acquire::Retries=1"* && "$*" == *"Acquire::http::Timeout=20"* &&
+           "$*" == *"Acquire::https::Timeout=20"* ]] || return 98
+        [[ "$*" == *" install --download-only -y $PBRS_APT_TEST_PACKAGES" ]] || return 98
+        printf '1\n' >> "$PBRS_APT_TEST_DIR/downloads"
+        return "$PBRS_APT_TEST_DOWNLOAD_EXIT"
+      fi
+      if [[ "$*" == *" install --no-download -y "* ]]; then
         [[ "$3" == 120s && "$*" == *"DPkg::Lock::Timeout=30"* ]] || return 98
-        [[ "$*" == *" protobuf-compiler cmake g++" ]] || return 98
+        [[ "$*" == *"Acquire::Retries=1"* && "$*" == *"Acquire::http::Timeout=20"* &&
+           "$*" == *"Acquire::https::Timeout=20"* ]] || return 98
+        [[ "$*" == *" install --no-download -y $PBRS_APT_TEST_PACKAGES" ]] || return 98
         printf '1\n' >> "$PBRS_APT_TEST_DIR/installs"
         return "$PBRS_APT_TEST_INSTALL_EXIT"
       fi
@@ -56,6 +70,9 @@ run_case() {
   if [[ -f "$PBRS_APT_TEST_DIR/updates" ]]; then
     read -r updates < "$PBRS_APT_TEST_DIR/updates"
   fi
+  if [[ -f "$PBRS_APT_TEST_DIR/downloads" ]]; then
+    while IFS= read -r line; do downloads=$((downloads + 1)); done < "$PBRS_APT_TEST_DIR/downloads"
+  fi
   if [[ -f "$PBRS_APT_TEST_DIR/installs" ]]; then
     while IFS= read -r line; do installs=$((installs + 1)); done < "$PBRS_APT_TEST_DIR/installs"
   fi
@@ -63,18 +80,26 @@ run_case() {
     while IFS= read -r line; do sleeps=$((sleeps + 1)); done < "$PBRS_APT_TEST_DIR/sleeps"
   fi
   if [[ "$status" != "$expected_status" || "$updates" != "$expected_updates" ||
-        "$installs" != "$expected_installs" || "$sleeps" != "$expected_sleeps" ]]; then
+        "$downloads" != "$expected_downloads" || "$installs" != "$expected_installs" ||
+        "$sleeps" != "$expected_sleeps" ]]; then
     cat "$PBRS_APT_TEST_DIR/output" >&2
-    echo "$label: status=$status updates=$updates installs=$installs sleeps=$sleeps" >&2
+    echo "$label: status=$status updates=$updates downloads=$downloads installs=$installs sleeps=$sleeps" >&2
     exit 1
   fi
   echo "PASS $label"
 }
 
-run_case immediate 0 100 0 0 1 1 0 protobuf-compiler cmake g++
-run_case update_retry 1 100 0 0 2 1 1 protobuf-compiler cmake g++
-run_case updates_fail 2 100 0 100 2 0 1 protobuf-compiler cmake g++
-run_case update_timeout 2 124 0 124 2 0 1 protobuf-compiler cmake g++
-run_case update_killed 2 137 0 137 2 0 1 protobuf-compiler cmake g++
-run_case install_fails 0 100 101 101 1 1 0 protobuf-compiler cmake g++
-run_case no_packages 0 100 0 2 0 0 0
+run_case immediate 0 100 0 0 0 1 1 1 0 protobuf-compiler cmake g++
+run_case single_package 0 100 0 0 0 1 1 1 0 protobuf-compiler
+run_case two_packages 0 100 0 0 0 1 1 1 0 cmake g++
+run_case update_retry 1 100 0 0 0 2 1 1 1 protobuf-compiler cmake g++
+run_case updates_fail 2 100 0 0 100 2 0 0 1 protobuf-compiler cmake g++
+run_case update_timeout 2 124 0 0 124 2 0 0 1 protobuf-compiler cmake g++
+run_case update_killed 2 137 0 0 137 2 0 0 1 protobuf-compiler cmake g++
+run_case download_fails 0 100 100 0 100 1 1 0 0 protobuf-compiler cmake g++
+run_case download_timeout 0 100 124 0 124 1 1 0 0 protobuf-compiler cmake g++
+run_case download_killed 0 100 137 0 137 1 1 0 0 protobuf-compiler cmake g++
+run_case install_fails 0 100 0 101 101 1 1 1 0 protobuf-compiler cmake g++
+run_case install_timeout 0 100 0 124 124 1 1 1 0 protobuf-compiler cmake g++
+run_case install_killed 0 100 0 137 137 1 1 1 0 protobuf-compiler cmake g++
+run_case no_packages 0 100 0 0 2 0 0 0 0

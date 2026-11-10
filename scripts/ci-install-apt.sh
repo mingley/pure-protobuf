@@ -25,12 +25,25 @@ ci_install_apt() {
     fi
   done
 
+  # Download without running dpkg; failures stop before installation begins.
+  if sudo timeout --kill-after=5s 600s apt-get \
+    -o DPkg::Lock::Timeout=30 \
+    -o Acquire::Retries=1 \
+    -o Acquire::http::Timeout=20 \
+    -o Acquire::https::Timeout=20 install --download-only -y "$@"; then
+    :
+  else
+    status=$?
+    echo "apt package download failed (exit $status)" >&2
+    return "$status"
+  fi
+
   # Do not retry an interrupted package installation: dpkg may need repair.
   sudo timeout --kill-after=5s 120s apt-get \
     -o DPkg::Lock::Timeout=30 \
     -o Acquire::Retries=1 \
     -o Acquire::http::Timeout=20 \
-    -o Acquire::https::Timeout=20 install -y "$@"
+    -o Acquire::https::Timeout=20 install --no-download -y "$@"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
