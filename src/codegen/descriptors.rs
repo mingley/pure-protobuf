@@ -1446,10 +1446,7 @@ mod tests {
             }
             let f_suff = format!("/{w_norm}");
             let f_suff_no_proto = format!("/{w_norm_no_proto}");
-            if file_norm.ends_with(&f_suff) || file_norm_no_proto.ends_with(&f_suff_no_proto) {
-                return true;
-            }
-            false
+            file_norm.ends_with(&f_suff) || file_norm_no_proto.ends_with(&f_suff_no_proto)
         })
     }
 
