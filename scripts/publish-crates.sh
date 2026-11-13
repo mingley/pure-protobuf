@@ -211,5 +211,16 @@ for i in "${!NAMES[@]}"; do
   fi
 
   cargo publish -p "$name"
+  package_target="${CARGO_TARGET_DIR:-$ROOT/target}"
+  if [[ "$package_target" != /* ]]; then
+    package_target="$ROOT/$package_target"
+  fi
+  if [[ ! -f "${package_target}/package/${name}-${ver}.crate" ]]; then
+    if [[ -f "${package_target}/package/tmp-crate/${name}-${ver}.crate" ]]; then
+      cp -p "${package_target}/package/tmp-crate/${name}-${ver}.crate" "${package_target}/package/${name}-${ver}.crate"
+    else
+      cargo package -p "$name" --no-verify
+    fi
+  fi
   wait_for_index "$name" "$ver"
 done

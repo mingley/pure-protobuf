@@ -41,9 +41,9 @@ jobs:
         run: |
           # Unchanged alpha versions infer a major release and skip every
           # compatibility lint. Our stable surface permits additive changes.
-          cargo semver-checks check-release --release-type minor --package pbrs --baseline-version 0.2.0
-          cargo semver-checks check-release --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2
-          cargo semver-checks check-release --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.2
+          cargo semver-checks check-release --release-type minor --package pbrs --baseline-version 0.2.1
+          cargo semver-checks check-release --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.3
+          cargo semver-checks check-release --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.3
 
   test:
     runs-on: ubuntu-latest
