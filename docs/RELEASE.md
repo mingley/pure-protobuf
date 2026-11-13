@@ -11,10 +11,11 @@ publish on every `main` push when `CRATES_IO_TOKEN` was set. It is disabled.
 [`.github/workflows/first-publish.yml`](../.github/workflows/first-publish.yml) is
 obsolete (the crates already exist on crates.io) and will not publish.
 
-The publisher uses [crates.io Trusted Publishing](https://crates.io/docs/trusted-publishing/).
-`rust-lang/crates-io-auth-action` exchanges the workflow's GitHub OIDC identity
-for a short-lived `CARGO_REGISTRY_TOKEN`; the repository must not store a
-long-lived crates.io API token. The workflow also emits a CycloneDX JSON SBOM,
+The publisher prefers [crates.io Trusted Publishing](https://crates.io/docs/trusted-publishing/)
+(`rust-lang/crates-io-auth-action` exchanges the workflow's GitHub OIDC identity
+for a short-lived `CARGO_REGISTRY_TOKEN`) and falls back to `CRATES_IO_TOKEN`
+in `publish` mode until Trusted Publishing is configured on crates.io; dry-run
+rehearsals never receive a registry token. The workflow also emits a CycloneDX JSON SBOM,
 creates a GitHub build-provenance attestation over the SBOM and packaged crate
 archives, retains them as a workflow artifact, and attaches them to tagged
 GitHub Releases.

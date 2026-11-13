@@ -260,11 +260,16 @@ class ReleaseWorkflowWiringTest(unittest.TestCase):
     def test_only_publish_mode_can_authenticate_or_create_a_release(self):
         auth = workflow_step("Authenticate to crates.io with OIDC")
         self.assertIn("if: steps.mode.outputs.mode == 'publish'", auth)
+        self.assertIn("continue-on-error: true", auth)
         tag = workflow_step("Require a signed and GitHub-verified release tag")
         self.assertIn("if: steps.mode.outputs.mode == 'publish'", tag)
         release = workflow_step("Create GitHub Release")
         self.assertIn("startsWith(github.ref, 'refs/tags/v') && steps.mode.outputs.mode == 'publish'", release)
         packing = workflow_step("Publish crates")
+        self.assertIn(
+            "steps.mode.outputs.mode == 'publish' && (steps.crates-io.outputs.token || secrets.CRATES_IO_TOKEN) || ''",
+            packing,
+        )
         self.assertIn("steps.mode.outputs.mode == 'dry-run' && '1' || '0'", packing)
         self.assertIn("run: ./scripts/publish-crates.sh", packing)
         source = (ROOT / ".github/workflows/release.yml").read_text()
