@@ -89,7 +89,12 @@ def main():
         if stdout.read_text().splitlines() != ["PASS " + name]:
             raise RuntimeError("missing, extra or nonpassing consumer result: " + name)
     generated = out / "generated"
-    for index, path in enumerate(sorted(target.glob("debug/build/pbrs-comment-selector-proof-*/out"))):
+    out_dirs = sorted({
+        *target.glob("debug/build/pbrs-comment-selector-proof-*/out"),
+        *(path for path in target.glob("debug/build/pbrs-comment-selector-proof/*/out")
+          if (path.parent / "run").is_dir()),
+    })
+    for index, path in enumerate(out_dirs):
         shutil.copytree(path, generated / str(index))
     after = inputs()
     if args.baseline_plugin:

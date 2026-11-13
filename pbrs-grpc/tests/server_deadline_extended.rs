@@ -39,7 +39,15 @@ enum Kind {
     Tighten,
     ReplaceMetadata,
     ConstructorOverrun,
+    #[cfg_attr(
+        not(feature = "grpc-web"),
+        allow(dead_code, reason = "constructed by grpc-web feature tests")
+    )]
     EmptyUnary,
+    #[cfg_attr(
+        not(feature = "grpc-web"),
+        allow(dead_code, reason = "constructed by grpc-web feature tests")
+    )]
     CommittedEmptyUnary,
     RetainParts,
     Output(Shape, usize),

@@ -2573,13 +2573,13 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
 
     allocation_snapshot();
     record.require_success()?;
-    if let Some(want) = opts.rpc_count {
-        if record.successful_calls != want {
-            return Err(format!(
-                "incomplete fixed-count run: completed {}, requested {want}",
-                record.successful_calls
-            ));
-        }
+    if let Some(want) = opts.rpc_count
+        && record.successful_calls != want
+    {
+        return Err(format!(
+            "incomplete fixed-count run: completed {}, requested {want}",
+            record.successful_calls
+        ));
     }
     Ok(())
 }

@@ -99,8 +99,14 @@ def main():
             raise RuntimeError("reference generator must be tonic-prost-build 0.14.6")
         plugin = next(item["executable"] for item in artifacts
                       if item["target"]["name"] == "protoc-gen-pbrs" and item.get("executable"))
+        artifact_dirs = {
+            str(Path(path).parent)
+            for item in artifacts
+            for path in item.get("filenames", [])
+            if path.endswith((".rlib", ".rmeta", ".so", ".dylib", ".dll"))
+        }
         receipt = {"plugin": plugin, "dependencies": dependencies, "package_ids": package_ids,
-                   "dependency_dirs": sorted({str(Path(path).parent) for path in dependencies.values()})}
+                   "dependency_dirs": sorted({*(str(Path(path).parent) for path in dependencies.values()), *artifact_dirs})}
     (out / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     deps = {name: Path(path).resolve() for name, path in receipt["dependencies"].items()}
     plugin = Path(receipt["plugin"]).resolve()

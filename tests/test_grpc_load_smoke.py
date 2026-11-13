@@ -141,7 +141,7 @@ class BuildModeGuards(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.source = self.root / "checkout"
         (self.source / "scripts").mkdir(parents=True)
         subprocess.check_output(["git", "init", "-q", str(self.source)])
@@ -307,7 +307,7 @@ class CaptureProvenanceTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.source = self.root / "source"
         self.driver = self.root / "driver"
         for checkout in (self.source, self.driver):

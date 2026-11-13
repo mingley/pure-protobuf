@@ -109,7 +109,12 @@ def main():
                         "stdout_sha256": digest(stdout), "stderr_sha256": digest(stderr), "resource_stop": stopped})
         (out / "commands.json").write_text(json.dumps(records, indent=2) + "\n")
         generated = out / (label + "-generated")
-        for index, source in enumerate(sorted(target_dir.glob("**/build/pbrs-alloc-runtime-proof-*/out"))):
+        out_dirs = sorted({
+            *target_dir.glob("**/build/pbrs-alloc-runtime-proof-*/out"),
+            *(source for source in target_dir.glob("**/build/pbrs-alloc-runtime-proof/*/out")
+              if (source.parent / "run").is_dir()),
+        })
+        for index, source in enumerate(out_dirs):
             shutil.copytree(source, generated / str(index), dirs_exist_ok=True)
         diagnostics = []
         for line in stdout.read_text().splitlines():

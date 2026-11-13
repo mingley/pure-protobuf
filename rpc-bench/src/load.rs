@@ -603,12 +603,23 @@ impl LoadGenerator {
                     // Workers must reserve a count atomically. A separate
                     // load followed by fetch_add can dispatch beyond N.
                     let reserved = match max_calls {
-                        Some(max) => state
-                            .offered_calls
-                            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
-                                (count < max).then(|| count + 1)
-                            })
-                            .is_ok(),
+                        Some(max) => {
+                            let mut count = state.offered_calls.load(Ordering::Relaxed);
+                            loop {
+                                if count >= max {
+                                    break false;
+                                }
+                                match state.offered_calls.compare_exchange_weak(
+                                    count,
+                                    count + 1,
+                                    Ordering::Relaxed,
+                                    Ordering::Relaxed,
+                                ) {
+                                    Ok(_) => break true,
+                                    Err(actual) => count = actual,
+                                }
+                            }
+                        }
                         None => {
                             state.offered_calls.fetch_add(1, Ordering::Relaxed);
                             true

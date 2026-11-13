@@ -45,13 +45,16 @@ static COUNTER_OVERFLOW: AtomicBool = AtomicBool::new(false);
 // Allocator callbacks cannot allocate or panic. Preserve the previous value
 // and invalidate the sample if any counter cannot represent an update.
 fn checked_add(counter: &AtomicU64, amount: u64, overflow: &AtomicBool) {
-    if counter
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
-            value.checked_add(amount)
-        })
-        .is_err()
-    {
-        overflow.store(true, Ordering::Relaxed);
+    let mut current = counter.load(Ordering::Relaxed);
+    loop {
+        let Some(next) = current.checked_add(amount) else {
+            overflow.store(true, Ordering::Relaxed);
+            return;
+        };
+        match counter.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return,
+            Err(actual) => current = actual,
+        }
     }
 }
 

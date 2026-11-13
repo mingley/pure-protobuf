@@ -982,17 +982,15 @@ pub mod lifecycle {
             }
 
             let poll = Pin::new(&mut this.inner).poll_write(cx, buf);
-            if let Poll::Ready(Ok(n)) = poll {
-                if this.is_client_side {
-                    // Pending and unaccepted suffixes are retried by AsyncWrite
-                    // callers; parsing them here would duplicate frame bytes.
-                    sniff_headers_frames(
-                        &mut this.sniff_buf,
-                        &mut this.sniff_skip,
-                        &buf[..n],
-                        &this.state,
-                    );
-                }
+            if let (Poll::Ready(Ok(n)), true) = (&poll, this.is_client_side) {
+                // Pending and unaccepted suffixes are retried by AsyncWrite
+                // callers; parsing them here would duplicate frame bytes.
+                sniff_headers_frames(
+                    &mut this.sniff_buf,
+                    &mut this.sniff_skip,
+                    &buf[..*n],
+                    &this.state,
+                );
             }
             poll
         }

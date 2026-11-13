@@ -1000,6 +1000,111 @@ fn core_builds_without_protoc() {
     assert!(!env_protoc_runs(&no_protoc));
 }
 
+fn is_legacy_pkg_build_entry(entry_name: &str, pkg: &str) -> bool {
+    entry_name
+        .strip_prefix(pkg)
+        .and_then(|rest| rest.strip_prefix('-'))
+        .is_some_and(|hash| !hash.is_empty() && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+fn has_pkg_build_entry(build_dir: &Path, pkg: &str) -> bool {
+    if !build_dir.exists() {
+        return false;
+    }
+    if build_dir.join(pkg).exists() {
+        return true;
+    }
+    std::fs::read_dir(build_dir)
+        .expect("build directory")
+        .any(|entry| {
+            let name = entry.expect("build entry").file_name();
+            name.to_str()
+                .is_some_and(|s| is_legacy_pkg_build_entry(s, pkg))
+        })
+}
+
+/// Collects build-script `out` directories for `pkg` across Cargo layouts:
+/// - Cargo <= 1.99: `<profile>/build/<pkg>-<hash>/out`
+/// - Cargo >= 1.100: `<profile>/build/<pkg>/<hash>/out`
+fn pkg_build_out_dirs(build_dir: &Path, pkg: &str) -> Vec<PathBuf> {
+    let mut outs = Vec::new();
+    if !build_dir.exists() {
+        return outs;
+    }
+    let nested = build_dir.join(pkg);
+    if nested.is_dir() {
+        for entry in std::fs::read_dir(&nested).expect("nested package build directory") {
+            let unit = entry.expect("nested build unit").path();
+            let out = unit.join("out");
+            if out.is_dir() {
+                outs.push(out);
+            }
+        }
+    }
+    for entry in std::fs::read_dir(build_dir).expect("build directory") {
+        let entry = entry.expect("build entry");
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|s| is_legacy_pkg_build_entry(s, pkg))
+        {
+            let out = entry.path().join("out");
+            if out.is_dir() {
+                outs.push(out);
+            }
+        }
+    }
+    outs
+}
+
+#[test]
+fn pkg_build_helpers_support_flat_and_nested_cargo_layouts() {
+    let tmp = scratch_unique("pbrs-onboarding-build-layout");
+
+    // Cargo <= 1.99 flat layout: build/<pkg>-<hash>/out/...
+    let flat = tmp.join("flat/debug/build");
+    std::fs::create_dir_all(flat.join("pbrs-grpc-1327ad05ac06ff42/out")).unwrap();
+    std::fs::write(
+        flat.join("pbrs-grpc-1327ad05ac06ff42/out/hello.rs"),
+        b"// ok",
+    )
+    .unwrap();
+    assert!(has_pkg_build_entry(&flat, "pbrs-grpc"));
+    assert!(!has_pkg_build_entry(&flat, "pbrs"));
+    assert!(!has_pkg_build_entry(&flat, "protobuf-tonic"));
+    assert!(
+        pkg_build_out_dirs(&flat, "pbrs-grpc")
+            .iter()
+            .any(|out| out.join("hello.rs").is_file())
+    );
+    assert!(pkg_build_out_dirs(&flat, "pbrs").is_empty());
+
+    // Cargo >= 1.100 nested layout: build/<pkg>/<hash>/out/...
+    let nested = tmp.join("nested/debug/build");
+    std::fs::create_dir_all(nested.join("pbrs-grpc/1327ad05ac06ff42/out")).unwrap();
+    std::fs::write(
+        nested.join("pbrs-grpc/1327ad05ac06ff42/out/libpbrs_grpc.rlib"),
+        b"",
+    )
+    .unwrap();
+    std::fs::create_dir_all(nested.join("pbrs-grpc/93ca4dfe2126f609/run")).unwrap();
+    std::fs::create_dir_all(nested.join("pbrs-grpc/93ca4dfe2126f609/out")).unwrap();
+    std::fs::write(
+        nested.join("pbrs-grpc/93ca4dfe2126f609/out/hello.rs"),
+        b"// ok",
+    )
+    .unwrap();
+    assert!(has_pkg_build_entry(&nested, "pbrs-grpc"));
+    assert!(!has_pkg_build_entry(&nested, "pbrs"));
+    assert!(!has_pkg_build_entry(&nested, "protobuf-tonic"));
+    assert!(
+        pkg_build_out_dirs(&nested, "pbrs-grpc")
+            .iter()
+            .any(|out| out.join("hello.rs").is_file())
+    );
+    assert!(pkg_build_out_dirs(&nested, "pbrs").is_empty());
+}
+
 #[test]
 fn adapters_build_cold_from_descriptor_sets_without_protoc() {
     let no_protoc = path_without_protoc();
@@ -1011,25 +1116,21 @@ fn adapters_build_cold_from_descriptor_sets_without_protoc() {
     );
     for pkg in ["pbrs-grpc", "protobuf-tonic"] {
         let build_dir = target.join("debug/build");
-        if build_dir.exists() {
-            assert!(
-                !std::fs::read_dir(&build_dir)
-                    .expect("build directory")
-                    .any(|entry| {
-                        entry
-                            .expect("build entry")
-                            .file_name()
-                            .to_string_lossy()
-                            .starts_with(pkg)
-                    }),
-                "{pkg} must not already have a build script in the shared target"
-            );
-        }
+        assert!(
+            !has_pkg_build_entry(&build_dir, pkg),
+            "{pkg} must not already have a build script in the shared target"
+        );
         let ok = cargo_check_pkg(pkg, &target, Some(&no_protoc));
         assert!(
             ok.status.success(),
             "{pkg} must check without protoc on PATH:\n{}",
             dump(&ok)
+        );
+        assert!(
+            pkg_build_out_dirs(&build_dir, pkg)
+                .iter()
+                .any(|out| out.join("hello.rs").is_file()),
+            "{pkg} cold check did not generate hello.rs"
         );
     }
 }
@@ -1411,23 +1512,18 @@ fn main() {
     );
     assert!(!env_protoc_runs(&no_protoc));
     let build = cold_target.join("debug/build");
-    for pkg in ["pbrs-grpc-", "protobuf-tonic-"] {
+    for pkg in ["pbrs-grpc", "protobuf-tonic"] {
         assert!(
-            std::fs::read_dir(&build)
-                .expect("cold build scripts")
-                .any(|entry| {
-                    let entry = entry.expect("build script entry");
-                    entry.file_name().to_string_lossy().starts_with(pkg)
-                        && entry.path().join("out/hello.rs").exists()
-                }),
+            pkg_build_out_dirs(&build, pkg)
+                .iter()
+                .any(|out| out.join("hello.rs").is_file()),
             "cold packed build did not generate {pkg} hello.rs"
         );
     }
     assert!(
-        std::fs::read_dir(&build)
-            .expect("cold consumer build scripts")
-            .any(|entry| {
-                let out = entry.expect("consumer build entry").path().join("out");
+        pkg_build_out_dirs(&build, "pbrs-cold-packed-consumer")
+            .iter()
+            .any(|out| {
                 out.join("native/hello.rs").is_file() && out.join("tonic/hello.rs").is_file()
             }),
         "the cold consumer did not generate both native and tonic service stubs"
