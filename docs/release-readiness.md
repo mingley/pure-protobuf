@@ -1,53 +1,48 @@
 # Release readiness
 
-The next milestone is a qualified release of all three crates. Use this
-checklist to collect the evidence, then follow the [release policy](RELEASE.md).
-The [promotion matrix](ROADMAP.md#product-scope-and-promotion) defines the
-requirements for each supported profile.
+This checklist tracks evidence for coordinated releases of all three workspace
+crates and the remaining requirements before promoting preview profiles. Follow
+the [release policy](RELEASE.md) when cutting a tag, and see the
+[promotion matrix](ROADMAP.md#product-scope-and-promotion) for per-profile
+promotion gates.
 
 ## Candidate versions
 
-These versions are declared at [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c):
-
-| Crate | Candidate | Scope |
+| Crate | Version | Scope |
 |---|---|---|
-| `pbrs` | `0.2.1` | Core protobuf |
+| `pbrs` | `0.2.1` | Core protobuf runtime and generator |
 | `pbrs-grpc` | `0.1.0-alpha.3` | Native gRPC preview |
-| `protobuf-tonic` | `0.1.0-alpha.3` | Tonic adapter preview |
+| `protobuf-tonic` | `0.1.0-alpha.3` | Tonic 0.14+ adapter preview |
 
-Both adapters require `pbrs 0.2.1` at runtime and build time. Recheck the
-manifests and registry before tagging. The next coordinated release requires
-three new versions; skipping an existing upload does not meet that goal.
-Keep adapter alpha warnings until their promotion evidence supports a change.
-The [implementation status](status.md) links the recorded CI and Miri checks.
-At `d02cf609`, the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
+Both adapters require `pbrs 0.2.1` at runtime and build time. Keep adapter
+pre-release notices until sustained soak and promotion evidence support
+promoting a profile.
+
+At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
+the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
 packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42873027919)
-passed. An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42882645797)
+passed, and an [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42882645797)
 checked the manifests, selected source files, CycloneDX SBOM, dry-run CI
-context and all five attestations. The [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42882110957/artifacts/13794203208)
-has ZIP SHA-256 `a1d78ef5a8c65dbd66f34bdf0eaf18784068df347045801f3ebaebd66dd1ebc7`
-and expires February 8, 2027. Signed-tag verification and crates.io OIDC
-authentication were skipped; no crates were published. These checks apply to
-`d02cf609`, not later source revisions.
+context, and all five attestations ([artifact](https://github.com/mingley/pure-protobuf/actions/runs/42882110957/artifacts/13794203208),
+ZIP SHA-256 `a1d78ef5a8c65dbd66f34bdf0eaf18784068df347045801f3ebaebd66dd1ebc7`,
+retained until February 8, 2027). Earlier rehearsals on
+[`9acfc0b6`](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
+([readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492)),
+[`cab0e580`](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
+([readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438)),
+[`5ff80d57`](https://github.com/mingley/pure-protobuf/actions/runs/42794817426),
+and [`5fe70efd`](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+remain retained; tagged publication always re-verifies exact-SHA required CI on
+the tagged commit.
 
-Earlier [9ac rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
-and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492),
-[cab0 rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42805278973)
-and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42805764438),
-[5ff](https://github.com/mingley/pure-protobuf/actions/runs/42794817426) and
-[5fe](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
-remain available. Final release evidence must match the release source.
-
-A [registry check](https://github.com/mingley/pure-protobuf/actions/runs/42863659596)
-on November 10, 2026 found published `pbrs` `0.2.0` and published
-`pbrs-grpc` and `protobuf-tonic` `0.1.0-alpha.2`. A
-[published-package smoke check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
-generated and ran one unary greeter with those published core and native gRPC
-versions on x86-64 Linux, Rust 1.85.0 and 1.99.1, and protoc 3.21.12. It
-retains the resolved [1.85](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13786960624)
-and [1.99](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13785613505)
-lockfiles until February 8, 2027. This one example does not qualify the source
-candidates or other workloads.
+Prior to `0.2.1` / `0.1.0-alpha.3`, a November 10, 2026
+[registry check](https://github.com/mingley/pure-protobuf/actions/runs/42863659596)
+and [published-package smoke check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
+verified the older published `pbrs` `0.2.0` and `pbrs-grpc` `0.1.0-alpha.2`
+packages on x86-64 Linux with Rust 1.85.0
+([lockfile](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13786960624))
+and 1.99.1
+([lockfile](https://github.com/mingley/pure-protobuf/actions/runs/42863675030/artifacts/13785613505)).
 
 ## Release checklist
 
@@ -55,28 +50,27 @@ candidates or other workloads.
    requirement. Bounded native deployments may use external discovery and load
    balancing; dynamic endpoint and retry claims have additional gates. The
    tonic adapter needs its own interoperability evidence.
-2. **Complete sustained qualification.** Apply
+2. **Complete sustained qualification (for production promotion).** Apply
    [GR-11](ROADMAP.md#gr-11-promote-narrowly-then-stabilize-the-public-api):
    24-hour qualification, a 7-day controlled soak, two independent adopter
-   workloads, rollback triggers and a rollback rehearsal. Meet the applicable
+   workloads, rollback triggers, and a rollback rehearsal. Meet the applicable
    [QG-06 and QG-08 requirements](plan/world-class/tasks.json), including finite
    resource and recovery bounds and the security packet with at least
-   24 aggregate CPU-hours of fuzzing. Retain failures, seeds and exclusions.
+   24 aggregate CPU-hours of fuzzing. Retain failures, seeds, and exclusions.
    For native transport workloads, follow the
    [resource campaign commands](resource-campaign.md).
 3. **Record promotion and support decisions.** Obtain operator and maintainer
    signoff for each profile. Approve the maintenance owner, response
-   expectations, supported versions and upgrade policy. The
+   expectations, supported versions, and upgrade policy. The
    [support policy](support-policy.md) remains proposed. A 1.0 proposal also
    needs API compatibility review and a maintenance commitment.
 4. **Pass every required CI job on the final SHA.** The
    [required checks](RELEASE.md#required-ci) include semver, interop,
-   conformance, i686 transport, toolchains, dependency audit and isolated
-   package consumers.
-   Failed or skipped required jobs block publication. Later commits need
-   their own checks.
+   conformance, `grpc-web`, `i686` transport, toolchains, dependency audit, and
+   isolated package consumers. Failed or skipped required jobs block
+   publication.
 5. **Rehearse the final packages and provenance.** Verify all three archives,
-   the SBOM, `release-context.json`, its CI authority and the
+   the SBOM, `release-context.json`, its CI authority, and the
    [artifact attestations](RELEASE.md#provenance-rehearsal-and-verification).
    Local packaging does not replace hosted rehearsal. Recorded checks in
    [status](status.md) apply to the source revisions they name.
@@ -88,25 +82,19 @@ candidates or other workloads.
    release artifacts identify the qualified source. Follow
    [same-tag recovery](RELEASE.md#recovery) after a partial upload.
 
-At `f73b85d`, [clean i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
-failed on Rust 1.85 and 1.99 with default and no-default features because the
-unconditional `graviola` dependency rejected that architecture.
+### Target portability (`i686` and non-x86-64/AArch64)
 
-At `9acfc0b6`, the built-in TLS provider is selected on x86-64 and AArch64.
-On other architectures, its built-in TLS constructors return `UNIMPLEMENTED`
-after preliminary checks; provider-dependent key, certificate and verifier
-checks do not run. Plaintext and caller-owned rustls configurations remain
-available where the target and chosen provider support them. On that revision,
-the [required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
-passed with Rust 1.85 and stable. They cover plaintext RPC, built-in TLS error
-behavior, and caller-configured mTLS and rejection cases; the ring provider is
-confined to the test application. The earlier
-[prototype check](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
-also exercised plaintext and caller-configured mTLS.
-
-These checks do not establish full platform or deployment qualification. The
-core `pbrs` alloc-only profile and i686 alloc-cell Miri evidence do not cover
-the gRPC crate. Required checks must pass again on the final release SHA.
+Built-in TLS (`rustls-graviola` 0.2.1) is enabled on `x86_64` and `aarch64`
+(after an earlier unconditional dependency failed `i686` checks at
+[`f73b85d`](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)).
+On other architectures, built-in TLS constructors return `UNIMPLEMENTED` after
+preliminary checks, while plaintext and caller-owned rustls configurations
+(`ClientTls::from_rustls` / `ServerTls::from_rustls`) remain available where the
+target and chosen provider support them. The
+[required `i686` CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
+(and [earlier prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070))
+exercise plaintext RPC, built-in TLS error ordering, and caller-configured mTLS
+on Rust 1.85 and stable; they must pass again on the final release SHA.
 
 ## Native transport memory
 

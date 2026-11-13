@@ -61,10 +61,22 @@ descriptors instead.
 
    ```toml
    [dependencies]
-   pbrs = "0.2"
+   pbrs = "0.2.1"
 
    [build-dependencies]
-   pbrs = "0.2"
+   pbrs = "0.2.1"
+   ```
+
+   To keep code generation out of your runtime dependency graph, disable
+   default features on `[dependencies]` and enable only the runtime formats you
+   use:
+
+   ```toml
+   [dependencies]
+   pbrs = { version = "0.2.1", default-features = false, features = ["json", "text"] }
+
+   [build-dependencies]
+   pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
    ```
 
 2. Add a proto file at `proto/person.proto`:
@@ -119,19 +131,32 @@ For protos that define services, `compile_protos` emits native `pbrs-grpc`
 stubs by default. tonic users must opt in with
 [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md).
 
+### Cargo features (`pbrs`)
+
+| Feature | Default | What it enables |
+|---|---|---|
+| `std` | Yes | Standard-library runtime support (enabled automatically on non-`none` OS targets unless `alloc-only` is selected on a bare-metal target). |
+| `codegen` | Yes | Build-time generator (`pbrs::codegen`) and `protoc-gen-pbrs` binary support. |
+| `reflect` | Yes | `DescriptorPool` and `DynamicMessage` reflection APIs. |
+| `json` | Yes | ProtoJSON parsing and serialization (`serde` / `serde_json`), including `FieldMask` and `Any`. |
+| `text` | Yes | Protocol Buffers text-format parsing and serialization. |
+| `conformance` | Yes | Shared `pbrs::wkt` (`Timestamp`, `Duration`, `Any`, `FieldMask`, `Struct`, wrappers) and conformance types. |
+| `alloc-only` | No | Bare-metal (`target_os = "none"`) binary-wire runtime profile; see the [alloc-only guide](docs/guides/alloc-only.md). |
+
+A binary-only runtime consumer can use
+`pbrs = { version = "0.2.1", default-features = false }` to skip compiling code
+generation, reflection, JSON, text format, and bundled WKT bindings.
+
 ## Which crate do I need?
 
 <a id="workspace-crates"></a>
 
-| Need | Use | Published | Checkout candidate |
+| Need | Use | Version | Status |
 |---|---|---|---|
-| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](.) | `0.2.0` | `0.2.1` (unreleased) |
-| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc) | `0.1.0-alpha.2` (published) | `0.1.0-alpha.3` (unreleased preview) |
-| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic) | `0.1.0-alpha.2` (published) | `0.1.0-alpha.3` (unreleased preview) |
-| Runnable service with health and reflection | [`examples/greeter`](examples/greeter) | — | Example |
-
-The installation examples use published versions. Checkout candidates and
-newer APIs are not available from crates.io until released.
+| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.1` | Core runtime and generator |
+| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.0-alpha.3` | Preview |
+| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.0-alpha.3` | Preview |
+| Runnable service with health and reflection | [`examples/greeter`](examples/greeter/README.md) | — | Workspace example (`publish = false`) |
 
 ## Code generation options
 
@@ -142,7 +167,7 @@ build.
 | Task | Needs `protoc`? | Notes |
 |---|---|---|
 | Build the core `pbrs` crate | No | The crate uses a bundled `FileDescriptorSet`. |
-| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0-alpha.2` and later, or this checkout) | No | They build from checked descriptor sets. |
+| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0-alpha.3`, or older `0.1.0-alpha.2`) | No | They build from checked descriptor sets. |
 | Build the older `pbrs-grpc` / `protobuf-tonic` `0.1.0-alpha.1` crates | Yes | Those alphas predate the checked-descriptor change. |
 | Run `compile_protos` or `protoc-gen-pbrs` on application `.proto` files | Yes | `protoc` must be on `PATH`. |
 | Run `Config::compile_descriptor_set` from a checked descriptor set | No during the app build | Creating or updating the descriptor set still needs `protoc`. |
@@ -224,7 +249,7 @@ Or use the helper script:
 | `protobuf-tonic` adapter | You already use tonic 0.14+ and can use regenerated `pbrs` stubs instead of `prost` messages. Middleware must accept those message traits. | [`protobuf-tonic/README.md`](protobuf-tonic/README.md) |
 
 For a complete service with generated stubs, health checking, and server
-reflection, see [`examples/greeter`](examples/greeter).
+reflection, see [`examples/greeter`](examples/greeter/README.md).
 
 ## Support matrix
 
@@ -239,10 +264,10 @@ of **Protocol Buffers Edition 2024**.
 
 | Crate | Declared MSRV | CI checks | `protoc` | Stub default |
 |---|---|---|---|---|
-| [`pbrs`](.) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, `grpc-i686` 1.85 + stable, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic) | 1.88 | `msrv-tonic` 1.88 | Current source builds from the checked FileDescriptorSet. Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
-| [`examples/greeter`](examples/greeter) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
+| [`pbrs`](README.md) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
+| [`pbrs-grpc`](pbrs-grpc/README.md) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, `grpc-i686` 1.85 + stable, stable Linux + macOS | Builds from checked FileDescriptorSets (`0.1.0-alpha.3` and older `0.1.0-alpha.2`). Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic/README.md) | 1.88 | `msrv-tonic` 1.88 | Builds from the checked FileDescriptorSet (`0.1.0-alpha.3` and older `0.1.0-alpha.2`). Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`examples/greeter`](examples/greeter/README.md) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):
 
@@ -250,12 +275,11 @@ of **Protocol Buffers Edition 2024**.
 - Protocol Buffers Edition 2024 has descriptor and generated-consumer coverage
   for a [defined subset](docs/edition-2024.md); complete conformance beyond
   Edition 2023 is **not qualified**.
-- Architectures other than x86-64 and AArch64 do not have the native gRPC
-  built-in TLS provider in this checkout. See the [target and caller-config scope](docs/status.md)
-  for i686 checks and caller-owned TLS.
-- Published `pbrs-grpc` `0.1.0-alpha.2` failed to build for i686 Linux
-  with the dependencies in the recorded check; the checkout's i686 support
-  is separate. See the [native crate guide](pbrs-grpc/README.md).
+- Architectures other than x86-64 and AArch64 do not include the native gRPC
+  built-in TLS provider. Plaintext and caller-owned rustls configurations are
+  tested on `i686` Linux in `0.1.0-alpha.3` (the older published `0.1.0-alpha.2`
+  release failed to build on `i686`); see [implementation status](docs/status.md)
+  and the [native crate guide](pbrs-grpc/README.md).
 - Windows CI is **untested**.
 
 ## Performance and stack selection

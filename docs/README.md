@@ -13,14 +13,17 @@ Start with a working example, then open the guide for your task.
 | Retain selected byte payloads | [Byte storage and input lifetimes](guides/bytes.md) |
 | Store unique map entries in key order | [Ordered maps](guides/maps.md) |
 | Choose lazy or owned nested messages | [Storage choices](guides/codegen.md#owned-nested-message-fields), [codec benchmark commands](benchmarks/running.md#message-codecs) |
-| Move from tonic/prost | [Migration guide](guides/migration.md), [comparison](guides/comparison.md), [parity audit](parity.md) |
+| Move from tonic/prost | [Migration guide](guides/migration.md), [Tonic adapter](../protobuf-tonic/README.md), [comparison](guides/comparison.md), [parity audit](parity.md) |
+| Co-host with axum/Tower or serve gRPC-Web | [gRPC guide](grpc.md#message-codecs-and-tower-integration), [axum co-host example](../examples/axum-cohost/README.md) |
 | Add authentication and middleware | [Interceptors](guides/interceptors.md) |
 | Deploy and operate a service | [TLS, limits and shutdown](guides/production-service.md), [operations](guides/operations.md) |
-| Check release readiness | [Release checklist](release-readiness.md), [recorded checks](status.md), [release policy](RELEASE.md) |
+| Check release readiness | [Release checklist](release-readiness.md), [recorded checks](status.md), [release policy](RELEASE.md), [changelog](../CHANGELOG.md) |
 | Compare performance | [Results](benchmarks.md), [run benchmarks](benchmarks/running.md) |
 | Follow the implementation goal | [Goal and next milestone](ROADMAP.md#goal-and-next-milestone), [current work queue](../TODO.md) |
 
-For exact API signatures, use [docs.rs](https://docs.rs/pbrs) or run
+For exact API signatures, see [docs.rs/pbrs](https://docs.rs/pbrs),
+[docs.rs/pbrs-grpc](https://docs.rs/pbrs-grpc), and
+[docs.rs/protobuf-tonic](https://docs.rs/protobuf-tonic), or run
 `cargo doc --workspace --no-deps --open`. Check the
 [support policy](support-policy.md) and [implementation status](status.md)
 for supported versions and remaining compatibility work.

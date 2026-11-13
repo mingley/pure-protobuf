@@ -2,127 +2,55 @@
 
 [![Crates.io](https://img.shields.io/crates/v/pbrs-grpc.svg)](https://crates.io/crates/pbrs-grpc)
 [![Documentation](https://docs.rs/pbrs-grpc/badge.svg)](https://docs.rs/pbrs-grpc)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE-MIT)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/mingley/pure-protobuf/blob/main/LICENSE-MIT)
 
-`pbrs-grpc` is a gRPC client and server built on HTTP/2.
-It supports all four RPC shapes, generated [`pbrs`](../README.md) messages,
-TLS, and optional Prost and Tower integration. The transport uses an embedded
-`h2` backend and Tokio; the default TLS provider is rustls with Graviola.
+`pbrs-grpc` is a native HTTP/2 gRPC client and server for Rust. It supports all
+four RPC shapes, generated [`pbrs`](https://crates.io/crates/pbrs) messages,
+TLS/mTLS, gRPC-Web over HTTP/2, and optional Prost, Tower, and Tonic
+integration. The transport uses an embedded `h2` backend and Tokio.
 
-The published `pbrs-grpc` `0.1.0-alpha.2` failed to build for
-`i686-unknown-linux-gnu` with default and no-default features in the
-[published-package check](https://github.com/mingley/pure-protobuf/actions/runs/42864221138).
-On Rust 1.85 and 1.99.1, the resolved Graviola 0.2.1 dependency rejected that
-target. The separate `pbrs` core alloc-only profile and i686 tests do not
-cover the gRPC transport.
+Version `0.1.0-alpha.3` (paired with `pbrs` `0.2.1`) is a pre-release preview.
+See [implementation status](https://github.com/mingley/pure-protobuf/blob/main/docs/status.md)
+for tested features, the [scoreboard](https://github.com/mingley/pure-protobuf/blob/main/docs/scoreboard.md)
+for measurements, and the [support policy](https://github.com/mingley/pure-protobuf/blob/main/docs/support-policy.md)
+for qualification boundaries. Configure connection, RPC, message, and byte
+limits for your workload.
 
-At source `9acfc0b6`, the required [i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
-passed plaintext and caller-configured mTLS tests on Rust 1.85 and stable.
-Those checks cover this checkout, not the published alpha.
-
-This checkout selects the built-in TLS provider on x86-64 and AArch64. On
-other architectures, built-in TLS constructors return `UNIMPLEMENTED` once
-preliminary checks succeed. They cannot perform provider-dependent key,
-certificate or verifier checks. Applications can supply a trusted config through
-`ClientTls::from_rustls` or `ServerTls::from_rustls` where the target and
-provider support it. TLS failures do not fall back to plaintext.
-
-Published version `0.1.0-alpha.2` is a preview; this checkout targets the
-unreleased `0.1.0-alpha.3` preview. See the [project status](../docs/status.md)
-for tested features and the [scoreboard](../docs/scoreboard.md) for measurements.
-Configure connection, RPC, message, and byte limits for your workload.
-
-For a runnable introduction, start with [the greeter example](../examples/greeter/README.md).
-The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
+For a runnable introduction, start with
+[the greeter example](https://github.com/mingley/pure-protobuf/blob/main/examples/greeter/README.md).
+The [gRPC guide](https://github.com/mingley/pure-protobuf/blob/main/docs/grpc.md)
+links the full tutorials and protocol contracts.
 
 ## What it provides
 
 - Unary, client-streaming, server-streaming, and bidirectional calls.
-- Generated stubs using the `pbrs` `Parse` and `Serialize` traits.
-- TLS, compression, routing, and configurable resource limits.
-- Optional adapters for existing Prost messages and Tower services.
+- Generated client and server stubs using `pbrs` `Parse` and `Serialize` traits
+  (plus Tonic-shaped compat stubs via `Config::tonic_compat(true)`).
+- TLS/mTLS, gzip/deflate/optional zstd compression, multi-service `Router`,
+  `Endpoint` builder, and fail-fast resource limits.
+- Optional adapters for `prost::Message` codecs, Tower client/server middleware,
+  Tonic services, and HTTP/2 gRPC-Web (`application/grpc-web` and
+  `application/grpc-web-text`).
 
-Compressed streams reuse large serialization buffers for Prost and field-wise
-pbrs messages. Retention is limited to 4 MiB per buffer and 16 MiB process-wide,
-independently from decoded storage. Custom codecs keep their contiguous encoding
-path unless they opt in to append-only encoding. See the
-[resource ownership and capacity rules](../docs/resource-budgets.md#2-buffer-ownership).
+### TLS target portability
 
-Large compressed output can reuse its backing allocation between sends. Its
-idle tail and large serialization scratch share the same 16 MiB process-wide
-encode ledger, with a 4 MiB limit per backing allocation. Accounting uses the
-full backing capacity, including storage shared with an earlier immutable
-frame. Identity or mixed batches do not retain this output tail. Encoding
-failure or panic drops reusable storage while preserving completed frames.
-The [October 27 measurement record](../docs/evidence/decode-and-map-speed-20261027/README.md)
-retains allocation gains and remaining costs; it does not establish a general
-CPU improvement from reuse. The [October 28 record](../docs/evidence/optimizations-20261028/README.md)
-contains the later source-scoped transport comparison.
+On `x86_64` and `aarch64`, built-in TLS constructors (`ClientTls::webpki`,
+`ClientTls::ca`, `ServerTls::new`, `ServerTls::mtls`) use `rustls` with
+Graviola and WebPKI verification. On other architectures (including `i686`
+Linux, where the older published `0.1.0-alpha.2` release failed to build),
+built-in TLS constructors return `UNIMPLEMENTED`; supply a trusted rustls
+configuration and crypto provider via `ClientTls::from_rustls` or
+`ServerTls::from_rustls`. TLS failures never fall back to plaintext.
 
-## Optional features
+### Buffer retention bounds
 
-These opt-in features describe the unreleased checkout, planned for the next
-release. Published `0.1.0-alpha.2` provides only `otel` and `copy-counts`.
-
-| Feature | Use it for |
-|---|---|
-| `prost` | Existing `prost::Message` types on the native transport. |
-| `tower` | Client middleware or server co-hosting with axum/Hyper. |
-| `tonic` | Tonic transport adapters; requires Rust 1.88. |
-| `tonic-gzip` | Tonic's gzip codec; requires Rust 1.88. Native gzip needs no feature. |
-| `grpc-web` | Unary and server-streaming gRPC-Web on the native HTTP/2 listener. |
-| `otel` | OpenTelemetry metrics and traces with explicitly installed observers. |
-| `copy-counts` | User-space copy counters for benchmarks. |
-| `native-roots` | Client certificate trust from the operating system. |
-| `zstd` | Zstandard message compression; requires Rust 1.87. |
-
-For a checkout next to your project, enable the features you need, for example:
-
-```toml
-pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["grpc-web"] }
-```
-
-With `tower`, `Router::into_tower_service()` exposes native services as
-`tower::Service<http::Request<B>>` for axum/hyper co-hosting; health and
-reflection use the same router path. `Channel::tower_unary()`,
-`tower_server_streaming()`, `tower_client_streaming()` and `tower_bidi()` expose
-individual methods as Tower services. Caller-selected timeout, concurrency,
-load-shed and tracing layers wrap those services; the default `Channel` remains
-unbuffered. See [the gRPC guide](../docs/grpc.md#message-codecs-and-tower-integration)
-and [axum co-host example](../examples/axum-cohost/).
-
-Enable `zstd` only when you need `grpc-encoding: zstd`. The default feature
-set keeps the crate MSRV at Rust 1.85. The `zstd` feature uses `ruzstd` 0.9
-and therefore has MSRV 1.87; all requested compression levels map to
-`ruzstd`'s implemented `Fastest` mode (roughly zstd level 1).
-
-Published `0.1.0-alpha.2` does not support native gRPC-Web or its CORS
-builders. For browser clients on that release, use a proxy that translates
-gRPC-Web to native gRPC and handles CORS.
-
-The unreleased `grpc-web` feature and response-header builder shown below are
-available in this checkout and planned for the next release. The feature
-supports binary and text gRPC-Web content types for unary and server-streaming
-methods. Native preflight denies all origins by default.
-Configure an allowed origin with `ServerConfig::grpc_web_allow_origin` or allow
-all origins with `grpc_web_allow_any_origin`. These settings affect preflight;
-automatic response headers are off by default. Enable them with
-`grpc_web_cors_response_headers(true)` to apply the policy to recognized Web
-responses, including early errors and deadlines.
-
-Application-provided `access-control-allow-origin` and
-`access-control-expose-headers` metadata take precedence. If the application
-provides allow-origin, the server does not add default exposure; when it adds
-allow-origin itself, it adds `access-control-expose-headers: *` only if that
-header is absent. If a proxy appends CORS headers, leave automatic response
-headers off or have the proxy remove or replace upstream headers to avoid
-duplicate allow-origin values. Same-origin calls do not need CORS. Native
-preflight does not emit `access-control-allow-credentials`, and wildcard
-allow-origin cannot be used with credentials. In Fetch credentials mode
-`include`, `access-control-expose-headers: *` names a literal header rather
-than exposing all headers. Use a CORS layer or proxy for credentialed preflight
-and responses.
-For browser HTTP/1.1, use the [Tower/Hyper recipe](../docs/decisions/http1-grpc-web.md).
+Compressed streams reuse large serialization and output backing buffers up to
+4 MiB per allocation and 16 MiB process-wide, bounded independently of decoded
+message storage; encoding failure or panic drops reusable storage while
+preserving completed frames. See the
+[resource budget rules](https://github.com/mingley/pure-protobuf/blob/main/docs/resource-budgets.md#2-buffer-ownership),
+the [October 27 decode/map record](https://github.com/mingley/pure-protobuf/blob/main/docs/evidence/decode-and-map-speed-20261027/README.md),
+and the [October 28 transport record](https://github.com/mingley/pure-protobuf/blob/main/docs/evidence/optimizations-20261028/README.md).
 
 ## Installation
 
@@ -130,27 +58,22 @@ Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
 
 ```toml
 [dependencies]
-pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2" # Published preview
+pbrs = "0.2.1"
+pbrs-grpc = "0.1.0-alpha.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.2"
+pbrs = "0.2.1"
 ```
 
-A [published-package check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
-built and ran one unary greeter on x86-64 Linux with Rust 1.85.0 and 1.99.1;
-the run retains its resolved lockfiles. This checks the published `pbrs`
-`0.2.0` and `pbrs-grpc` `0.1.0-alpha.2`, not this checkout's candidate.
+From `0.1.0-alpha.2` onward, `pbrs-grpc` builds its internal service descriptors
+without `protoc` (only the older `0.1.0-alpha.1` archive required `protoc` to
+build the crate itself).
 
-From `0.1.0-alpha.2` on, `pbrs-grpc` builds from checked descriptor sets
-without `protoc`. The older `0.1.0-alpha.1` archive still needs `protoc` for
-its own build.
-
-The quickstart `compile_protos` step below still requires `protoc` for your own
-`.proto` files. To build application stubs without `protoc`, check in a
-descriptor set and use
-[`Config::compile_descriptor_set`](../docs/guides/codegen.md#generating-from-a-checked-descriptor-set).
+Compiling your own `.proto` files with `compile_protos` requires `protoc` on
+`PATH`. To build application stubs without `protoc`, check in a compiled
+descriptor set and call
+[`Config::compile_descriptor_set`](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/codegen.md#generating-from-a-checked-descriptor-set).
 
 ## Quickstart
 
@@ -185,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 3. Implement the server
 
 ```rust
-use pbrs_grpc::{Request, Response, Server, Status};
+use pbrs_grpc::{Request, Response, Status};
 
 include!(concat!(env!("OUT_DIR"), "/hello.rs"));
 
@@ -213,6 +136,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 4. Call the service
 
 ```rust
+use pbrs_grpc::Request;
+
+include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = GreeterClient::connect("127.0.0.1:50051").await?;
@@ -225,54 +152,111 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Optional features
+
+Default features keep the crate MSRV at **Rust 1.85** with native gzip/deflate
+compression and TLS. Enable optional features in `Cargo.toml` as needed:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.3", features = ["grpc-web", "tower"] }
+```
+
+| Feature | MSRV | Use it for |
+|---|---|---|
+| `prost` | 1.85 | Serving and calling `prost::Message` types on the native transport (`pbrs_grpc::codec::prost`). |
+| `tower` | 1.85 | `Router::into_tower_service()` for axum/Hyper co-hosting and `Channel::tower_*()` client services. |
+| `tonic` | 1.88 | Mounting native services in Tonic or Tonic services/clients on the native transport. |
+| `tonic-gzip` | 1.88 | Tonic's gzip codec alongside `tonic`. Native gzip needs no feature flag. |
+| `grpc-web` | 1.85 | Unary and server-streaming HTTP/2 gRPC-Web (`grpc-web` and base64 `grpc-web-text`) plus opt-in CORS. |
+| `otel` | 1.85 | OpenTelemetry metrics and trace propagation with explicitly installed observers. |
+| `native-roots` | 1.85 | Operating-system root certificate trust (`ClientTls::native_roots`). |
+| `zstd` | 1.87 | Zstandard (`grpc-encoding: zstd`) via `ruzstd` 0.9 (`Fastest` mode). |
+| `copy-counts` | 1.85 | User-space copy and scheduler counters for benchmarks. |
+
+*(Note: the older published `0.1.0-alpha.2` preview included only `otel` and
+`copy-counts`.)*
+
+### Tower and gRPC-Web notes
+
+With `tower`, `Router::into_tower_service()` exposes native services (including
+health and reflection) as `tower::Service<http::Request<B>>`, and
+`Channel::tower_unary()`, `tower_server_streaming()`, `tower_client_streaming()`,
+and `tower_bidi()` expose client calls to Tower timeout, concurrency,
+load-shed, and tracing layers while keeping the default `Channel` unbuffered.
+See [the gRPC guide](https://github.com/mingley/pure-protobuf/blob/main/docs/grpc.md#message-codecs-and-tower-integration)
+and [the axum co-host example](https://github.com/mingley/pure-protobuf/blob/main/examples/axum-cohost/README.md).
+
+With `grpc-web`, native preflight denies all origins by default. Configure
+allowed origins with `ServerConfig::grpc_web_allow_origin` or
+`grpc_web_allow_any_origin`, and opt into automatic response CORS headers on
+Web responses (including early errors and deadlines) with
+`grpc_web_cors_response_headers(true)`. Application-provided
+`access-control-allow-origin` and `access-control-expose-headers` metadata take
+precedence; leave automatic response headers off if an upstream proxy already
+adds CORS headers or if you need credentialed (`Access-Control-Allow-Credentials`)
+CORS policies. For browser HTTP/1.1, see the
+[Tower/Hyper recipe](https://github.com/mingley/pure-protobuf/blob/main/docs/decisions/http1-grpc-web.md).
+
 ## Capabilities
 
 | Area | What is available |
 |---|---|
-| RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](../docs/guides/rpc-shapes.md). |
-| gRPC-Web | Unreleased checkout: optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web, including `grpc-web-text` and an explicit CORS policy. |
-| Message codec | The `CodecMessage` trait abstracts native messages. pbrs messages use the default fast path: direct encode into frames, `Bytes` parsing, and shared large `bytes` segments. |
-| TLS and mTLS | Built-in constructors use `rustls` + Graviola and WebPKI verification. Caller-owned rustls configs/providers/resolvers are supported through `ServerTls::from_rustls` / `ClientTls::from_rustls`, with enforced ALPN `h2`; callers own custom verifier security and rotation/session policy. See the [caller-config contract](../docs/decisions/caller-rustls-config.md) and [production service guide](../docs/guides/production-service.md). |
-| Routing | `Router` composes multiple services on one TCP/TLS port. With the optional `tower` feature it can also be mounted as a tower service next to REST routes. |
-| Local IPC | Unix Domain Sockets (`serve_unix`, `connect_unix`) and in-memory duplex channels (`Channel::from_io`). |
-| HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, and oversize frames. |
-| Name resolution | Default direct `host:port`; opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:` targets. DNS refresh needs explicit `DnsConfig` bounds. |
+| RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/rpc-shapes.md). |
+| gRPC-Web | Optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web (`application/grpc-web` and `application/grpc-web-text`) with explicit CORS controls. |
+| Message codec | `CodecMessage` abstracts native messages. `pbrs` messages encode directly into frames, parse from `Bytes`, and share large `bytes` segments; optional `prost` adds `prost::Message` codecs. |
+| TLS and mTLS | Built-in constructors use `rustls` + Graviola and WebPKI/CA/CRL/SPIFFE verification on x86-64 and AArch64. Caller-owned rustls configs/providers are supported via `ServerTls::from_rustls` / `ClientTls::from_rustls` with enforced ALPN `h2`. See the [caller-config contract](https://github.com/mingley/pure-protobuf/blob/main/docs/decisions/caller-rustls-config.md) and [production service guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/production-service.md). |
+| Routing & connect info | `Router` composes multiple services on one port. Incoming requests carry Tonic-shaped `TcpConnectInfo`, `UdsConnectInfo`, and `TlsConnectInfo` extensions alongside direct `Rpc`/`Request` peer getters. |
+| Metadata | Typed ASCII and `-bin` metadata plus read-only raw wire inspection (`Metadata::get_raw`, `Metadata::get_all_raw`); reserved protocol headers stay hidden. |
+| Local IPC | Unix Domain Sockets (`serve_unix`, `connect_unix`) with peer credentials (`SO_PEERCRED` / `LOCAL_PEERCRED`) and in-memory duplex channels (`Channel::from_io`). |
+| HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, small-DATA floods, and oversize frames; optional adaptive flow-control windows (`adaptive_window`). |
+| Name resolution & `Endpoint` | Direct `host:port`, Tonic-style `Endpoint` (`origin`, `executor`, `connect_lazy`, `balance_list`, `balance_channel`), and opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. |
 | Load balancing | Default `pick_first`; opt-in `loadBalancingConfig` supports `pick_first`, `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, and `outlier_detection`. |
-| Retries and hedging | Sequential transparent retry is at most once per attempt and requires proof of non-execution. Service-config `retryPolicy` and unary `hedgingPolicy` are opt-in through `Channel::service_config` or resolver service config. Hedging has response-commitment and pushback limitations; see the [retry contract](../docs/retry-contract.md). |
-| HTTP CONNECT proxy | `HTTPS_PROXY` / `NO_PROXY` env support with CONNECT tunneling, optional Basic auth, and TLS end-to-end through the tunnel. |
-| Interceptors | Client and server interceptor pipelines with request context extensions. See the [interceptors guide](../docs/guides/interceptors.md). |
-| Operations | Built-in gRPC health checking (`grpc.health.v1`), server reflection (`grpc.reflection.v1`), channelz (`grpc.channelz.v1`), binary logging, ORCA load reports, and optional OpenTelemetry observers. See the [operations guide](../docs/guides/operations.md). |
+| Retries and hedging | At-most-once transparent retry on proven non-execution; opt-in service-config `retryPolicy` and unary `hedgingPolicy` via `Channel::service_config` or resolver config. Hedging has response-commitment and pushback limitations; see the [retry contract](https://github.com/mingley/pure-protobuf/blob/main/docs/retry-contract.md). |
+| HTTP CONNECT proxy | `HTTPS_PROXY` / `NO_PROXY` environment support with CONNECT tunneling, optional Basic auth, and end-to-end TLS. |
+| Interceptors | Client, server, and response interceptor pipelines with per-RPC `Extensions`. See the [interceptors guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/interceptors.md). |
+| Operations | Built-in health checking (`grpc.health.v1`), server reflection (`grpc.reflection.v1` and `v1alpha`), channelz (`grpc.channelz.v1`), binary logging, ORCA load reports, and optional OpenTelemetry observers. See the [operations guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/operations.md). |
 | Authorization | gRFC A43 JSON authorization policies for `Server` and `Router`, plus A59 audit logging hooks. |
-| Errors | Packed `google.rpc.Status` error details on `grpc-status-details-bin`. |
-| Large payloads | `bytes` fields of 4 KiB or more are parsed without copying; fields of 32 KiB or more set from `bytes::Bytes` are sent without copying. See [large payloads / zero-copy](../docs/zero-copy.md). |
+| Errors | Packed `google.rpc.Status` error details on `grpc-status-details-bin` (`ErrorDetails`). |
+| Large payloads | `bytes` fields of 4 KiB or more parse without copying; fields of 32 KiB or more set from `bytes::Bytes` send without copying. See [large payloads / zero-copy](https://github.com/mingley/pure-protobuf/blob/main/docs/zero-copy.md). |
 
 ## Configuration and behavior
 
 `pbrs-grpc` provides explicit resource limits and fail-fast admission controls.
 Connection and RPC counts are uncapped by default; configured transport limits
 do not bound application allocations or total process memory. See the
-[resource model](../docs/resource-budgets.md) and [framework comparison](../docs/guides/comparison.md).
+[resource model](https://github.com/mingley/pure-protobuf/blob/main/docs/resource-budgets.md)
+and [framework comparison](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/comparison.md).
 
 | Domain | `pbrs-grpc` invariant | Difference from common alternatives |
 |---|---|---|
-| Addressing | `host:port` string or opt-in resolver URI | Tonic uses `http://` or `https://` URIs. gRPC-Go also supports xDS resolver schemes; `pbrs-grpc` does not. |
+| Addressing | `host:port`, `Endpoint` URI, or opt-in resolver URI | Tonic uses `http://` or `https://` URIs. gRPC-Go also supports xDS resolver schemes; `pbrs-grpc` does not. |
 | Concurrency | `ServerConfig::max_concurrent_rpcs` enforces a cap | Overflow fails fast with `RESOURCE_EXHAUSTED` instead of unbounded queuing. |
 | Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs default on once an interval is set; `ChannelConfig::keep_alive_while_idle(false)` limits them to active RPCs. |
-| Retries | Sequential transparent retry is at most once per attempt; service-config retries and hedges are opt-in with bounded attempt counts | Application retries can use `Code::is_retryable`. Hedging has known commitment and pushback limitations; see the [retry contract](../docs/retry-contract.md). |
+| Retries | Sequential transparent retry is at most once per attempt; service-config retries and hedges are opt-in with bounded attempt counts | Application retries can use `Code::is_retryable`. Hedging has known commitment and pushback limitations; see the [retry contract](https://github.com/mingley/pure-protobuf/blob/main/docs/retry-contract.md). |
 
 xDS targets and async OAuth2/JWT credential providers are planned work.
-HTTP CONNECT proxy selection currently uses `HTTPS_PROXY` / `NO_PROXY`
-environment variables on each dial. The [support policy](../docs/support-policy.md)
+HTTP CONNECT proxy selection uses `HTTPS_PROXY` / `NO_PROXY` environment
+variables on each dial. The
+[support policy](https://github.com/mingley/pure-protobuf/blob/main/docs/support-policy.md)
 records qualification boundaries.
 
 ## More documentation
 
-- [Primary gRPC guide](../docs/grpc.md) — end-to-end service guide.
-- [Implementing RPC call shapes](../docs/guides/rpc-shapes.md) — unary and streaming walkthroughs.
-- [Production service and TLS](../docs/guides/production-service.md) — certificates, mTLS, timeouts, and drain.
-- [Interceptors and overlays](../docs/guides/interceptors.md) — context propagation and middleware.
-- [Operations and diagnostics](../docs/guides/operations.md) — health checking, reflection, and tuning.
-- [Code generation](../docs/guides/codegen.md) — `protoc` integration, stub options, and build scripts.
-- [Framework comparison](../docs/guides/comparison.md) — detailed comparison with Tonic and gRPC-Go.
-- [Large payloads / zero-copy](../docs/zero-copy.md) — where large `bytes` payloads are and are not copied.
-- [Architecture and design](../docs/architecture.md) — kernel internals and HTTP/2 framing architecture.
+- [Primary gRPC guide](https://github.com/mingley/pure-protobuf/blob/main/docs/grpc.md) — end-to-end service guide.
+- [Implementing RPC call shapes](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/rpc-shapes.md) — unary and streaming walkthroughs.
+- [Production service and TLS](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/production-service.md) — certificates, mTLS, timeouts, and drain.
+- [Interceptors and overlays](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/interceptors.md) — context propagation and middleware.
+- [Operations and diagnostics](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/operations.md) — health checking, reflection, and tuning.
+- [Code generation](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/codegen.md) — `protoc` integration, stub options, and build scripts.
+- [Framework comparison](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/comparison.md) — detailed comparison with Tonic and gRPC-Go.
+- [Large payloads / zero-copy](https://github.com/mingley/pure-protobuf/blob/main/docs/zero-copy.md) — where large `bytes` payloads are and are not copied.
+- [Architecture and design](https://github.com/mingley/pure-protobuf/blob/main/docs/architecture.md) — kernel internals and HTTP/2 framing architecture.
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/mingley/pure-protobuf/blob/main/LICENSE-APACHE))
+- MIT License ([LICENSE-MIT](https://github.com/mingley/pure-protobuf/blob/main/LICENSE-MIT))
+
+at your option.

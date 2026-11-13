@@ -1,8 +1,7 @@
 # Selected byte storage
 
-Use `Config::bytes(paths)` to store selected protobuf `bytes` fields as
-`ProtoBytes`, backed by immutable `bytes::Bytes`. This option is part of the
-unreleased `pbrs` 0.2.1 candidate.
+Use `Config::bytes(paths)` (added in `pbrs` `0.2.1`) to store selected protobuf
+`bytes` fields as `ProtoBytes`, backed by immutable `bytes::Bytes`.
 
 For `proto/blob.proto`:
 

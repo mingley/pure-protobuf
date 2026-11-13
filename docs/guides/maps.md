@@ -1,7 +1,7 @@
 # Ordered maps
 
-Use `Config::btree_map(paths)` for unique map storage with keys in order.
-This option is part of the unreleased `pbrs` 0.2.1 candidate.
+Use `Config::btree_map(paths)` (added in `pbrs` `0.2.1`) for unique map storage
+with keys in order.
 
 For `proto/inventory.proto`:
 

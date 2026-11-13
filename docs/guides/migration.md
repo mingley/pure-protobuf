@@ -63,14 +63,12 @@ map iteration order can differ.
 ## 2. Using pbrs with Existing Tonic Services
 
 Keep Tonic when you want its routing, transport, and middleware stack. Generate
-Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter. This
-example uses the published preview; the checkout's `0.1.0-alpha.3` candidate
-is not yet published.
+Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter:
 
 ```toml
 [dependencies]
-pbrs = "0.2"
-protobuf-tonic = "0.1.0-alpha.2" # Published preview
+pbrs = "0.2.1"
+protobuf-tonic = "0.1.0-alpha.3"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 
@@ -85,8 +83,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This generates `#[tonic::async_trait]` service stubs. They use `pbrs` message
-types through `protobuf-tonic::ProtobufCodec` instead of `prost::Message`.
+This generates native async Tonic service traits and client/server stubs using
+`pbrs` message types through `protobuf_tonic::ProtobufCodec` instead of
+`prost::Message`.
 
 #### Keep an existing `tonic-prost-build` pipeline
 
@@ -111,11 +110,10 @@ streaming calls generated this way with `tonic-prost-build` 0.14.6.
 An application may still use both representations. Run the generator once for
 each package or message set: retain the default tonic/prost codec for existing
 packages, and set `codec_path` only for pbrs-backed packages. Both generated
-service modules can be mounted on the same tonic server. In the unreleased
-checkout, native services can use the same pattern by combining the normal
-pbrs generator with `pbrs::codegen::prost_stubs` and the `pbrs-grpc/prost`
-feature. This is planned for the next release. Published `0.1.0-alpha.2`
-does not include the `prost` feature.
+service modules can be mounted on the same tonic server. Native services can
+use the same pattern by combining the normal `pbrs` generator with
+`pbrs::codegen::prost_stubs` and the `pbrs-grpc/prost` feature (added in
+`0.1.0-alpha.3`; the older `0.1.0-alpha.2` release did not include `prost`).
 
 At a migration boundary, convert wire-compatible representations without a
 generated field-by-field adapter:
@@ -161,12 +159,11 @@ The generated client/server names stay familiar, but they run on
 
 #### Mount a native service in a Tonic transport
 
-The `tonic` feature is available in the unreleased checkout, planned for the
-next release. Published `0.1.0-alpha.2` does not include it. For a checkout
-next to your project, enable it with:
+Enable the `tonic` feature in `Cargo.toml` (added in `0.1.0-alpha.3`; not
+present in the older `0.1.0-alpha.2` release):
 
 ```toml
-pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tonic"] }
+pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tonic"] }
 ```
 
 This feature requires Rust 1.88. Use it when an existing framework requires
@@ -315,12 +312,12 @@ request when the peer omits gzip from `grpc-accept-encoding`.
 
 ### Tower middleware parity
 
-The unreleased checkout's optional `tower` feature supports Tonic-style
-middleware composition on the native transport. Published `0.1.0-alpha.2`
-does not include it. For a checkout next to your project:
+The optional `tower` feature supports Tonic-style middleware composition on the
+native transport (added in `0.1.0-alpha.3`; not present in the older
+`0.1.0-alpha.2` release):
 
 ```toml
-pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tower"] }
 ```
 
 | Tonic middleware | Native migration path | Delta |

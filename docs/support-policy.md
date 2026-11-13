@@ -11,9 +11,9 @@ promised.
 
 | Crate | Source manifest version | MSRV | MSRV CI job |
 |---|---|---|---|
-| `pbrs` | `0.2.1` (unreleased candidate) | 1.85 (`rust-version`) | `msrv-core` |
-| `pbrs-grpc` | `0.1.0-alpha.3` (unreleased candidate) | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
-| `protobuf-tonic` | `0.1.0-alpha.3` (unreleased candidate) | 1.88 (`rust-version`) | `msrv-tonic` |
+| `pbrs` | `0.2.1` | 1.85 (`rust-version`) | `msrv-core` |
+| `pbrs-grpc` | `0.1.0-alpha.3` (preview) | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
+| `protobuf-tonic` | `0.1.0-alpha.3` (preview) | 1.88 (`rust-version`) | `msrv-tonic` |
 
 The table records source versions; check the registry and release evidence
 before treating them as published versions. The proposed support policy is

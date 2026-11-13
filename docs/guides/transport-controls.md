@@ -3,8 +3,8 @@
 TCP tuning, HTTP/2 keepalive and task scheduling are independent choices.
 Configure them before connecting or starting a server.
 
-The endpoint-origin APIs below are additions in the unreleased `pbrs-grpc`
-0.1.0-alpha.3 candidate.
+The endpoint-origin APIs below are available starting in `pbrs-grpc`
+`0.1.0-alpha.3`.
 
 ## Client configuration
 

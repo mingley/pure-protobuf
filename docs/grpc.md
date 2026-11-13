@@ -24,18 +24,16 @@ messages. See [architecture](architecture.md) for transport and runtime details.
 
 ### Installation
 
-Add the published `pbrs` and `pbrs-grpc` releases from crates.io to
-`Cargo.toml`. This checkout targets unreleased `0.2.1` and `0.1.0-alpha.3`
-candidates; its newer APIs may not be available in the published preview:
+Add `pbrs` and `pbrs-grpc` from crates.io to `Cargo.toml`:
 
 ```toml
 [dependencies]
-pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2" # Published preview
+pbrs = "0.2.1"
+pbrs-grpc = "0.1.0-alpha.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.2"
+pbrs = "0.2.1"
 ```
 
 ### Protocol definition (`proto/hello.proto`)
@@ -136,8 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 For complete examples, channel setup, and cancellation behavior, see the
 [RPC shapes guide](guides/rpc-shapes.md).
 
-In the unreleased checkout, the native response decoder uses an initial
-`grpc-status` on non-200 HTTP responses when present. If it is absent, the
+The native response decoder uses an initial `grpc-status` on non-200 HTTP
+responses when present. If it is absent, the
 client maps the HTTP status using the [gRPC fallback table](https://github.com/grpc/grpc/blob/master/doc/http-grpc-status-mapping.md)
 without waiting for the error body. A malformed initial `grpc-status` yields
 `UNKNOWN`. An initial OK permits normal message decoding. When framing and
@@ -174,12 +172,11 @@ segments for large `bytes` values. Hand-written or foreign message types can
 implement `CodecMessage` and then use the same `Channel`, `Rpc`, `Streaming`,
 and `StreamSender` APIs for all four RPC shapes.
 
-The optional `tower` feature in the unreleased checkout adds integration points
-without changing the default dependency graph. Published `0.1.0-alpha.2`
-does not include it. For a checkout next to your project:
+The optional `tower` feature adds integration points without changing the
+default dependency graph (older `0.1.0-alpha.2` releases did not include it):
 
 ```toml
-pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tower"] }
 ```
 
 - `Router::into_tower_service()` exposes a native router as
@@ -237,15 +234,12 @@ and bidirectional calls that future ends at response headers. Use
 
 ## gRPC-Web
 
-The native `grpc-web` feature and CORS builders below are unreleased, available
-in this checkout and planned for the next release. Published
-`0.1.0-alpha.2` has no native gRPC-Web support or preflight builders. For that
-release, use a proxy that translates gRPC-Web to native gRPC and handles CORS.
-
-For a checkout next to your project, enable `grpc-web`:
+Enable the optional `grpc-web` feature to accept HTTP/2 gRPC-Web requests on
+the native listener (for older `0.1.0-alpha.2` releases, use an external proxy
+to translate gRPC-Web and handle CORS):
 
 ```toml
-pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["grpc-web"] }
+pbrs-grpc = { version = "0.1.0-alpha.3", features = ["grpc-web"] }
 ```
 
 With the feature enabled, the server accepts `application/grpc-web`,
@@ -260,8 +254,8 @@ The native listener serves HTTP/2. For browser HTTP/1.1, the
 [axum co-host example](../examples/axum-cohost/) wraps the Tower adapter in
 `tonic_web::GrpcWebLayer` and uses Hyper's automatic connection server;
 see the [HTTP/1.1 decision](decisions/http1-grpc-web.md). Native gRPC-Web
-preflight denies all origins by default. In the unreleased checkout, allow an
-origin and opt into automatic response headers with:
+preflight denies all origins by default. Allow an origin and opt into automatic
+response headers with:
 
 ```rust
 let config = pbrs_grpc::ServerConfig::new()

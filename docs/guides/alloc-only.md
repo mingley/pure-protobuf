@@ -1,26 +1,26 @@
 # Alloc-only messages
 
-The unreleased 0.2.1 candidate can generate native binary messages for
-`thumbv7em-none-eabi`. Generation runs on a host with `std`; the target runtime
-uses `core` and `alloc`.
+`pbrs` `0.2.1` can generate native binary messages for `thumbv7em-none-eabi`.
+Generation runs on a host with `std`; the target runtime uses `core` and
+`alloc`.
 
 The target needs a heap allocator, pointer compare-and-swap and 32-bit atomics.
 Your firmware supplies the allocator and startup code. This profile does not
 supply a gRPC transport, reflection, JSON/text, or the `rust_out` compatibility
 runtime.
 
-Use a repository checkout while this version is unpublished. These paths assume
-your application sits next to the `pure-protobuf` checkout:
+Configure Cargo resolver 2 so host codegen features do not unify into the
+bare-metal runtime dependency:
 
 ```toml
 [workspace]
 resolver = "2"
 
 [dependencies]
-pbrs = { path = "../pure-protobuf", default-features = false, features = ["alloc-only"] }
+pbrs = { version = "0.2.1", default-features = false, features = ["alloc-only"] }
 
 [build-dependencies]
-pbrs = { path = "../pure-protobuf", default-features = false, features = ["codegen"] }
+pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
 ```
 
 Resolver 2 keeps the host generator's std features separate from the target

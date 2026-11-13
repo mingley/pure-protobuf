@@ -1,176 +1,101 @@
 # Implementation status
 
-`pbrs` provides protobuf messages, code generation, reflection, JSON and text
-format. `pbrs-grpc` provides the native HTTP/2 client and server;
-`protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
-[documentation index](README.md) for working examples and task guides.
+`pbrs` (`0.2.1`) provides Protocol Buffers messages, code generation,
+reflection, ProtoJSON (including `FieldMask` and `Any`), and text format.
+`pbrs-grpc` (`0.1.0-alpha.3` preview) provides the native HTTP/2 gRPC client
+and server; `protobuf-tonic` (`0.1.0-alpha.3` preview) integrates `pbrs`
+messages with tonic 0.14+. Start with the [documentation index](README.md) for
+working examples and task guides.
 
-At source [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
-all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027919),
-five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027747)
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42873027995)
-passed. Optional Miri/sanitizer and fuzz jobs were skipped; the parity audit
-includes known gaps. These results do not qualify later source revisions.
+## Current source and release-rehearsal records
 
-At source [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618),
-all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163563),
-five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163478),
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42810163526)
-passed. Optional fuzz and sanitizer jobs were skipped; the parity audit includes
-known gaps. All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42797917914)
-passed at `cab0e580`; that run did not test 9ac.
+- At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
+  all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027919),
+  five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027747),
+  and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42873027995)
+  passed; its [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
+  and [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42882645797)
+  verified all three packaged crates, the CycloneDX SBOM, and five provenance
+  attestations (see the [release checklist](release-readiness.md#candidate-versions)).
+  Optional Miri/sanitizer and fuzz jobs were skipped; the parity audit includes
+  known gaps, and later commits require their own exact-SHA CI.
+- At [`9acfc0b6`](https://github.com/mingley/pure-protobuf/commit/9acfc0b6ceb8e8857109ff487402aa6512202618),
+  all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
+  (including the required `i686` plaintext and caller-configured mTLS cells on
+  Rust 1.85 and stable), five [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42810163478),
+  the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42810163526),
+  and its [release dry run](https://github.com/mingley/pure-protobuf/actions/runs/42817437789) /
+  [readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492) passed.
+- All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42797917914)
+  passed at `cab0e580` (and earlier at
+  [`f73b85d`](https://github.com/mingley/pure-protobuf/actions/runs/42783426107) and
+  `0685d7f6`), alongside [streaming ownership checks](https://github.com/mingley/pure-protobuf/actions/runs/42782758596)
+  and [`10d94697` Miri](https://github.com/mingley/pure-protobuf/actions/runs/42200175953)
+  (which includes interpreted `i686` checks for the `alloc-only` publication cell).
+- Earlier CI, compatibility, parity, and dry-run provenance records remain
+  retained for [`5ff80d57`](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)
+  ([readback](https://github.com/mingley/pure-protobuf/actions/runs/42795147276),
+  [attestation](https://github.com/mingley/pure-protobuf/attestations/65745378)),
+  [`5fe70efd`](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
+  ([readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)),
+  [`1e6174f2`](https://github.com/mingley/pure-protobuf/actions/runs/42726308637),
+  [713038c7](https://github.com/mingley/pure-protobuf/actions/runs/42741860995),
+  [001d0b8b](https://github.com/mingley/pure-protobuf/actions/runs/42718098243),
+  [4037304c](https://github.com/mingley/pure-protobuf/actions/runs/42705533856),
+  [4a2d8e26](https://github.com/mingley/pure-protobuf/actions/runs/42694074846),
+  [6024ac88](https://github.com/mingley/pure-protobuf/actions/runs/42682463666),
+  [1472791](https://github.com/mingley/pure-protobuf/actions/runs/42530248925),
+  and [10d94697](https://github.com/mingley/pure-protobuf/actions/runs/42205359709),
+  plus the [11683-to-f73 shared-host dev-loop audit](https://github.com/mingley/pure-protobuf/actions/runs/42792051248).
 
-Earlier, all 12 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790264957),
-five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42790265148)
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42790265038)
-passed at [`5ff80d57`](https://github.com/mingley/pure-protobuf/commit/5ff80d578fb31445d5987535f3522bfb2a4e72fd).
-Changes from [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f)
-to 5ff were documentation only. All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42783426107)
-passed at f73; focused [streaming ownership checks](https://github.com/mingley/pure-protobuf/actions/runs/42782758596)
-also passed using a test-only overlay.
+Built-in native TLS (`rustls-graviola` 0.2.1) is selected on `x86_64` and
+`aarch64`. On other architectures (including `i686-unknown-linux-gnu`, where an
+earlier unconditional `graviola` dependency failed at
+[`f73b85d`](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)),
+built-in TLS constructors return `UNIMPLEMENTED` after preliminary checks, and
+applications can supply a trusted rustls configuration through
+`ClientTls::from_rustls` / `ServerTls::from_rustls`.
 
-The [11683-to-f73 dev-loop comparison](https://github.com/mingley/pure-protobuf/actions/runs/42783219046)
-had 1,634 common cells and no added or removed cells. The workflow succeeded,
-but the advisory comparison exited 1. Across implementations it reported
-252 syscall and 352 futex-proxy regression rows, 236 and 373 improvement rows,
-one allocation-byte row each way, and eight additional absolute picker budget
-rows. Instruction counts were unavailable because perf and Valgrind were not
-available; the futex proxy counts syscalls, not lock acquisitions. The [raw artifact](https://github.com/mingley/pure-protobuf/actions/runs/42783219046/artifacts/13751423630)
-and [independent audit](https://github.com/mingley/pure-protobuf/actions/runs/42792051248)
-retain the scope. These shared-host observations do not establish a cause or
-overall ranking.
+## Storage, codegen, and runtime profiles
 
-Earlier, source `5fe70efd` passed its [CI](https://github.com/mingley/pure-protobuf/actions/runs/42768284086),
-[compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42768284001)
-and [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42768284231).
-All six [Miri lanes](https://github.com/mingley/pure-protobuf/actions/runs/42763730693)
-passed at `0685d7f6`. Changes from 0685 through the docs-only `8e32db23`
-update affected documentation and CI setup, not runtime source.
-
-The earlier [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42200175988)
-at `10d94697` includes known differences as well as successful comparisons.
-That revision's [Miri record](https://github.com/mingley/pure-protobuf/actions/runs/42200175953)
-also includes interpreted i686 checks for the alloc publication cell. The other
-lanes do not establish 32-bit coverage.
-
-At [`f73b85d`](https://github.com/mingley/pure-protobuf/commit/f73b85d067ea861fe36f23536153e4c5add3137f), [native gRPC i686 checks](https://github.com/mingley/pure-protobuf/actions/runs/42787512926)
-failed on Rust 1.85 and 1.99 with both default and no-default features. The
-unconditional `rustls-graviola` dependency uses `graviola` 0.2.1, which rejects
-`i686-unknown-linux-gnu` at compile time. This is separate from the core
-`pbrs` alloc-only profile and i686 alloc-cell Miri evidence; it does not
-establish gRPC support for other targets.
-
-The current source selects built-in TLS on x86-64 and AArch64. On other
-architectures, built-in TLS constructors return `UNIMPLEMENTED` once
-preliminary checks succeed; provider-dependent key, certificate and verifier
-checks do not run. Callers can supply their own rustls config. The
-[required i686 CI cells](https://github.com/mingley/pure-protobuf/actions/runs/42810163563)
-passed on `9acfc0b6` with Rust 1.85 and stable, covering plaintext RPC,
-built-in TLS errors, and caller-configured mTLS and rejection cases. Ring was
-used only in the test application. The
-[earlier prototype](https://github.com/mingley/pure-protobuf/actions/runs/42789266070)
-exercised plaintext and caller-configured mTLS with Rust 1.85 and 1.99. These
-checks do not qualify a later release source or establish support for other
-targets.
-
-Choose the default lazy message layout for sparse reads and unchanged
-forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
-for complete traversal, or [`boxed(path)`](guides/codegen.md#box-selected-nested-fields)
-for selected singular children. The opt-in
-[safe-default profile](guides/codegen.md#safe-generated-defaults) supports
-forbid-unsafe generated consumers; runtime dependencies retain their own
-unsafe implementations. The
-[namespace controls](../tests/proof/namespace_symbols/README.md) cover names
-such as `Default`, `Some`, `pbrs`, `std` and `core`, plus runtime aliases,
-while preserving user paths and literals.
-
-[`Config::bytes(paths)`](guides/bytes.md) selects shared `ProtoBytes` storage
-with owned shared getters and valid generated defaults. Shared input can be
-retained; borrowed input copies payloads, and older eager parents can also copy.
-
-The [field-view consumers](../tests/proof/field_views/README.md) check 25 schema
-cases across four profiles, including accessor collisions and unchanged valid
-APIs. Map removal preserves unrelated duplicate-key winners and repairs an
-existing index. Its [cost record](evidence/map-removal-20261106/README.md) retains
-small-map regressions and the remaining target-deletion difference from Prost.
-
-Direct endpoints support URI origins independently of dialing and TLS;
-the [transport guide](guides/transport-controls.md#request-origin-and-dial-target)
-explains logical request scheme, authority and clone overrides. The
-[benchmark results](benchmarks.md) retain local naming gains, safe-default
-costs and origin overhead alongside earlier results. Full tonic/prost parity
-and an overall performance ranking remain unproven.
-
-Next comparisons should cover default nested full reads, string-key map
-lookup allocations with small-map controls, compression using the same Prost
-codec, and matched consumer builds.
-
-Selected [ordered maps](guides/maps.md) use unique key-sorted storage and typed
-views. Regenerate matching ancestors to reach that storage during encoding;
-older lazy ancestors can retain unsorted or duplicate-key wire. Nested-map JSON
-uses resolved descriptors, including imported and recursive children.
-
-The [explicit alloc-only profile](guides/alloc-only.md) compiles concrete native
-and Prost messages for `thumbv7em-none-eabi`, with std host codegen kept separate.
-Five generated profiles pass std-backed host functional checks. Firmware and
-other targets remain unverified; reflection, formats, transports and the
-`rust_out` ABI stay std-only. Existing no-default builds retain std, and the
-`std` feature wins when enabled.
-
-Static balance helpers preserve per-endpoint executors and full URI identities.
-RPCs use the selected endpoint's authority unless `Channel::origin` pins an
-authority on that clone. Connection settings remain shared; per-endpoint
-origins, TLS and hostname lookup remain unsupported. The
-[transport guide](guides/transport-controls.md#connection-executors) explains
-how configured channel getters differ from selected wire routing.
-See the [parity summary](parity.md) and
-[API comparison](guides/comparison.md) for tested behavior and boundaries.
-
-At `9acfc0b6`, the [release dry run](https://github.com/mingley/pure-protobuf/actions/runs/42817437789)
-packaged all three candidates after its exact-source CI passed. The
-[independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42863449492)
-checked the archives, SBOM, CI context and all five attested subjects. The
-[release checklist](release-readiness.md#candidate-versions) records the
-artifact and limits. No crate was published; later source needs its own checks.
-
-The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
-check the registry before treating them as published. The [5ff release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42794817426)
-used that revision's successful CI in dry-run mode, packaged all three crates,
-and produced a CycloneDX SBOM and a [five-subject attestation](https://github.com/mingley/pure-protobuf/attestations/65745378).
-An [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42795147276)
-verified the manifests, selected source files, SBOM and CI context. Its
-[evidence artifact](https://github.com/mingley/pure-protobuf/actions/runs/42794817426/artifacts/13752703565)
-has ZIP SHA-256 `368062a9c29bcd3964d35a0e7f3f932e6059e07471374a953a8b094bc9eaa028`
-and expires February 8, 2027. Signed-tag verification, crates.io authentication,
-crate uploads and GitHub Release creation were skipped. An eventual release
-needs the same checks on its final source revision.
-
-The [earlier 5fe rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42773096505)
-and [readback](https://github.com/mingley/pure-protobuf/actions/runs/42773426845)
-retain their [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42773096505/artifacts/13743130290)
-and [attestation](https://github.com/mingley/pure-protobuf/attestations/65693055).
-That ZIP has SHA-256 `c2cba1ae8c7703e148a7b8e07cf3e1183c4d585da857655f3918c30b527ba69e`
-and expires February 8, 2027.
-
-The earlier [`1e6174f2` rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42726308637)
-retains its [artifact](https://github.com/mingley/pure-protobuf/actions/runs/42726308637/artifacts/13722132862)
-with SHA-256 `8c9ce25b8d9a5c776c6bc2a8ca448383e5e67e5ec6448e71e46d431088de1be3`
-and its [attestation](https://github.com/mingley/pure-protobuf/attestations/65589785).
-Its artifact expires February 8, 2027.
-
-Earlier rehearsals are available for
-[713038c7](https://github.com/mingley/pure-protobuf/actions/runs/42741860995),
-[001d0b8b](https://github.com/mingley/pure-protobuf/actions/runs/42718098243),
-[4037304c](https://github.com/mingley/pure-protobuf/actions/runs/42705533856),
-[4a2d8e26](https://github.com/mingley/pure-protobuf/actions/runs/42694074846),
-[6024ac88](https://github.com/mingley/pure-protobuf/actions/runs/42682463666),
-[1472791](https://github.com/mingley/pure-protobuf/actions/runs/42530248925),
-and [10d94697](https://github.com/mingley/pure-protobuf/actions/runs/42205359709).
+- **Runtime/build feature split**: `pbrs` `default-features = false` omits
+  `codegen`, `conformance`, `reflect`, `json`, and `text` so binary-only
+  runtime consumers compile only the wire kernel; format/reflection features
+  can be re-enabled selectively.
+- **Message layouts**: choose the default lazy layout for sparse reads and
+  unchanged forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
+  for full traversal, or [`boxed(path)`](guides/codegen.md#box-selected-nested-fields)
+  for selected singular children. Opt-in
+  [`safe_message_defaults(true)`](guides/codegen.md#safe-generated-defaults)
+  supports `#![forbid(unsafe_code)]` in generated bindings while runtime
+  dependencies retain their own scoped unsafe blocks.
+- **Bytes, ordered maps, and namespace hygiene**:
+  [`Config::bytes(paths)`](guides/bytes.md) selects shared `ProtoBytes` storage
+  with owned shared getters; [ordered maps](guides/maps.md)
+  (`Config::btree_map(paths)`) use key-sorted `TreeMap` storage; nested-map
+  ProtoJSON and `FieldMask` JSON are supported;
+  [namespace controls](../tests/proof/namespace_symbols/README.md) and
+  [field-view collision handling](../tests/proof/field_views/README.md) keep
+  colliding schema names (`Default`, `Some`, `Send`, `Arc`, `SELF`, `pbrs`,
+  `std`, `core`) valid Rust; map removal preserves unrelated duplicate-key
+  winners ([cost record](evidence/map-removal-20261106/README.md)).
+- **Explicit `alloc-only` profile**: [Cortex native/Prost bindings](guides/alloc-only.md)
+  compile for `thumbv7em-none-eabi` with host `std` codegen kept separate.
+  Reflection, JSON/text, transports, and the `rust_out` ABI stay `std`-only,
+  and `std` wins if unified.
+- **Endpoint origins and balanced channels**: direct endpoints support logical
+  URI origins independently of dialing and TLS
+  ([transport guide](guides/transport-controls.md#request-origin-and-dial-target)),
+  and static/watched balanced channels preserve per-endpoint executors and full
+  URI authorities ([executor notes](guides/transport-controls.md#connection-executors)).
+  See the [benchmark results](benchmarks.md), [parity summary](parity.md), and
+  [API comparison](guides/comparison.md) for measured gains, remaining losses,
+  and boundaries.
 
 Sustained production qualification remains open; use the
-[release checklist](release-readiness.md) to track candidate evidence, the
-[release policy](RELEASE.md) for requirements, and the [work queue](../TODO.md)
-for implementation work.
+[release checklist](release-readiness.md) to track release evidence, the
+[release policy](RELEASE.md) for publishing gates, and the
+[work queue](../TODO.md) for active tasks.
 
 The [November 5 status history](evidence/status-history-20261105.md) preserves
 earlier checks and measurements with their original source revisions. The
@@ -389,8 +314,9 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 
 - **Certificate verification**: Built-in `ClientTls::webpki` and `ClientTls::ca` constructors verify the server using WebPKI or a configured CA. `ClientTls::from_rustls` retains the caller's verification policy; callers must provide an authenticating verifier. The wrapper cannot certify an opaque verifier; disabling verification is unsupported. There is no built-in skip-verify constructor.
 - **ALPN requirement**: every TLS handshake requires ALPN `h2`.
-- **Peer information**: mTLS peer identities are exposed through `Rpc::peer_identity`; Unix caller credentials (`SO_PEERCRED`) are exposed through `Rpc::peer_cred`.
+- **Peer information**: mTLS peer identities are exposed through `Rpc::peer_identity`; Unix caller credentials (`SO_PEERCRED` / `LOCAL_PEERCRED`) are exposed through `Rpc::peer_cred`; incoming requests also carry Tonic-shaped `TcpConnectInfo`, `UdsConnectInfo`, and `TlsConnectInfo` extensions.
 - **In-process channels**: `Channel::from_io` provides memory-backed streaming without socket overhead, but does not perform transparent retry or connection pooling.
+- **Adapter and browser features**: optional `prost`, `tower`, `tonic`, `tonic-gzip`, `zstd`, `native-roots`, and HTTP/2 `grpc-web` (`application/grpc-web` and `application/grpc-web-text` unary/server-streaming with opt-in CORS) ship behind Cargo features on `pbrs-grpc`; `protobuf-tonic` additionally provides `prost_to_pbrs` and `pbrs_to_prost` wire-conversion helpers.
 
 ### Name Resolution, Load Balancing, Retry, and Proxy
 
@@ -407,7 +333,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 ### Messaging and Protocol Limits
 
 - **Message caps**: inbound messages are capped at 4 MiB by default through `max_decoding_message_size`; oversize frames fail with `Code::ResourceExhausted`.
-- **Metadata and trailers**: ASCII metadata and binary `-bin` trailers are supported. OK-path custom trailers are available through `Response::trailers` and `Streaming::trailers`.
+- **Metadata and trailers**: ASCII metadata and binary `-bin` trailers are supported (with ASCII case-insensitive `-bin` validation on mutations), plus read-only raw wire value accessors (`Metadata::get_raw`, `Metadata::get_all_raw`). OK-path custom trailers are available through `Response::trailers` and `Streaming::trailers`.
 - **Rich status**: packed `google.rpc.Status` is supported on `grpc-status-details-bin`. When ASCII `grpc-status` headers and binary status details disagree, wire ASCII trailers take precedence.
 - **Defensive caps**: rapid reset (CVE-2023-44487) defense uses `ServerConfig::max_pending_accept_reset_streams`; CONTINUATION flood prevention uses `max_header_list_size` (16 KiB); connection recycling uses `max_connection_age` (plus or minus 10% jitter).
 

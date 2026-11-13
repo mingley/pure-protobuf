@@ -52,10 +52,9 @@ the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
 [qualified subset](edition-2024.md); full conformance must not be inferred
 from the Cargo manifests.
 
-Current source candidates (check the manifests before tagging): `pbrs`
-`0.2.1`; adapters `0.1.0-alpha.3`. They have not been published. The older
-published releases remain `pbrs` `0.2.0` and adapters `0.1.0-alpha.2` until
-the coordinated release completes. See [the changelog](../CHANGELOG.md).
+Current manifest versions (check `Cargo.toml` before tagging): `pbrs` `0.2.1`;
+adapters `0.1.0-alpha.3` (updating from the older published `pbrs` `0.2.0` and
+adapter `0.1.0-alpha.2` releases). See [the changelog](../CHANGELOG.md).
 A `v1.0.0` tag does not promote the adapters. From the older `0.1.0-alpha.2`
 release on, both adapters build from checked
 descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still

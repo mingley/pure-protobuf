@@ -5,8 +5,8 @@ or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
 `.proto` files or a checked descriptor set. Native gRPC stubs are the default;
 Tonic stubs and messages-only output are explicit options.
 
-`boxed`, `bytes`, `btree_map`, `safe_message_defaults`, `alloc_only` and
-`disable_comments_for` are additions in the unreleased `pbrs` 0.2.1 candidate.
+`boxed`, `bytes`, `btree_map`, `safe_message_defaults`, `alloc_only`, and
+`disable_comments_for` are available starting in `pbrs` 0.2.1.
 
 | Need | Read |
 |---|---|
@@ -25,17 +25,15 @@ Tonic stubs and messages-only output are explicit options.
 ## 1. Using `build.rs` (Recommended)
 
 For most crates, generate code from `build.rs`. Add `pbrs` as a build
-dependency and add the runtime crates your generated code will use. The
-example uses the published adapter preview; this checkout targets an unreleased
-`0.1.0-alpha.3` candidate:
+dependency and add the runtime crates your generated code will use:
 
 ```toml
 [dependencies]
-pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2" # Published preview
+pbrs = "0.2.1"
+pbrs-grpc = "0.1.0-alpha.3"
 
 [build-dependencies]
-pbrs = "0.2"
+pbrs = "0.2.1"
 ```
 
 ### Cargo features
@@ -50,15 +48,15 @@ trim the runtime dependency:
 
 ```toml
 [dependencies]
-pbrs = { version = "0.2", default-features = false, features = ["json", "text"] }
+pbrs = { version = "0.2.1", default-features = false, features = ["json", "text"] }
 
 [build-dependencies]
-pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
+pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
 ```
 
 `json` and `text` imply `reflect`, which current generated files need for
 descriptor-backed format helpers. A runtime crate that only uses the core
-binary wire API can depend on `pbrs = { version = "0.2", default-features =
+binary wire API can depend on `pbrs = { version = "0.2.1", default-features =
 false }`; that profile does not compile the generator, descriptor pool, JSON,
 text, or bundled conformance gencode. It still uses std. For explicit
 `alloc-only` runtime dependencies and `Config::alloc_only(true)` output, see
@@ -327,8 +325,9 @@ Important boundaries:
 - In this checkout, a **cold** build of `pbrs-grpc` or `protobuf-tonic` is also
   `protoc`-free because both adapters use checked descriptor sets for their own
   build scripts.
-- Published adapters from `0.1.0-alpha.2` on are `protoc`-free too. The older
-  `0.1.0-alpha.1` archives still require `protoc`.
+- Published adapters from the older `0.1.0-alpha.2` release onward (including
+  `0.1.0-alpha.3`) are `protoc`-free too. The older `0.1.0-alpha.1` archives
+  still require `protoc`.
 - Creating or updating an application's descriptor set still requires a
   compiler in an earlier stage.
 - Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
@@ -368,7 +367,7 @@ Pick one stub mode per generated service surface:
 | Flavour | Builder Setting | Generated Code | Target Stack |
 |---|---|---|---|
 | **Native Kernel** | `.emit_kernel_stubs(true)` (Default) | `Foo`, `FooServer`, `FooClient` | `pbrs-grpc` |
-| **Tonic Adapter** | `.emit_tonic_stubs(true)` | `#[tonic::async_trait]` stubs | `tonic` 0.14+ via `protobuf-tonic` |
+| **Tonic Adapter** | `.emit_tonic_stubs(true)` | Native async `Foo`, `FooServer`, `FooClient` stubs | `tonic` 0.14+ via `protobuf-tonic` |
 | **Tonic-shaped Native** | `.tonic_compat(true)` | Tonic-shaped signatures over native clients/servers | `pbrs-grpc` |
 | **Messages Only** | `.stubs(Stubs::None)` | Structs, enums, and WKT traits only | Core `pbrs` |
 
@@ -378,8 +377,8 @@ with `tonic` and `protobuf-tonic`:
 
 ```toml
 [dependencies]
-pbrs = "0.2"
-protobuf-tonic = "0.1.0-alpha.2" # Published preview
+pbrs = "0.2.1"
+protobuf-tonic = "0.1.0-alpha.3"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 http = "1"
 tokio-stream = "0.1"
