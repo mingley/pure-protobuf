@@ -212,8 +212,42 @@ mod tests {
     struct ReserveObservation {
         initial_chunk_len: usize,
         reserved_chunk_len: usize,
+        written: usize,
+        reallocated_mid_write: bool,
+    }
+
+    struct ObservingWireOut<'a, 'b> {
+        dst: &'a mut EncodeBuf<'b>,
         reserved_ptr_addr: usize,
-        post_write_ptr_addr: usize,
+        written: usize,
+        reallocated_mid_write: bool,
+    }
+
+    impl pbrs::WireOut for ObservingWireOut<'_, '_> {
+        fn put_u8(&mut self, b: u8) {
+            let chunk = self.dst.chunk_mut();
+            if chunk.as_mut_ptr().addr() != self.reserved_ptr_addr + self.written
+                || chunk.len() == 0
+            {
+                self.reallocated_mid_write = true;
+            }
+            BufMut::put_u8(self.dst, b);
+            self.written += 1;
+        }
+
+        fn put_slice(&mut self, data: &[u8]) {
+            if data.is_empty() {
+                return;
+            }
+            let chunk = self.dst.chunk_mut();
+            if chunk.as_mut_ptr().addr() != self.reserved_ptr_addr + self.written
+                || chunk.len() < data.len()
+            {
+                self.reallocated_mid_write = true;
+            }
+            BufMut::put_slice(self.dst, data);
+            self.written += data.len();
+        }
     }
 
     struct ObservingEncoder<T> {
@@ -231,14 +265,19 @@ mod tests {
             reserve_message_len(&item, dst);
             let reserved_chunk_len = dst.chunk_mut().len();
             let reserved_ptr_addr = dst.chunk_mut().as_mut_ptr().addr();
-            Serialize::encode(&item, dst).map_err(|e| Status::internal(e.to_string()))?;
-            let post_write_ptr_addr = dst.chunk_mut().as_mut_ptr().addr();
+            let mut sink = ObservingWireOut {
+                dst,
+                reserved_ptr_addr,
+                written: 0,
+                reallocated_mid_write: false,
+            };
+            Serialize::encode(&item, &mut sink).map_err(|e| Status::internal(e.to_string()))?;
             self.observation
                 .send(ReserveObservation {
                     initial_chunk_len,
                     reserved_chunk_len,
-                    reserved_ptr_addr,
-                    post_write_ptr_addr,
+                    written: sink.written,
+                    reallocated_mid_write: sink.reallocated_mid_write,
                 })
                 .expect("send observation");
             Ok(())
@@ -287,10 +326,8 @@ mod tests {
         // Single upfront reserve guarantees contiguous capacity for the entire message,
         // and field-by-field serialization never reallocates mid-write.
         assert!(obs.reserved_chunk_len >= expected_len);
-        assert_eq!(
-            obs.post_write_ptr_addr,
-            obs.reserved_ptr_addr + expected_len
-        );
+        assert_eq!(obs.written, expected_len);
+        assert!(!obs.reallocated_mid_write);
 
         // Verify full ProtobufEncoder + ProtobufDecoder round-trip (identity and gzip).
         for encoding in [None, Some(CompressionEncoding::Gzip)] {

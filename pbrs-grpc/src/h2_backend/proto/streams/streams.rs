@@ -127,11 +127,15 @@ impl<B> Drop for PendingDrainWakes<'_, B> {
         let mut wakers: [Option<Waker>; MAX_PENDING_DRAIN_WAKES] =
             [const { None }; MAX_PENDING_DRAIN_WAKES];
         let mut wake_len = 0usize;
-        {
-            let mut me = self
-                .inner
+        #[cfg(target_os = "linux")]
+        let guard = self.inner.lock().ok();
+        #[cfg(not(target_os = "linux"))]
+        let guard = Some(
+            self.inner
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        if let Some(mut me) = guard {
             let in_flight = me.actions.send.in_flight_stream();
             for key in self.keys[..self.len].iter().flatten().copied() {
                 if let Some(stream) = me.store.try_resolve_mut(key) {
