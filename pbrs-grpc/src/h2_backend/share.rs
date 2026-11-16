@@ -386,6 +386,12 @@ impl<B: Buf> SendStream<B> {
         self.inner.poll_reset(cx, proto::PollReset::Streaming)
     }
 
+    /// Poll until all queued, in-flight, and retiring outbound DATA frames for
+    /// this stream have been dropped, or the send side is no longer streaming.
+    pub(crate) fn poll_send_drained(&mut self, cx: &mut Context) -> Poll<()> {
+        self.inner.poll_send_drained(cx)
+    }
+
     /// Returns the stream ID of this `SendStream`.
     ///
     /// # Panics

@@ -13,8 +13,7 @@ cargo test -p pbrs-grpc-example-greeter
 
 Run these from the repository root with `protoc` installed. The
 [greeter example](../examples/greeter/README.md) exercises all four RPC shapes.
-`pbrs-grpc` is a preview; the [status page](status.md) lists tested features
-and remaining work.
+The [status page](status.md) lists tested features and remaining work.
 
 `pbrs-grpc` runs on prior-knowledge HTTP/2 with generated [`pbrs`](../README.md)
 messages. See [architecture](architecture.md) for transport and runtime details.
@@ -29,7 +28,7 @@ Add `pbrs` and `pbrs-grpc` from crates.io to `Cargo.toml`:
 ```toml
 [dependencies]
 pbrs = "0.2.1"
-pbrs-grpc = "0.1.0-alpha.3"
+pbrs-grpc = "0.1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
@@ -148,17 +147,19 @@ considered. While a unary or server-streaming request is still uploading, the
 client reports non-200 error headers without waiting for upload credit, subject
 to cancellation and deadlines. An initial `grpc-status: 0` does not complete
 an unfinished upload. Non-200 responses remain committed for retry. Binary
-logging may omit the response-trailer event when a peer rejects a call before
-the request upload completes. Retry and hedge logs can also include events from
-uncommitted attempts, contrary to A16's committed-stream rule. For streaming
-calls, a peer `CANCELLED` status can be logged as a client cancellation. Unary
-logging records cancellation requests after its logger is installed. A
-never-polled call or local rejection before logger setup may have no
-cancellation event. Methods excluded by the logger's filter emit no entries,
-but a configured logger still enables cancellation bookkeeping for those
-methods. An explicit cancellation can allocate logging state and take extra
-locks. Dropping a call before its logger registers avoids initializing that
-state, but still signals cancellation and wakes waiters.
+logging records `ServerTrailer` when a peer rejects a call before the request
+upload completes, keeps streaming peer `CANCELLED` statuses distinct from
+client-initiated `Cancel` events, deduplicates local streaming cancellations,
+and records unary cancellations both before logger setup and when a unary
+`Streaming<T>` is dropped before trailers. Retry and hedge logs can still
+include events from uncommitted attempts, contrary to A16's committed-stream
+rule, and a queued native sender failure emits no sender-failure event unless
+the upload loop reaches it. A never-polled unary call or local validation
+rejection before call setup emits no entries. Methods excluded by the logger's
+filter emit no entries, but a configured logger still enables cancellation
+bookkeeping for those methods. An explicit cancellation can allocate logging
+state and take extra locks. Dropping a call before its logger registers avoids
+initializing that state, but still signals cancellation and wakes waiters.
 If headers become visible only after a local reset, the client also treats them as committed
 because the reset can hide whether they ended the stream. A trailers-only
 rejection in that narrow race may therefore not be retried.
@@ -176,7 +177,7 @@ The optional `tower` feature adds integration points without changing the
 default dependency graph (older `0.1.0-alpha.2` releases did not include it):
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0", features = ["tower"] }
 ```
 
 - `Router::into_tower_service()` exposes a native router as
@@ -239,7 +240,7 @@ the native listener (for older `0.1.0-alpha.2` releases, use an external proxy
 to translate gRPC-Web and handle CORS):
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.3", features = ["grpc-web"] }
+pbrs-grpc = { version = "0.1.0", features = ["grpc-web"] }
 ```
 
 With the feature enabled, the server accepts `application/grpc-web`,

@@ -82,6 +82,82 @@ pub(crate) struct OpaqueStreamRef {
     key: store::Key,
 }
 
+const MAX_PENDING_DRAIN_WAKES: usize = 17;
+
+/// Tracks retired outbound DATA frames while their backing buffers drop outside
+/// engine locks, then wakes any parked `poll_send_drained` tasks once the last
+/// in-flight/retiring frame for a stream has finished dropping.
+struct PendingDrainWakes<'a, B> {
+    inner: &'a Mutex<Inner>,
+    keys: [Option<store::Key>; MAX_PENDING_DRAIN_WAKES],
+    len: usize,
+    _marker: ::std::marker::PhantomData<fn() -> B>,
+}
+
+impl<'a, B> PendingDrainWakes<'a, B> {
+    #[inline]
+    fn new(inner: &'a Mutex<Inner>) -> Self {
+        Self {
+            inner,
+            keys: [None; MAX_PENDING_DRAIN_WAKES],
+            len: 0,
+            _marker: ::std::marker::PhantomData,
+        }
+    }
+
+    #[inline]
+    fn note_key(&mut self, store: &mut Store, key: store::Key) {
+        if let Some(stream) = store.try_resolve_mut(key) {
+            if stream.drain_task.is_some() {
+                if let Some(slot) = self.keys.get_mut(self.len) {
+                    stream.retiring_data = stream.retiring_data.saturating_add(1);
+                    *slot = Some(key);
+                    self.len += 1;
+                }
+            }
+        }
+    }
+}
+
+impl<B> Drop for PendingDrainWakes<'_, B> {
+    fn drop(&mut self) {
+        if self.len == 0 {
+            return;
+        }
+        let mut wakers: [Option<Waker>; MAX_PENDING_DRAIN_WAKES] =
+            [const { None }; MAX_PENDING_DRAIN_WAKES];
+        let mut wake_len = 0usize;
+        {
+            let mut me = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let in_flight = me.actions.send.in_flight_stream();
+            for key in self.keys[..self.len].iter().flatten().copied() {
+                if let Some(stream) = me.store.try_resolve_mut(key) {
+                    stream.retiring_data = stream.retiring_data.saturating_sub(1);
+                    let drained = !stream.state.is_send_streaming()
+                        || (stream.buffered_send_data == 0
+                            && stream.pending_send.is_empty()
+                            && stream.retiring_data == 0
+                            && in_flight != Some(key));
+                    if drained {
+                        if let Some(waker) = stream.drain_task.take() {
+                            if let Some(slot) = wakers.get_mut(wake_len) {
+                                *slot = Some(waker);
+                                wake_len += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for waker in wakers[..wake_len].iter_mut().filter_map(Option::take) {
+            waker.wake();
+        }
+    }
+}
+
 /// Fields needed to manage state related to managing the set of streams. This
 /// is mostly split out to make ownership happy.
 ///
@@ -278,6 +354,7 @@ where
             // Declare the owner outside the lock scope so errors or unwinding
             // also release the lock before its payload destructor runs.
             let status = loop {
+                let mut pending_wakes = PendingDrainWakes::<B>::new(&self.inner);
                 let mut discarded_queued = Vec::new();
                 let mut retired = RetiredData::new();
                 let discarded;
@@ -290,6 +367,14 @@ where
                         &mut retired,
                         &mut discarded_queued,
                     )?;
+                    if me.actions.send.may_have_drain_waiters() {
+                        if let Some(ref frame) = discarded {
+                            pending_wakes.note_key(&mut me.store, frame.payload().stream);
+                        }
+                        for key in retired.stream_keys() {
+                            pending_wakes.note_key(&mut me.store, key);
+                        }
+                    }
 
                     // Register the task while holding the same lock used to
                     // observe that all pending frames have been buffered. A
@@ -313,8 +398,10 @@ where
 
                     status
                 };
+                drop(discarded_queued);
                 drop(discarded);
                 drop(retired);
+                drop(pending_wakes);
                 if status == BufferStatus::RetiredFull {
                     // Preserve the existing codec batch: owners need an unlock,
                     // not a socket flush or another poll_ready call.
@@ -346,19 +433,30 @@ where
                 return Poll::Ready(Ok(()));
             }
 
+            let mut pending_wakes = PendingDrainWakes::<B>::new(&self.inner);
             let mut retired = RetiredData::new();
             let discarded;
             let reclaimed = {
                 let mut me = self.inner.lock().unwrap();
                 discarded = me.actions.send.take_discarded_frame(dst);
-                if discarded.is_some() {
+                let res = if discarded.is_some() {
                     false
                 } else {
                     me.reclaim_written_frame(&self.send_buffer, dst, &mut retired)
+                };
+                if me.actions.send.may_have_drain_waiters() {
+                    if let Some(ref frame) = discarded {
+                        pending_wakes.note_key(&mut me.store, frame.payload().stream);
+                    }
+                    for key in retired.stream_keys() {
+                        pending_wakes.note_key(&mut me.store, key);
+                    }
                 }
+                res
             };
             drop(discarded);
             drop(retired);
+            drop(pending_wakes);
 
             if !reclaimed {
                 return Poll::Ready(Ok(()));
@@ -2374,6 +2472,17 @@ impl<B> StreamRef<B> {
         let mut stream = me.store.resolve(self.opaque.key);
 
         me.actions.send.poll_capacity(cx, &mut stream)
+    }
+
+    /// Poll until all queued, in-flight, and retiring outbound DATA frames for
+    /// this stream have been dropped, or the send side is no longer streaming.
+    pub(crate) fn poll_send_drained(&mut self, cx: &Context) -> Poll<()> {
+        let mut me = self.opaque.inner.lock().unwrap();
+        let me = &mut *me;
+
+        let mut stream = me.store.resolve(self.opaque.key);
+
+        me.actions.send.poll_send_drained(cx, &mut stream)
     }
 
     /// Request to be notified for if a `RST_STREAM` is received for this stream.

@@ -9,7 +9,7 @@ four RPC shapes, generated [`pbrs`](https://crates.io/crates/pbrs) messages,
 TLS/mTLS, gRPC-Web over HTTP/2, and optional Prost, Tower, and Tonic
 integration. The transport uses an embedded `h2` backend and Tokio.
 
-Version `0.1.0-alpha.3` (paired with `pbrs` `0.2.1`) is a pre-release preview.
+Version `0.1.0` (paired with `pbrs` `0.2.1`) starts the initial `0.1.x` series.
 See [implementation status](https://github.com/mingley/pure-protobuf/blob/main/docs/status.md)
 for tested features, the [scoreboard](https://github.com/mingley/pure-protobuf/blob/main/docs/scoreboard.md)
 for measurements, and the [support policy](https://github.com/mingley/pure-protobuf/blob/main/docs/support-policy.md)
@@ -59,16 +59,16 @@ Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
 ```toml
 [dependencies]
 pbrs = "0.2.1"
-pbrs-grpc = "0.1.0-alpha.3"
+pbrs-grpc = "0.1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 pbrs = "0.2.1"
 ```
 
-From `0.1.0-alpha.2` onward, `pbrs-grpc` builds its internal service descriptors
-without `protoc` (only the older `0.1.0-alpha.1` archive required `protoc` to
-build the crate itself).
+Since the older `0.1.0-alpha.2` release (including `0.1.0`), `pbrs-grpc` builds
+its internal service descriptors without `protoc` (only the older
+`0.1.0-alpha.1` archive required `protoc` to build the crate itself).
 
 Compiling your own `.proto` files with `compile_protos` requires `protoc` on
 `PATH`. To build application stubs without `protoc`, check in a compiled
@@ -158,7 +158,7 @@ Default features keep the crate MSRV at **Rust 1.85** with native gzip/deflate
 compression and TLS. Enable optional features in `Cargo.toml` as needed:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.3", features = ["grpc-web", "tower"] }
+pbrs-grpc = { version = "0.1.0", features = ["grpc-web", "tower"] }
 ```
 
 | Feature | MSRV | Use it for |
@@ -211,7 +211,7 @@ CORS policies. For browser HTTP/1.1, see the
 | HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, small-DATA floods, and oversize frames; optional adaptive flow-control windows (`adaptive_window`). |
 | Name resolution & `Endpoint` | Direct `host:port`, Tonic-style `Endpoint` (`origin`, `executor`, `connect_lazy`, `balance_list`, `balance_channel`), and opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. |
 | Load balancing | Default `pick_first`; opt-in `loadBalancingConfig` supports `pick_first`, `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, and `outlier_detection`. |
-| Retries and hedging | At-most-once transparent retry on proven non-execution; opt-in service-config `retryPolicy` and unary `hedgingPolicy` via `Channel::service_config` or resolver config. Hedging has response-commitment and pushback limitations; see the [retry contract](https://github.com/mingley/pure-protobuf/blob/main/docs/retry-contract.md). |
+| Retries and hedging | At-most-once transparent retry on proven non-execution; opt-in service-config `retryPolicy` and unary `hedgingPolicy` via `Channel::service_config` or resolver config; see the [retry contract](https://github.com/mingley/pure-protobuf/blob/main/docs/retry-contract.md). |
 | HTTP CONNECT proxy | `HTTPS_PROXY` / `NO_PROXY` environment support with CONNECT tunneling, optional Basic auth, and end-to-end TLS. |
 | Interceptors | Client, server, and response interceptor pipelines with per-RPC `Extensions`. See the [interceptors guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/interceptors.md). |
 | Operations | Built-in health checking (`grpc.health.v1`), server reflection (`grpc.reflection.v1` and `v1alpha`), channelz (`grpc.channelz.v1`), binary logging, ORCA load reports, and optional OpenTelemetry observers. See the [operations guide](https://github.com/mingley/pure-protobuf/blob/main/docs/guides/operations.md). |

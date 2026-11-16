@@ -9,18 +9,25 @@
 )]
 
 use bytes::BytesMut;
+use flate2::read::GzDecoder;
 use pbrs_grpc::codec::prost::Message;
 use pbrs_grpc::{
-    Channel, Code, CompressionAlgorithm, HelloReply, HelloRequest, MessageLimits, Request,
-    Response, Rpc, Server, Service, Status, StreamSender, Streaming,
+    Channel, Code, HelloReply, HelloRequest, MessageLimits, Request, Response, Rpc, Server,
+    Service, Status, StreamSender, Streaming,
 };
 use prost::Message as _;
 use std::future::Future;
+use std::io::Read as _;
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
 const SIZE: usize = 1024 * 1024;
+
+fn gunzip_into(payload: &[u8], out: &mut Vec<u8>) {
+    out.clear();
+    GzDecoder::new(payload).read_to_end(out).unwrap();
+}
 
 #[derive(Clone, PartialEq, prost::Message)]
 struct Owned {
@@ -82,16 +89,19 @@ impl Peer {
                         handlers.spawn(async move {
                             let mut body = request.into_body();
                             let mut buffer = BytesMut::new();
+                            let mut raw = Vec::new();
+                            let mut decoded = Owned::default();
                             while let Some(data) = body.data().await {
                                 let Ok(data) = data else { return }; // explicit client cancellation
                                 body.flow_control().release_capacity(data.len()).unwrap();
                                 buffer.extend_from_slice(&data);
                                 while let Some(frame) = pbrs_grpc::codec::pop(&mut buffer).unwrap() {
                                     assert!(frame.compressed);
-                                    let raw = CompressionAlgorithm::Gzip.decode(&frame.payload).unwrap();
-                                    let message = Owned::decode(raw.as_slice()).unwrap();
-                                    assert!(valid_noise(&message.value, message.nonce));
-                                    seen.send((message.nonce, message.value.len())).unwrap();
+                                    gunzip_into(&frame.payload, &mut raw);
+                                    decoded.clear();
+                                    decoded.merge(raw.as_slice()).unwrap();
+                                    assert!(valid_noise(&decoded.value, decoded.nonce));
+                                    seen.send((decoded.nonce, decoded.value.len())).unwrap();
                                 }
                             }
                             assert!(buffer.is_empty());
@@ -187,6 +197,44 @@ async fn encoded_storage_is_bounded_reusable_and_owned_by_the_call() {
         assert_eq!(counts().retained_buffers, 2);
     }
     sender.close();
+    bounded(call).await.unwrap().unwrap();
+    quiescent().await;
+
+    // Back-to-back 1 MiB compressed sends without per-message application
+    // synchronization must wait for the retiring HTTP/2 DATA frame and reuse
+    // the same output workspace instead of allocating a fresh 1 MiB buffer per
+    // message.
+    let burst_messages: Vec<Message<Owned>> = (0..5u32).map(|i| message(SIZE, 301 + i)).collect();
+    let (sender, call) = peer
+        .channel
+        .client_streaming::<Message<Owned>, HelloReply>("/fixture.Encode/Upload", Request::new(()));
+    let call = tokio::spawn(call);
+    bounded(sender.send_compressed(message(SIZE, 300)))
+        .await
+        .unwrap();
+    peer.received(300, SIZE).await;
+    let before_client_burst = pbrs_grpc::copy_counts::output_reclaim_counts();
+    let burst_producer = tokio::spawn(async move {
+        for msg in burst_messages {
+            sender.send_compressed(msg).await.unwrap();
+        }
+        sender.close();
+    });
+    for index in 0..5u32 {
+        peer.received(301 + index, SIZE).await;
+    }
+    bounded(burst_producer).await.unwrap();
+    let after_client_burst = pbrs_grpc::copy_counts::output_reclaim_counts();
+    assert_eq!(
+        after_client_burst.reclaimed - before_client_burst.reclaimed,
+        5,
+        "client-streaming 5 x 1 MiB burst after warm message must reclaim output workspace in place on all 5 sends"
+    );
+    assert_eq!(
+        after_client_burst.missed - before_client_burst.missed,
+        0,
+        "client-streaming 5 x 1 MiB burst must have zero missed output reclaims"
+    );
     bounded(call).await.unwrap().unwrap();
     quiescent().await;
 
@@ -291,19 +339,22 @@ impl Service for Download {
 async fn download_message(
     body: &mut h2::RecvStream,
     buffer: &mut BytesMut,
+    raw: &mut Vec<u8>,
+    decoded: &mut Owned,
     expected_nonce: u32,
     expected_length: usize,
 ) {
     loop {
         if let Some(frame) = pbrs_grpc::codec::pop(buffer).unwrap() {
             assert!(frame.compressed);
-            let raw = CompressionAlgorithm::Gzip.decode(&frame.payload).unwrap();
-            let message = Owned::decode(raw.as_slice()).unwrap();
+            gunzip_into(&frame.payload, raw);
+            decoded.clear();
+            decoded.merge(raw.as_slice()).unwrap();
             assert_eq!(
-                (message.nonce, message.value.len()),
+                (decoded.nonce, decoded.value.len()),
                 (expected_nonce, expected_length)
             );
-            assert!(valid_noise(&message.value, expected_nonce));
+            assert!(valid_noise(&decoded.value, expected_nonce));
             return;
         }
         let data = bounded(body.data()).await.expect("reply frame").unwrap();
@@ -344,6 +395,8 @@ async fn server_output_lifecycle() {
         assert_eq!(response.headers().get("grpc-encoding").unwrap(), "gzip");
         let mut body = response.into_body();
         let mut buffer = BytesMut::new();
+        let mut raw = Vec::new();
+        let mut decoded = Owned::default();
         let sizes = if cancel {
             vec![SIZE]
         } else {
@@ -354,7 +407,7 @@ async fn server_output_lifecycle() {
             bounded(control.sender.send_compressed(message(size, nonce)))
                 .await
                 .unwrap();
-            download_message(&mut body, &mut buffer, nonce, size).await;
+            download_message(&mut body, &mut buffer, &mut raw, &mut decoded, nonce, size).await;
             assert_eq!(counts().retained_buffers, 2);
             assert!(!server.is_finished(), "server assertions remain live");
         }
@@ -381,6 +434,78 @@ async fn server_output_lifecycle() {
         }
         quiescent().await;
     }
+
+    // Server-streaming back-to-back 1 MiB compressed sends must also wait for
+    // outbound HTTP/2 frame retirement so one retained workspace serves the
+    // whole burst.
+    let server_burst_messages: Vec<Message<Owned>> =
+        (0..5u32).map(|i| message(SIZE, 401 + i)).collect();
+    requests = bounded(requests.ready()).await.unwrap();
+    let request = http::Request::builder()
+        .method(http::Method::POST)
+        .uri("http://localhost/fixture.Encode/Download")
+        .header("content-type", "application/grpc")
+        .header("te", "trailers")
+        .header("grpc-accept-encoding", "gzip")
+        .body(())
+        .unwrap();
+    let (response, mut send) = requests.send_request(request, false).unwrap();
+    send.send_data(pbrs_grpc::codec::encode(&[], false).unwrap(), true)
+        .unwrap();
+    let control = bounded(accepted.recv()).await.unwrap();
+    let response = bounded(response).await.unwrap();
+    let mut body = response.into_body();
+    let mut buffer = BytesMut::new();
+    let mut raw = Vec::new();
+    let mut decoded = Owned::default();
+    let DownloadControl {
+        sender: burst_sender,
+        ended: burst_ended,
+    } = control;
+    bounded(burst_sender.send_compressed(message(SIZE, 400)))
+        .await
+        .unwrap();
+    download_message(&mut body, &mut buffer, &mut raw, &mut decoded, 400, SIZE).await;
+    let before_server_burst = pbrs_grpc::copy_counts::output_reclaim_counts();
+    let server_burst_producer = tokio::spawn(async move {
+        for msg in server_burst_messages {
+            burst_sender.send_compressed(msg).await.unwrap();
+        }
+        burst_sender.close();
+    });
+    for index in 0..5u32 {
+        download_message(
+            &mut body,
+            &mut buffer,
+            &mut raw,
+            &mut decoded,
+            401 + index,
+            SIZE,
+        )
+        .await;
+    }
+    let after_server_burst = pbrs_grpc::copy_counts::output_reclaim_counts();
+    assert_eq!(
+        after_server_burst.reclaimed - before_server_burst.reclaimed,
+        5,
+        "server-streaming 5 x 1 MiB burst after warm message must reclaim output workspace in place on all 5 sends"
+    );
+    assert_eq!(
+        after_server_burst.missed - before_server_burst.missed,
+        0,
+        "server-streaming 5 x 1 MiB burst must have zero missed output reclaims"
+    );
+    while let Some(data) = bounded(body.data()).await {
+        let data = data.unwrap();
+        body.flow_control().release_capacity(data.len()).unwrap();
+        assert!(data.is_empty());
+    }
+    let trailers = bounded(body.trailers()).await.unwrap().unwrap();
+    assert_eq!(trailers.get("grpc-status").unwrap(), "0");
+    bounded(server_burst_producer).await.unwrap();
+    bounded(burst_ended).await;
+    quiescent().await;
+
     drop(requests);
     driver.abort();
     server.abort();

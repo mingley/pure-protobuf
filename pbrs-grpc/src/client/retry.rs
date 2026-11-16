@@ -338,8 +338,113 @@ pub(crate) struct HedgeUnary {
     pub(crate) binlog: Option<crate::binlog::CallLogger>,
 }
 
-/// A finished hedged attempt: its 1-based index plus the outcome.
-type HedgeOutcome<Resp> = (u32, Result<Response<Resp>, Status>);
+/// Shared commitment state across concurrent attempts of one hedged RPC.
+///
+/// Per gRFC A6, receiving initial metadata (`HEADERS` without `END_STREAM`) on
+/// any attempt commits that attempt: no further hedges may be sent, all other
+/// in-flight hedges are cancelled (`RST_STREAM(CANCEL)`), and the winning
+/// attempt's eventual outcome is returned even if its trailing status code is
+/// listed in `non_fatal_status_codes`.
+pub(crate) struct HedgeCommit {
+    winner: std::sync::atomic::AtomicU32,
+    stopped: std::sync::atomic::AtomicBool,
+    notify: tokio::sync::Notify,
+}
+
+impl HedgeCommit {
+    fn new() -> Self {
+        Self {
+            winner: std::sync::atomic::AtomicU32::new(0),
+            stopped: std::sync::atomic::AtomicBool::new(false),
+            notify: tokio::sync::Notify::new(),
+        }
+    }
+
+    /// Try to commit `attempt` (1-based) upon receiving initial metadata.
+    /// Returns `true` if `attempt` won (or had already won), `false` if a
+    /// sibling attempt committed first or the hedge group was stopped.
+    pub(crate) fn try_commit(&self, attempt: u32) -> bool {
+        debug_assert!(attempt > 0);
+        if self.stopped.load(std::sync::atomic::Ordering::Acquire) {
+            return false;
+        }
+        match self.winner.compare_exchange(
+            0,
+            attempt,
+            std::sync::atomic::Ordering::AcqRel,
+            std::sync::atomic::Ordering::Acquire,
+        ) {
+            Ok(_) => {
+                if self.stopped.load(std::sync::atomic::Ordering::Acquire) {
+                    return false;
+                }
+                self.notify.notify_waiters();
+                true
+            }
+            Err(existing) => existing == attempt,
+        }
+    }
+
+    /// Returns `true` if `attempt` previously committed initial metadata.
+    pub(crate) fn did_commit(&self, attempt: u32) -> bool {
+        self.winner.load(std::sync::atomic::Ordering::Acquire) == attempt
+    }
+
+    /// Stop all in-flight attempts (for example after a fatal status or final
+    /// response) without erasing which attempt committed initial metadata.
+    fn stop_all(&self) {
+        if !self.stopped.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            self.notify.notify_waiters();
+        }
+    }
+
+    /// Returns `true` if `attempt` has lost to a committed sibling or a
+    /// group-wide stop.
+    pub(crate) fn has_lost(&self, attempt: u32) -> bool {
+        if self.stopped.load(std::sync::atomic::Ordering::Acquire) {
+            return true;
+        }
+        let w = self.winner.load(std::sync::atomic::Ordering::Acquire);
+        w != 0 && w != attempt
+    }
+
+    /// Resolves as soon as `attempt` loses to a sibling commitment or stop.
+    pub(crate) async fn wait_lost(&self, attempt: u32) {
+        loop {
+            let notified = self.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.has_lost(attempt) {
+                return;
+            }
+            notified.await;
+        }
+    }
+
+    /// Resolves as soon as any attempt commits initial metadata or stops.
+    async fn wait_committed(&self) {
+        loop {
+            let notified = self.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.stopped.load(std::sync::atomic::Ordering::Acquire)
+                || self.winner.load(std::sync::atomic::Ordering::Acquire) != 0
+            {
+                return;
+            }
+            notified.await;
+        }
+    }
+}
+
+struct HedgeCompleted<Resp> {
+    outcome: Result<Response<Resp>, Status>,
+    committed_headers: bool,
+}
+
+/// A finished hedged attempt: its 1-based index plus `Some` on completion or
+/// `None` when a sibling already won commitment.
+type HedgeOutcome<Resp> = (u32, Option<HedgeCompleted<Resp>>);
 
 // A started stream is a separate channelz event even when a task is aborted
 // or unwinds before run_unary_frame returns. A transparent redial creates
@@ -381,6 +486,7 @@ fn spawn_hedge_attempt<Resp>(
     channel: Channel,
     req: &HedgeUnary,
     attempt: u32,
+    commit: Arc<HedgeCommit>,
 ) where
     Resp: CodecMessage + Send + 'static,
 {
@@ -398,6 +504,9 @@ fn spawn_hedge_attempt<Resp>(
     let owned_labels = req.owned_labels.clone();
     let tap = req.binlog.clone();
     drop(handles.spawn(async move {
+        if commit.has_lost(attempt) {
+            return (attempt, None);
+        }
         let mut attempt_guard = AttemptGuard::new(
             observer.clone(),
             owned_labels.clone(),
@@ -409,16 +518,31 @@ fn spawn_hedge_attempt<Resp>(
             obs.on_attempt_start(&AttemptLabels::new(borrowed, attempt));
         }
         let mut redialed = false;
-        let outcome: Result<Response<Resp>, Status> = loop {
+        let outcome: Option<HedgeCompleted<Resp>> = loop {
+            if commit.has_lost(attempt) {
+                break None;
+            }
             let queue_start = tokio::time::Instant::now();
-            let live = match channel.grab(&cancel_rx, deadline, wait, Some(&md)).await {
+            let grab_res = tokio::select! {
+                biased;
+                () = commit.wait_lost(attempt) => {
+                    break None;
+                }
+                res = channel.grab(&cancel_rx, deadline, wait, Some(&md)) => res,
+            };
+            let live = match grab_res {
                 Ok(live) => {
                     if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
                         obs.on_queue_wait(&call.as_borrowed(), queue_start.elapsed());
                     }
                     live
                 }
-                Err(status) => break Err(status),
+                Err(status) => {
+                    break Some(HedgeCompleted {
+                        outcome: Err(status),
+                        committed_headers: false,
+                    });
+                }
             };
             let (slot, r#gen, route) = (live.slot, live.r#gen, live.route);
             let live_socket = live.channelz_socket;
@@ -431,7 +555,12 @@ fn spawn_hedge_attempt<Resp>(
                     .await;
             let byte_permit = match channel.local.byte_budget.acquire(frame.total_len()) {
                 Ok(permit) => permit,
-                Err(status) => break Err(status),
+                Err(status) => {
+                    break Some(HedgeCompleted {
+                        outcome: Err(status),
+                        committed_headers: false,
+                    });
+                }
             };
             if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
                 obs.on_bytes_sent(&call.as_borrowed(), frame.total_len());
@@ -455,13 +584,23 @@ fn spawn_hedge_attempt<Resp>(
                 byte_permit,
                 tap.as_ref(),
                 None,
+                Some((commit.as_ref(), attempt)),
             )
             .await
             {
                 Err(UnaryFailure {
+                    sibling_aborted: true,
+                    ..
+                }) => {
+                    stream_accounting.finish(false);
+                    break None;
+                }
+                Err(UnaryFailure {
                     status,
                     response_committed: false,
+                    sibling_aborted: false,
                 }) if !redialed
+                    && !commit.has_lost(attempt)
                     && status.is_transparent_retryable()
                     && channel.inner.endpoint.can_redial() =>
                 {
@@ -474,6 +613,10 @@ fn spawn_hedge_attempt<Resp>(
                         .await;
                 }
                 result => {
+                    let committed_headers = match &result {
+                        Ok(_) => true,
+                        Err(failure) => failure.response_committed,
+                    };
                     let result = result.map_err(|failure| failure.status);
                     // Channelz: the hedged attempt's stream ends here
                     // (completed unaries claim one message each way).
@@ -512,13 +655,23 @@ fn spawn_hedge_attempt<Resp>(
                                 .await;
                         }
                     }
-                    break result;
+                    break Some(HedgeCompleted {
+                        outcome: result,
+                        committed_headers,
+                    });
                 }
             }
         };
         match &outcome {
-            Ok(_) => attempt_guard.finish(&Status::ok()),
-            Err(status) => attempt_guard.finish(status),
+            Some(HedgeCompleted { outcome: Ok(_), .. }) => attempt_guard.finish(&Status::ok()),
+            Some(HedgeCompleted {
+                outcome: Err(status),
+                ..
+            }) => attempt_guard.finish(status),
+            None => {
+                // Leave attempt_guard unfinished so its Drop reports
+                // CallerCancelled, matching abort_hedges().
+            }
         }
         // On a current-thread test runtime this synchronous notification is
         // immediately followed by task completion, before the waiting test
@@ -639,6 +792,7 @@ struct HedgeReadiness {
 /// A completed attempt takes precedence over a send whose throttle check is
 /// simultaneously ready. Cancellation and the deadline take precedence over
 /// both. Disabled attempt, permit, and timer futures are not polled.
+#[cfg(test)]
 async fn next_hedge_event<T>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
@@ -657,6 +811,37 @@ async fn next_hedge_event<T>(
     }
 }
 
+enum HedgeEventOrCommit<T> {
+    Event(HedgeEvent<T>),
+    Committed,
+}
+
+async fn next_hedge_event_or_commit<T>(
+    cancel_rx: crate::rpc_cancel::RpcCancel,
+    deadline: Option<tokio::time::Instant>,
+    hedge_at: Option<tokio::time::Instant>,
+    outcome: impl std::future::Future<Output = Option<T>>,
+    ready: HedgeReadiness,
+    commit_watch: Option<&HedgeCommit>,
+    allowed: impl std::future::Future<Output = bool>,
+) -> HedgeEventOrCommit<T> {
+    let wait_committed = async {
+        match commit_watch {
+            Some(commit) => commit.wait_committed().await,
+            None => std::future::pending().await,
+        }
+    };
+    tokio::select! {
+        biased;
+        () = cancel_fired(cancel_rx) => HedgeEventOrCommit::Event(HedgeEvent::Cancelled),
+        () = sleep_until_or_pending(deadline) => HedgeEventOrCommit::Event(HedgeEvent::Deadline),
+        result = outcome, if ready.attempts => HedgeEventOrCommit::Event(HedgeEvent::Outcome(result)),
+        () = wait_committed, if commit_watch.is_some() => HedgeEventOrCommit::Committed,
+        permission = allowed, if ready.pending => HedgeEventOrCommit::Event(HedgeEvent::Permission(permission)),
+        () = sleep_until_or_pending(hedge_at), if ready.timer => HedgeEventOrCommit::Event(HedgeEvent::Timer),
+    }
+}
+
 impl super::Channel {
     /// Run a unary call under an A6 hedging policy.
     ///
@@ -664,12 +849,13 @@ impl super::Channel {
     /// has not finished after `hedgingDelay`, the next attempt goes out, up to
     /// `maxAttempts`; an unset delay makes all remaining sends immediately
     /// eligible. Sends past the first need a throttling token and stop on a
-    /// `DoNotRetry` pushback. The first `OK` wins; a non-OK status outside
-    /// `nonFatalStatusCodes` commits immediately. A non-fatal status advances
-    /// the next send, unless pushback specifies a delay or stops future sends.
-    /// When attempts are exhausted the last non-fatal error fails the call.
-    /// Every attempt may transparently redial once on a safe pre-commit
-    /// transport failure.
+    /// `DoNotRetry` pushback. Receiving initial response metadata (`HEADERS`
+    /// without `END_STREAM`) or a status outside `nonFatalStatusCodes` commits
+    /// that attempt immediately, stops further hedges, and resets all other
+    /// in-flight hedges. A pre-commit non-fatal status advances the next send,
+    /// unless pushback specifies a delay or stops future sends. When attempts
+    /// are exhausted the last non-fatal error fails the call. Every attempt
+    /// may transparently redial once on a safe pre-commit transport failure.
     #[allow(
         clippy::too_many_lines,
         reason = "one select loop over cancel, deadline, hedge timer, and completions"
@@ -683,19 +869,25 @@ impl super::Channel {
     {
         let _held = req.permit.take();
         let max = req.policy.max_attempts.max(1);
+        let commit = Arc::new(HedgeCommit::new());
+        let mut commit_observed = false;
         let mut handles = JoinSet::new();
         let mut sent = 1u32;
         let mut outstanding = 1u32;
         let mut last_err: Option<Status> = None;
         let mut schedule =
             HedgeSchedule::new(max, req.policy.hedging_delay, tokio::time::Instant::now());
-        spawn_hedge_attempt(&mut handles, self.clone(), &req, 1);
+        spawn_hedge_attempt(&mut handles, self.clone(), &req, 1, Arc::clone(&commit));
         loop {
+            if !commit_observed && commit.winner.load(std::sync::atomic::Ordering::Acquire) != 0 {
+                commit_observed = true;
+                schedule.stop();
+            }
             let pending = schedule.pending > 0 && !schedule.stopped && sent < max;
             let timer =
                 schedule.at.is_some() && schedule.pending == 0 && !schedule.stopped && sent < max;
             let has_attempts = !handles.is_empty();
-            let event = next_hedge_event(
+            let event = next_hedge_event_or_commit(
                 req.cancel_rx.clone(),
                 req.deadline,
                 schedule.at,
@@ -705,11 +897,21 @@ impl super::Channel {
                     pending,
                     timer,
                 },
+                (!commit_observed).then_some(commit.as_ref()),
                 self.retry_allowed(),
             )
             .await;
+            let event = match event {
+                HedgeEventOrCommit::Committed => {
+                    commit_observed = true;
+                    schedule.stop();
+                    continue;
+                }
+                HedgeEventOrCommit::Event(ev) => ev,
+            };
             match event {
                 HedgeEvent::Cancelled => {
+                    commit.stop_all();
                     abort_hedges(&mut handles);
                     req.call_guard.cancel(CancellationReason::CallerCancelled);
                     let status = Status::cancelled();
@@ -719,6 +921,7 @@ impl super::Channel {
                     return Err(status);
                 }
                 HedgeEvent::Deadline => {
+                    commit.stop_all();
                     abort_hedges(&mut handles);
                     req.call_guard.cancel(CancellationReason::DeadlineExceeded);
                     let status = Status::deadline_exceeded();
@@ -731,6 +934,7 @@ impl super::Channel {
                     std::panic::resume_unwind(error.into_panic());
                 }
                 HedgeEvent::Outcome(Some(Err(_)) | None) => {
+                    commit.stop_all();
                     abort_hedges(&mut handles);
                     let status = Status::internal("hedged attempt ended unexpectedly");
                     req.call_guard.finish(&status);
@@ -738,10 +942,15 @@ impl super::Channel {
                     self.local.retry_stats.record_committed(false);
                     return Err(status);
                 }
-                HedgeEvent::Outcome(Some(Ok((_attempt, result)))) => {
+                HedgeEvent::Outcome(Some(Ok((attempt, end)))) => {
                     outstanding = outstanding.saturating_sub(1);
-                    match result {
-                        Ok(response) => {
+                    match end {
+                        None => {}
+                        Some(HedgeCompleted {
+                            outcome: Ok(response),
+                            ..
+                        }) => {
+                            commit.stop_all();
                             abort_hedges(&mut handles);
                             let final_result: Result<Response<Resp>, Status> =
                                 self.apply_response_hooks(req.path, response);
@@ -760,30 +969,57 @@ impl super::Channel {
                                 .record_committed(final_result.is_ok());
                             return final_result;
                         }
-                        Err(status) => {
-                            let fatal = !req.policy.non_fatal_status_codes.contains(&status.code());
-                            if fatal {
-                                abort_hedges(&mut handles);
-                                req.call_guard.finish(&status);
-                                self.note_call_outcome(false).await;
-                                self.local.retry_stats.record_committed(false);
-                                return Err(status);
+                        Some(HedgeCompleted {
+                            outcome: Err(status),
+                            committed_headers,
+                        }) => {
+                            if commit.has_lost(attempt) {
+                                commit_observed = true;
+                                schedule.stop();
+                            } else {
+                                let committed_this_attempt =
+                                    committed_headers && commit.did_commit(attempt);
+                                let fatal_uncommitted = !committed_this_attempt
+                                    && !req.policy.non_fatal_status_codes.contains(&status.code())
+                                    && commit.try_commit(attempt);
+                                if committed_this_attempt || fatal_uncommitted {
+                                    commit.stop_all();
+                                    abort_hedges(&mut handles);
+                                    req.call_guard.finish(&status);
+                                    self.note_call_outcome(false).await;
+                                    self.local.retry_stats.record_committed(false);
+                                    return Err(status);
+                                }
+                                if commit.has_lost(attempt) {
+                                    commit_observed = true;
+                                    schedule.stop();
+                                } else {
+                                    schedule.nonfatal(
+                                        status.retry_pushback(),
+                                        max.saturating_sub(sent),
+                                        tokio::time::Instant::now(),
+                                    );
+                                    last_err = Some(status);
+                                }
                             }
-                            schedule.nonfatal(
-                                status.retry_pushback(),
-                                max.saturating_sub(sent),
-                                tokio::time::Instant::now(),
-                            );
-                            last_err = Some(status);
                         }
                     }
                 }
                 HedgeEvent::Timer => schedule.timer_elapsed(),
                 HedgeEvent::Permission(allowed) => {
-                    if allowed {
+                    if commit.winner.load(std::sync::atomic::Ordering::Acquire) != 0 {
+                        commit_observed = true;
+                        schedule.stop();
+                    } else if allowed {
                         sent += 1;
                         self.local.retry_stats.record_hedged_send();
-                        spawn_hedge_attempt(&mut handles, self.clone(), &req, sent);
+                        spawn_hedge_attempt(
+                            &mut handles,
+                            self.clone(),
+                            &req,
+                            sent,
+                            Arc::clone(&commit),
+                        );
                         outstanding += 1;
                         schedule.sent(
                             max.saturating_sub(sent),

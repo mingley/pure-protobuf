@@ -68,7 +68,7 @@ Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter:
 ```toml
 [dependencies]
 pbrs = "0.2.1"
-protobuf-tonic = "0.1.0-alpha.3"
+protobuf-tonic = "0.1.0"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 
@@ -112,8 +112,9 @@ each package or message set: retain the default tonic/prost codec for existing
 packages, and set `codec_path` only for pbrs-backed packages. Both generated
 service modules can be mounted on the same tonic server. Native services can
 use the same pattern by combining the normal `pbrs` generator with
-`pbrs::codegen::prost_stubs` and the `pbrs-grpc/prost` feature (added in
-`0.1.0-alpha.3`; the older `0.1.0-alpha.2` release did not include `prost`).
+`pbrs::codegen::prost_stubs` and the `pbrs-grpc/prost` feature (added in the
+older `0.1.0-alpha.3` preview and retained in `0.1.0`; the older
+`0.1.0-alpha.2` release did not include `prost`).
 
 At a migration boundary, convert wire-compatible representations without a
 generated field-by-field adapter:
@@ -159,11 +160,12 @@ The generated client/server names stay familiar, but they run on
 
 #### Mount a native service in a Tonic transport
 
-Enable the `tonic` feature in `Cargo.toml` (added in `0.1.0-alpha.3`; not
-present in the older `0.1.0-alpha.2` release):
+Enable the `tonic` feature in `Cargo.toml` (added in the older `0.1.0-alpha.3`
+preview and retained in `0.1.0`; not present in the older `0.1.0-alpha.2`
+release):
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tonic"] }
+pbrs-grpc = { version = "0.1.0", features = ["tonic"] }
 ```
 
 This feature requires Rust 1.88. Use it when an existing framework requires
@@ -313,11 +315,11 @@ request when the peer omits gzip from `grpc-accept-encoding`.
 ### Tower middleware parity
 
 The optional `tower` feature supports Tonic-style middleware composition on the
-native transport (added in `0.1.0-alpha.3`; not present in the older
-`0.1.0-alpha.2` release):
+native transport (added in the older `0.1.0-alpha.3` preview and retained in
+`0.1.0`; not present in the older `0.1.0-alpha.2` release):
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.3", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0", features = ["tower"] }
 ```
 
 | Tonic middleware | Native migration path | Delta |

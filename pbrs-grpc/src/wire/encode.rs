@@ -55,9 +55,29 @@ impl SegSink {
         if let Some(retained) = self.retained_head.as_mut() {
             if retained._lease.take().is_some() {
                 debug_assert!(self.head.is_empty());
-                let _reclaimed = self.head.try_reclaim(retained.capacity);
+                let reclaimed = self.head.try_reclaim(retained.capacity);
+                crate::workspace::note_output_reclaim(reclaimed);
             }
         }
+    }
+
+    /// Whether this empty sink holds an idle retained buffer that is still
+    /// shared with an unretired outbound HTTP/2 DATA frame.
+    ///
+    /// When the transport has already dropped the previous frame, `try_reclaim`
+    /// succeeds immediately in place; otherwise the lease stays intact while
+    /// the caller waits for `poll_send_drained`.
+    pub(crate) fn needs_reclaim_flush(&mut self) -> bool {
+        if !self.head.is_empty() || !self.segs.is_empty() {
+            return false;
+        }
+        let Some(retained) = self.retained_head.as_ref() else {
+            return false;
+        };
+        if retained._lease.is_none() {
+            return false;
+        }
+        !self.head.try_reclaim(retained.capacity)
     }
 
     // A split tail may expose less capacity than its complete backing.
@@ -191,7 +211,7 @@ impl SegSink {
         self.shared_len = cp.shared_len;
     }
 
-    fn freeze_head(&mut self) {
+    pub(crate) fn freeze_head(&mut self) {
         if !self.head.is_empty() {
             self.segs.push(std::mem::take(&mut self.head).freeze());
         }
@@ -544,7 +564,7 @@ fn append_compressed(
             .saturating_add(body.len())
             .saturating_add(body.len() / 16)
             .saturating_add(64);
-        let grow_after = buffer.len().saturating_add(body.len() / 2);
+        let grow_after = buffer.len().saturating_add((body.len() / 8).max(32 * 1024));
         codec.encode_into(
             body,
             level,
@@ -572,14 +592,19 @@ fn patch_frame_len(buf: &mut BytesMut, at: usize, len: u32) {
     len_bytes.copy_from_slice(&len.to_be_bytes());
 }
 
-/// How many bytes of stream output to accumulate before handing them to HTTP/2.
-///
-/// gRPC messages are length-prefixed, so a DATA frame may carry any number of
-/// them. Writing one frame per message costs a wakeup and often a syscall per
-/// message, which dominates the cost of a small-message stream; batching to
-/// 32 KiB amortises that without adding meaningful latency, because a batch is
-/// flushed as soon as the producer has nothing more ready.
+/// Minimum stream batch size before handing accumulated output to HTTP/2.
 pub(crate) const STREAM_BATCH_BYTES: usize = 32 * 1024;
+
+/// Target slab size when encoding a finite, already-closed client upload.
+///
+/// Closed uploads already reside in caller memory, so coalescing small frames
+/// into bounded 256 KiB slabs cuts per-segment HTTP/2 queue overhead without
+/// pre-allocating a multi-megabyte contiguous buffer across the whole stream.
+pub(crate) const CLOSED_UPLOAD_SLAB_BYTES: usize = 256 * 1024;
+
+/// Hard rotation ceiling for a single mutable `head` slab during closed upload
+/// coalescing before freezing it into `segs` and starting a fresh buffer.
+const MAX_CLOSED_UPLOAD_HEAD_BYTES: usize = 4 * 1024 * 1024;
 
 /// Append one length-prefixed message to `sink`.
 ///
@@ -595,17 +620,112 @@ pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     gzip_level: u32,
     ready_messages: usize,
 ) -> Result<(), Status> {
+    append_frame_in_mode(
+        sink,
+        scratch,
+        msg,
+        codec,
+        limits,
+        gzip_level,
+        ready_messages,
+        false,
+    )
+}
+
+pub(crate) fn append_frame_closed_upload<T: CodecMessage>(
+    sink: &mut SegSink,
+    scratch: &mut EncodeScratch,
+    msg: &T,
+    codec: Option<CompressionAlgorithm>,
+    limits: MessageLimits,
+    gzip_level: u32,
+    ready_messages: usize,
+) -> Result<(), Status> {
+    append_frame_in_mode(
+        sink,
+        scratch,
+        msg,
+        codec,
+        limits,
+        gzip_level,
+        ready_messages,
+        true,
+    )
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal frame encoder shared by streaming and closed-upload paths"
+)]
+fn append_frame_in_mode<T: CodecMessage>(
+    sink: &mut SegSink,
+    scratch: &mut EncodeScratch,
+    msg: &T,
+    codec: Option<CompressionAlgorithm>,
+    limits: MessageLimits,
+    gzip_level: u32,
+    ready_messages: usize,
+    closed_upload: bool,
+) -> Result<(), Status> {
     let len = msg.encoded_len();
     limits.check_encode(len)?;
     if let Some(codec) = codec {
         if len > usize::MAX >> 1 {
             return Err(Status::internal("message too large"));
         }
+        if closed_upload {
+            let worst_case = codec::HEADER_LEN
+                .saturating_add(len)
+                .saturating_add(len / 16)
+                .saturating_add(64);
+            if !sink.head.is_empty()
+                && ((sink.head.len() >= CLOSED_UPLOAD_SLAB_BYTES / 2
+                    && sink.head.capacity().saturating_sub(sink.head.len()) < worst_case)
+                    || sink.head.len().saturating_add(worst_case) > MAX_CLOSED_UPLOAD_HEAD_BYTES)
+            {
+                sink.freeze_head();
+            }
+            if sink.head.capacity() == 0 && ready_messages > 1 {
+                let per_msg_est =
+                    codec::HEADER_LEN + (len / 2 + 32).min(COMPRESSED_LOOKAHEAD_BYTES);
+                if per_msg_est < CLOSED_UPLOAD_SLAB_BYTES {
+                    sink.reserve_new(
+                        per_msg_est
+                            .saturating_mul(ready_messages)
+                            .min(CLOSED_UPLOAD_SLAB_BYTES),
+                    );
+                }
+            }
+        }
         return scratch.with_payload(msg, len, |body| {
             let wrote = append_compressed(sink.head_mut(), body, codec, gzip_level)?;
             sink.note_head_wrote(wrote);
             Ok(())
         });
+    }
+    if closed_upload {
+        let need_est = len.saturating_add(codec::HEADER_LEN);
+        if !sink.head.is_empty()
+            && ((sink.head.len() >= CLOSED_UPLOAD_SLAB_BYTES / 2
+                && sink.head.capacity().saturating_sub(sink.head.len()) < need_est)
+                || sink.head.len().saturating_add(need_est) > MAX_CLOSED_UPLOAD_HEAD_BYTES)
+        {
+            sink.freeze_head();
+        }
+        let (prefix, need) = identity_frame_size(len, sink.head.len())?;
+        if sink.head.capacity() == 0 && ready_messages > 1 && need < CLOSED_UPLOAD_SLAB_BYTES {
+            sink.reserve_new(
+                need.saturating_mul(ready_messages)
+                    .min(CLOSED_UPLOAD_SLAB_BYTES),
+            );
+        } else if sink.head.capacity() == 0 {
+            sink.reserve_new(need);
+        } else {
+            sink.reserve(need);
+        }
+        write_uncompressed_prefix(sink, prefix);
+        msg.encode_payload(sink)?;
+        return Ok(());
     }
     let (prefix, need) = identity_frame_size(len, sink.head.len())?;
     // A single already-ready message is flushed before polling for more.

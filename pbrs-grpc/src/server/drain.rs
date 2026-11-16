@@ -926,6 +926,26 @@ async fn flush_batch(
     Ok(())
 }
 
+async fn wait_reclaim_drain(
+    batch: &mut OutBatch,
+    send: &mut backend::SendStream,
+    call: &CancelFlag,
+) -> Result<(), DrainError> {
+    if !batch.needs_reclaim_flush() {
+        return Ok(());
+    }
+    super::deadline::before_commit(call).await;
+    poll_fn(|cx| {
+        if send.poll_reset(cx).is_ready() {
+            return Poll::Ready(Err(DrainError::Transport));
+        }
+        send.poll_send_drained(cx).map(Ok)
+    })
+    .await?;
+    super::deadline::before_commit(call).await;
+    Ok(())
+}
+
 // Release the error box before awaiting the queued-message flush.
 #[allow(
     clippy::boxed_local,
@@ -1055,6 +1075,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
                     .await;
                 }
             };
+            wait_reclaim_drain(&mut batch, send, call).await?;
             let permit = match budget.acquire(frame_len) {
                 Ok(permit) => permit,
                 Err(status) => {

@@ -90,6 +90,7 @@ async fn closed_upload_preserves_reset_reason_and_budget() {
                         None,
                         status,
                         permit,
+                        None,
                     );
                     assert_eq!(
                         status.code(),

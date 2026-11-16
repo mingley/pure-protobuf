@@ -34,6 +34,9 @@ pub(super) struct Send {
     /// Prioritization layer
     prioritize: Prioritize,
 
+    /// Set once any stream has parked on `poll_send_drained` on this connection.
+    may_have_drain_waiters: bool,
+
     is_push_enabled: bool,
 
     /// If extended connect protocol is enabled.
@@ -58,6 +61,7 @@ impl Send {
             max_stream_id: StreamId::MAX,
             next_stream_id: Ok(config.local_next_stream_id),
             prioritize: Prioritize::new(config, buffer_idle),
+            may_have_drain_waiters: false,
             is_push_enabled: true,
             is_extended_connect_protocol_enabled: false,
         }
@@ -563,6 +567,36 @@ impl Send {
         }
 
         Poll::Ready(Some(Ok(capacity)))
+    }
+
+    #[inline]
+    pub(super) fn may_have_drain_waiters(&self) -> bool {
+        self.may_have_drain_waiters
+    }
+
+    #[inline]
+    pub(super) fn in_flight_stream(&self) -> Option<store::Key> {
+        self.prioritize.in_flight_stream()
+    }
+
+    pub(super) fn poll_send_drained(
+        &mut self,
+        cx: &Context,
+        stream: &mut store::Ptr,
+    ) -> Poll<()> {
+        if !stream.state.is_send_streaming() {
+            return Poll::Ready(());
+        }
+        if stream.buffered_send_data == 0
+            && stream.pending_send.is_empty()
+            && stream.retiring_data == 0
+            && self.prioritize.in_flight_stream() != Some(stream.key())
+        {
+            return Poll::Ready(());
+        }
+        self.may_have_drain_waiters = true;
+        stream.wait_drain(cx);
+        Poll::Pending
     }
 
     /// Current available stream send capacity

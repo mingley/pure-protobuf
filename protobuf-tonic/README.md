@@ -7,8 +7,8 @@
 `protobuf-tonic` connects [`pbrs`](https://crates.io/crates/pbrs) messages to
 Tonic 0.14 transport and middleware. It provides a `ProtobufCodec` adapter,
 generated client and server stubs, and single-buffer wire conversion helpers.
-Version `0.1.0-alpha.3` (paired with `pbrs` `0.2.1`) is a pre-release preview
-and requires Rust 1.88. Older Tonic versions (0.12, 0.13) are unsupported.
+Version `0.1.0` (paired with `pbrs` `0.2.1`) requires Rust 1.88. Older Tonic
+versions (0.12, 0.13) are unsupported.
 
 Two boundaries matter when migrating:
 
@@ -38,7 +38,7 @@ The `pbrs` core crate has no `tonic`, `hyper`, or `tower` dependency;
 [dependencies]
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 pbrs = "0.2.1"
-protobuf-tonic = "0.1.0-alpha.3"
+protobuf-tonic = "0.1.0"
 http = "1"
 tokio-stream = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

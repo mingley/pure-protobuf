@@ -1,5 +1,52 @@
 # Changelog
 
+## pbrs-grpc 0.1.0 / protobuf-tonic 0.1.0
+
+First non-prerelease `0.1.0` versions of `pbrs-grpc` and `protobuf-tonic`,
+paired with `pbrs` **0.2.1**. See [implementation status](docs/status.md) and
+[support policy](docs/support-policy.md) for supported surfaces and
+qualification boundaries.
+
+### pbrs-grpc 0.1.0
+
+#### Retries, hedging, and binary logging (gRFC A6 / A16)
+
+- Enforce strict gRFC A6 `grpc-retry-pushback-ms` ABNF syntax (`0` or
+  `[1-9][0-9]*`), rejecting redundant leading zeros as malformed pushback that
+  halts retries.
+- Commit unary `hedgingPolicy` races on ordinary initial response `HEADERS`:
+  immediately cancel in-flight sibling attempts with `RST_STREAM(CANCEL)`, stop
+  launching scheduled hedges, and guard winner selection with a single atomic
+  CAS.
+- Emit `ServerTrailer` binary log entries when a peer rejects a call before
+  request upload completes; distinguish peer `CANCELLED` trailers from
+  client-initiated `Cancel` events on streaming calls; deduplicate local
+  streaming `Cancel` entries across `CallHandle::cancel`, `StreamSender` drop,
+  and `Streaming<T>` drop; and record `Cancel` when a unary `Streaming<T>` is
+  dropped before trailers or when a unary call is cancelled before logger setup.
+
+#### Streaming memory bounds and framing
+
+- Track HTTP/2 stream send-buffer drain end-to-end (`poll_send_drained`) so
+  compressed server downloads reclaim their encode workspace without
+  unconditional yields or higher ledger caps.
+- Coalesce compressed closed client uploads into bounded 256 KiB slabs
+  (`OutBatch::new_closed_upload`) while preserving pre-send codec and budget
+  error ordering.
+- Stage multi-chunk large identity frames in `FrameReader` (`VecDeque<Bytes>`)
+  for a single exact contiguous assembly after full payload arrival without
+  reserving from an untrusted length prefix, and release decoder staging
+  buffers immediately at terminal stream state.
+
+### protobuf-tonic 0.1.0
+
+- Reserve `serialized_size()` bytes upfront in `ProtobufEncoder::encode`
+  (bounded by `MAX_PROTOBUF_MESSAGE_BYTES`, `0x7fff_ffff`) before writing into
+  Tonic's `EncodeBuf`.
+- Expose additive `BufferSettings` constructors and accessors across
+  `ProtobufCodec`, `ProtobufEncoder`, and `ProtobufDecoder`, and enforce the
+  same 2 GiB wire-size bound in `prost_to_pbrs`.
+
 ## 0.2.1 / 0.1.0-alpha.3 — 2026-11-12
 
 Coordinated release of `pbrs` **0.2.1**, `pbrs-grpc` **0.1.0-alpha.3**, and

@@ -437,7 +437,7 @@ shells out to it:
 ```toml
 [dependencies]
 pbrs = "0.2.1"
-pbrs-grpc = "0.1.0-alpha.3"
+pbrs-grpc = "0.1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]

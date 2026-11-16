@@ -184,6 +184,8 @@ struct Diagnostics {
     peak_retained_capacity: AtomicUsize,
     retained_buffers: AtomicUsize,
     peak_retained_buffers: AtomicUsize,
+    output_reclaimed: AtomicUsize,
+    output_reclaim_missed: AtomicUsize,
 }
 
 #[cfg(any(test, feature = "copy-counts"))]
@@ -199,6 +201,8 @@ impl Diagnostics {
             peak_retained_capacity: AtomicUsize::new(0),
             retained_buffers: AtomicUsize::new(0),
             peak_retained_buffers: AtomicUsize::new(0),
+            output_reclaimed: AtomicUsize::new(0),
+            output_reclaim_missed: AtomicUsize::new(0),
         }
     }
 
@@ -251,6 +255,47 @@ pub struct RetainedDecodeCounts {
     pub retained_buffers: usize,
     /// Lifetime high-water mark of the idle reservation counter.
     pub peak_retained_buffers: usize,
+}
+
+/// Lifetime in-place output-workspace reclamation counters for large compressed
+/// streaming frames.
+#[cfg(feature = "copy-counts")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct OutputReclaimCounts {
+    /// Retained output buffers reclaimed in place before the next encode.
+    pub reclaimed: usize,
+    /// Retained output buffers still shared at the start of the next encode.
+    pub missed: usize,
+}
+
+#[cfg(feature = "copy-counts")]
+pub(crate) fn output_reclaim_counts() -> OutputReclaimCounts {
+    OutputReclaimCounts {
+        reclaimed: RETAINED_ENCODE_BUDGET
+            .diagnostics
+            .output_reclaimed
+            .load(Ordering::Relaxed),
+        missed: RETAINED_ENCODE_BUDGET
+            .diagnostics
+            .output_reclaim_missed
+            .load(Ordering::Relaxed),
+    }
+}
+
+#[inline]
+pub(crate) fn note_output_reclaim(reclaimed: bool) {
+    #[cfg(any(test, feature = "copy-counts"))]
+    {
+        let counter = if reclaimed {
+            &RETAINED_ENCODE_BUDGET.diagnostics.output_reclaimed
+        } else {
+            &RETAINED_ENCODE_BUDGET.diagnostics.output_reclaim_missed
+        };
+        counter.fetch_add(1, Ordering::Relaxed);
+    }
+    #[cfg(not(any(test, feature = "copy-counts")))]
+    let _ = reclaimed;
 }
 
 #[cfg(feature = "copy-counts")]

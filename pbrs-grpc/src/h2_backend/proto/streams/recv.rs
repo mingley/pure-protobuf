@@ -1200,6 +1200,7 @@ impl Recv {
         stream.state.recv_reset(frame, stream.is_pending_send);
 
         stream.notify_send();
+        stream.notify_drain();
         stream.notify_recv();
         stream.notify_push();
 
@@ -1213,6 +1214,7 @@ impl Recv {
 
         // If a receiver is waiting, notify it
         stream.notify_send();
+        stream.notify_drain();
         stream.notify_recv();
         stream.notify_push();
     }
@@ -1225,6 +1227,7 @@ impl Recv {
     pub fn recv_eof(&mut self, stream: &mut Stream) {
         stream.state.recv_eof();
         stream.notify_send();
+        stream.notify_drain();
         stream.notify_recv();
         stream.notify_push();
     }

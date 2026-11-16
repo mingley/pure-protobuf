@@ -14,7 +14,7 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 
 **Status:** conformance is tested through Protocol Buffers Edition 2023.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
-The gRPC crates are previews; see the [support policy](docs/support-policy.md)
+See the [support policy](docs/support-policy.md)
 for supported versions and deployment guidance.
 The [benchmark results](docs/benchmarks.md) show measured improvements and remaining
 CPU, allocation and bulk losses. Each result names the source it tested;
@@ -154,8 +154,8 @@ generation, reflection, JSON, text format, and bundled WKT bindings.
 | Need | Use | Version | Status |
 |---|---|---|---|
 | Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.1` | Core runtime and generator |
-| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.0-alpha.3` | Preview |
-| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.0-alpha.3` | Preview |
+| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.0` | Supported `0.1.x` line |
+| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.0` | Supported `0.1.x` line |
 | Runnable service with health and reflection | [`examples/greeter`](examples/greeter/README.md) | — | Workspace example (`publish = false`) |
 
 ## Code generation options
@@ -167,7 +167,7 @@ build.
 | Task | Needs `protoc`? | Notes |
 |---|---|---|
 | Build the core `pbrs` crate | No | The crate uses a bundled `FileDescriptorSet`. |
-| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0-alpha.3`, or older `0.1.0-alpha.2`) | No | They build from checked descriptor sets. |
+| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0`, or older `0.1.0-alpha.2` / `0.1.0-alpha.3` previews) | No | They build from checked descriptor sets. |
 | Build the older `pbrs-grpc` / `protobuf-tonic` `0.1.0-alpha.1` crates | Yes | Those alphas predate the checked-descriptor change. |
 | Run `compile_protos` or `protoc-gen-pbrs` on application `.proto` files | Yes | `protoc` must be on `PATH`. |
 | Run `Config::compile_descriptor_set` from a checked descriptor set | No during the app build | Creating or updating the descriptor set still needs `protoc`. |
@@ -265,8 +265,8 @@ of **Protocol Buffers Edition 2024**.
 | Crate | Declared MSRV | CI checks | `protoc` | Stub default |
 |---|---|---|---|---|
 | [`pbrs`](README.md) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc/README.md) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, `grpc-i686` 1.85 + stable, stable Linux + macOS | Builds from checked FileDescriptorSets (`0.1.0-alpha.3` and older `0.1.0-alpha.2`). Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic/README.md) | 1.88 | `msrv-tonic` 1.88 | Builds from the checked FileDescriptorSet (`0.1.0-alpha.3` and older `0.1.0-alpha.2`). Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`pbrs-grpc`](pbrs-grpc/README.md) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, `grpc-i686` 1.85 + stable, stable Linux + macOS | Builds from checked FileDescriptorSets (`0.1.0`, and older `0.1.0-alpha.2` / `0.1.0-alpha.3` previews). Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic/README.md) | 1.88 | `msrv-tonic` 1.88 | Builds from the checked FileDescriptorSet (`0.1.0`, and older `0.1.0-alpha.2` / `0.1.0-alpha.3` previews). Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also required it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
 | [`examples/greeter`](examples/greeter/README.md) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):
@@ -277,9 +277,9 @@ of **Protocol Buffers Edition 2024**.
   Edition 2023 is **not qualified**.
 - Architectures other than x86-64 and AArch64 do not include the native gRPC
   built-in TLS provider. Plaintext and caller-owned rustls configurations are
-  tested on `i686` Linux in `0.1.0-alpha.3` (the older published `0.1.0-alpha.2`
-  release failed to build on `i686`); see [implementation status](docs/status.md)
-  and the [native crate guide](pbrs-grpc/README.md).
+  tested on `i686` Linux in `0.1.0` and the older `0.1.0-alpha.3` preview (the
+  older published `0.1.0-alpha.2` release failed to build on `i686`); see
+  [implementation status](docs/status.md) and the [native crate guide](pbrs-grpc/README.md).
 - Windows CI is **untested**.
 
 ## Performance and stack selection

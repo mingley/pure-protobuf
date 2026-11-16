@@ -12,8 +12,8 @@ promised.
 | Crate | Source manifest version | MSRV | MSRV CI job |
 |---|---|---|---|
 | `pbrs` | `0.2.1` | 1.85 (`rust-version`) | `msrv-core` |
-| `pbrs-grpc` | `0.1.0-alpha.3` (preview) | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
-| `protobuf-tonic` | `0.1.0-alpha.3` (preview) | 1.88 (`rust-version`) | `msrv-tonic` |
+| `pbrs-grpc` | `0.1.0` | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
+| `protobuf-tonic` | `0.1.0` | 1.88 (`rust-version`) | `msrv-tonic` |
 
 The table records source versions; check the registry and release evidence
 before treating them as published versions. The proposed support policy is
@@ -80,9 +80,9 @@ constructors, builder methods, trait methods, and public associated types:
 
 The CI comparison covers all public APIs of `pbrs`, `pbrs-grpc`, and
 `protobuf-tonic`, which is deliberately stricter than the named minimum. It
-compares against the last published releases (`0.2.0`, `0.1.0-alpha.2`, and
-`0.1.0-alpha.2`, respectively), so deleting or incompatibly changing any
-listed API fails before merge. CI explicitly selects the tool's `minor`
+compares against the published releases (`0.2.1`, and the older published
+`0.1.0-alpha.3` baselines until `0.1.0` is indexed on crates.io), so deleting
+or incompatibly changing any listed API fails before merge. CI explicitly selects the tool's `minor`
 release policy: additive APIs are allowed, and an unchanged alpha version
 cannot infer a major release that skips all compatibility checks.
 The maintainer approved installing pinned

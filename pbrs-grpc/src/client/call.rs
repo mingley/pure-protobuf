@@ -88,17 +88,22 @@ pub(crate) fn is_direct_cancellation(status: &Status) -> bool {
         && !std::error::Error::source(status).is_some_and(|cause| cause.is::<TransportError>())
 }
 
-/// Parse a peer rejection without waiting for an unfinished request upload.
-/// A non-200 response is still committed, even when its status is retryable.
-pub(crate) fn peer_rejection_from_head(
+/// Parse a peer rejection and its binary-log trailer metadata without waiting
+/// for an unfinished request upload. A non-200 response is still committed,
+/// even when its status is retryable.
+pub(crate) fn peer_rejection_with_metadata_from_head(
     response: &http::Response<backend::RecvStream>,
     cached_commitment: Option<bool>,
-) -> Option<Status> {
+) -> Option<(Status, crate::metadata::Metadata)> {
     if response.status() != http::StatusCode::OK {
         let status = status_from_http_error(response.status(), response.headers());
         // An incomplete upload can never become successful from response
         // headers alone. Keep waiting or preserve the send error for OK.
-        return (status.code() != Code::Ok).then_some(status);
+        if status.code() != Code::Ok {
+            let md = status.metadata().clone();
+            return Some((status, md));
+        }
+        return None;
     }
     let grpc_code = response
         .headers()
@@ -109,12 +114,24 @@ pub(crate) fn peer_rejection_from_head(
         && (cached_commitment == Some(false) || response.body().is_end_stream())
         && grpc_code.is_some_and(|code| code != 0)
     {
-        Some(status_from(response.headers(), None))
+        let status = status_from(response.headers(), None);
+        let md = crate::metadata::Metadata::from_owned_headers(response.headers().clone());
+        Some((status, md))
     } else {
         None
     }
 }
 
+/// Parse a peer rejection without waiting for an unfinished request upload.
+/// A non-200 response is still committed, even when its status is retryable.
+pub(crate) fn peer_rejection_from_head(
+    response: &http::Response<backend::RecvStream>,
+    cached_commitment: Option<bool>,
+) -> Option<Status> {
+    peer_rejection_with_metadata_from_head(response, cached_commitment).map(|(status, _)| status)
+}
+
+#[cfg(test)]
 pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     response: impl std::future::Future<
         Output = Result<http::Response<backend::RecvStream>, TransportError>,
@@ -122,6 +139,25 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     send_error: Status,
     response_committed: &mut bool,
     cached_commitment: Option<bool>,
+) -> Result<T, Status> {
+    prefer_peer_rejection_with_trailer(
+        response,
+        send_error,
+        response_committed,
+        cached_commitment,
+        &mut None,
+    )
+    .await
+}
+
+pub(crate) async fn prefer_peer_rejection_with_trailer<T>(
+    response: impl std::future::Future<
+        Output = Result<http::Response<backend::RecvStream>, TransportError>,
+    >,
+    send_error: Status,
+    response_committed: &mut bool,
+    cached_commitment: Option<bool>,
+    rejection_trailer: &mut Option<(crate::metadata::Metadata, Status)>,
 ) -> Result<T, Status> {
     let response = if send_error.is_transport() {
         Some(response.await)
@@ -143,13 +179,17 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
                 *response_committed =
                     cached_commitment.unwrap_or_else(|| response_commits(&response));
                 // Never turn an incomplete upload into OK.
-                if let Some(status) = peer_rejection_from_head(&response, cached_commitment) {
+                if let Some((status, md)) =
+                    peer_rejection_with_metadata_from_head(&response, cached_commitment)
+                {
+                    *rejection_trailer = Some((md, status.clone()));
                     return Err(status);
                 }
             }
             // A stream reset can close the send half before its explicit refusal
             // reaches the response future. Only REFUSED_STREAM proves no execution.
             Err(error) if error.reason() == Some(Reason::REFUSED_STREAM) => {
+                *rejection_trailer = None;
                 return Err(Status::from_h2_post_dispatch(error));
             }
             Err(_) => {}
@@ -945,9 +985,16 @@ impl super::Channel {
             )
             .await
             {
-                Ok((resp_fut, send)) => {
+                Ok((resp_fut, mut send)) => {
                     if let Some(tap) = tap {
+                        let Some(_header) = cancel_rx.begin_unary_header() else {
+                            send.send_reset(Reason::CANCEL);
+                            return Err(Status::cancelled());
+                        };
                         tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+                    } else if cancel_requested(&cancel_rx) {
+                        send.send_reset(Reason::CANCEL);
+                        return Err(Status::cancelled());
                     }
                     return Ok(Opened {
                         load,

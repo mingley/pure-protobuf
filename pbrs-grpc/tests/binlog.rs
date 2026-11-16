@@ -1583,3 +1583,275 @@ async fn caps_apply_end_to_end() {
         assert!(records[0].entry.payload_truncated);
     }
 }
+
+#[derive(Clone, Copy)]
+enum UploadShape {
+    Unary,
+    ServerStreaming,
+    ClientStreamingClosed,
+    ClientStreamingLive,
+    BidiLive,
+}
+
+async fn assert_early_upload_rejection_logs_trailer(shape: UploadShape) {
+    use std::time::Duration;
+
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+
+    // Shrink the server H2 stream window to 64 bytes so a 4 KiB request upload
+    // stalls mid-upload while the server rejects early with trailers-only + reset.
+    let server = tokio::spawn(async move {
+        let mut builder = h2::server::Builder::new();
+        builder.initial_window_size(64);
+        let mut conn = builder
+            .handshake::<_, bytes::Bytes>(server_io)
+            .await
+            .expect("handshake");
+        let (_req, mut respond) = conn
+            .accept()
+            .await
+            .expect("request")
+            .expect("request headers");
+        let response = http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header(http::header::CONTENT_TYPE, "application/grpc")
+            .header("grpc-status", "7")
+            .header("grpc-message", "early-denied")
+            .header("x-reject", "early")
+            .body(())
+            .expect("response");
+        respond
+            .send_response(response, true)
+            .expect("trailers-only rejection");
+        while let Some(result) = conn.accept().await {
+            let _ = result;
+        }
+    });
+
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("channel")
+        .binary_logger(logger);
+    let client = GreeterClient::new(channel);
+    let big = "x".repeat(4096);
+
+    let status = tokio::time::timeout(Duration::from_secs(5), async {
+        match shape {
+            UploadShape::Unary => client
+                .say_hello(Request::new(hello_request(&big)))
+                .await
+                .expect_err("unary rejected"),
+            UploadShape::ServerStreaming => client
+                .server_hello(Request::new(hello_request(&big)))
+                .await
+                .expect_err("server streaming rejected"),
+            UploadShape::ClientStreamingClosed => {
+                let (tx, call) = client.client_hello(Request::new(()));
+                tx.send(hello_request(&big)).await.expect("queue message");
+                drop(tx);
+                call.await.expect_err("closed client streaming rejected")
+            }
+            UploadShape::ClientStreamingLive => {
+                let (tx, call) = client.client_hello(Request::new(()));
+                let uploader = tokio::spawn(async move {
+                    let _ = tx.send(hello_request(&big)).await;
+                });
+                let err = call.await.expect_err("live client streaming rejected");
+                let _ = uploader.await;
+                err
+            }
+            UploadShape::BidiLive => {
+                let (tx, call) = client.stream_hello(Request::new(()));
+                let uploader = tokio::spawn(async move {
+                    let _ = tx.send(hello_request(&big)).await;
+                });
+                let err = match call.await {
+                    Err(err) => err,
+                    Ok(resp) => resp
+                        .into_inner()
+                        .message()
+                        .await
+                        .expect_err("bidi stream rejected"),
+                };
+                let _ = uploader.await;
+                err
+            }
+        }
+    })
+    .await
+    .expect("RPC completed");
+
+    assert_eq!(status.code(), Code::PermissionDenied);
+    assert_eq!(status.message(), "early-denied");
+
+    let records = sink.records();
+    let events = events_of(&records);
+    assert!(
+        !events.contains(&EventType::Cancel),
+        "early peer rejection must not log Cancel: {events:?}"
+    );
+    let trailers: Vec<_> = records
+        .iter()
+        .filter(|r| r.entry.event == EventType::ServerTrailer)
+        .collect();
+    assert_eq!(
+        trailers.len(),
+        1,
+        "expected exactly one ServerTrailer for early rejection: {events:?}"
+    );
+    match trailers[0].entry.payload.as_ref().expect("trailer payload") {
+        Payload::Trailer(t) => {
+            assert_eq!(t.status_code, 7);
+            assert_eq!(t.status_message, "early-denied");
+            let x_reject = t
+                .metadata
+                .iter()
+                .find(|(k, _)| k == "x-reject")
+                .map(|(_, v)| v.as_slice());
+            assert_eq!(x_reject, Some(&b"early"[..]));
+        }
+        other => panic!("expected trailer payload, got {other:?}"),
+    }
+    server.abort();
+}
+
+#[tokio::test]
+async fn early_upload_rejection_logs_server_trailer_across_unary_and_streaming() {
+    for shape in [
+        UploadShape::Unary,
+        UploadShape::ServerStreaming,
+        UploadShape::ClientStreamingClosed,
+        UploadShape::ClientStreamingLive,
+        UploadShape::BidiLive,
+    ] {
+        assert_early_upload_rejection_logs_trailer(shape).await;
+    }
+}
+
+#[tokio::test]
+async fn streaming_cancel_and_peer_cancelled_distinguish_provenance_in_binlog() {
+    use std::time::Duration;
+
+    // 1. Mid-stream drop of Streaming<T> emits exactly one Cancel on the client.
+    {
+        let (client, client_sink, _server_sink, _guard) = logged_pair("*").await;
+        let mut stream = client
+            .server_hello(Request::new(hello_request("one,two,three")))
+            .await
+            .expect("headers")
+            .into_inner();
+        let first = stream
+            .message()
+            .await
+            .expect("first ok")
+            .expect("first item");
+        assert_eq!(first.message().to_str().unwrap_or(""), "one");
+        drop(stream);
+
+        let events = events_of(&client_sink.records());
+        assert_eq!(
+            events.iter().filter(|e| **e == EventType::Cancel).count(),
+            1,
+            "dropping unfinished Streaming<T> logs one Cancel: {events:?}"
+        );
+    }
+
+    // 2. Bidi tx.fail(Status::cancelled()) + handle.cancel() + drop(stream)
+    //    deduplicates to a single Cancel event.
+    {
+        let (client, client_sink, _server_sink, _guard) = logged_pair("*").await;
+        let (tx, call) = client.stream_hello(Request::new(()));
+        let handle = call.handle();
+        tx.send(hello_request("one")).await.expect("send");
+        let mut stream = call.await.expect("headers").into_inner();
+        let _ = stream.message().await.expect("echo ok");
+        tx.fail(Status::cancelled()).await;
+        handle.cancel();
+        drop(stream);
+
+        let events = events_of(&client_sink.records());
+        assert_eq!(
+            events.iter().filter(|e| **e == EventType::Cancel).count(),
+            1,
+            "StreamSender::fail + CallHandle::cancel + drop deduplicate to one Cancel: {events:?}"
+        );
+    }
+
+    // 3. Peer returning grpc-status = 1 (CANCELLED) on a server-streaming call
+    //    logs ServerTrailer(status_code = 1) and zero Cancel events, even if
+    //    CallHandle::cancel() is invoked after completion.
+    {
+        let sink = Arc::new(VecSink::new());
+        let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), sink.clone());
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+
+        let server = tokio::spawn(async move {
+            let mut conn = h2::server::handshake(server_io).await.expect("handshake");
+            let (req, mut respond) = conn
+                .accept()
+                .await
+                .expect("request")
+                .expect("request headers");
+            let mut body = req.into_body();
+            while let Some(chunk) = body.data().await {
+                let _ = chunk.expect("body");
+            }
+            let head = http::Response::builder()
+                .status(http::StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, "application/grpc")
+                .body(())
+                .expect("head");
+            let mut send = respond.send_response(head, false).expect("send head");
+            let mut trailers = http::HeaderMap::new();
+            trailers.insert("grpc-status", http::HeaderValue::from_static("1"));
+            trailers.insert(
+                "grpc-message",
+                http::HeaderValue::from_static("peer-stream-cancelled"),
+            );
+            send.send_trailers(trailers).expect("send trailers");
+            while let Some(result) = conn.accept().await {
+                let _ = result;
+            }
+        });
+
+        let channel = Channel::from_io(client_io, "localhost")
+            .await
+            .expect("channel")
+            .binary_logger(logger);
+        let client = GreeterClient::new(channel);
+        let call = client.server_hello(Request::new(hello_request("peer")));
+        let handle = call.handle();
+        let mut stream = tokio::time::timeout(Duration::from_secs(5), call)
+            .await
+            .expect("headers timeout")
+            .expect("headers")
+            .into_inner();
+        let status = tokio::time::timeout(Duration::from_secs(5), stream.message())
+            .await
+            .expect("trailers timeout")
+            .expect_err("peer cancelled stream");
+        assert_eq!(status.code(), Code::Cancelled);
+        assert_eq!(status.message(), "peer-stream-cancelled");
+        handle.cancel();
+        drop(stream);
+
+        let records = sink.records();
+        let events = events_of(&records);
+        assert!(
+            !events.contains(&EventType::Cancel),
+            "peer CANCELLED on stream must not log Cancel: {events:?}"
+        );
+        let trailers: Vec<_> = records
+            .iter()
+            .filter(|r| r.entry.event == EventType::ServerTrailer)
+            .collect();
+        assert_eq!(trailers.len(), 1, "events: {events:?}");
+        match trailers[0].entry.payload.as_ref().expect("trailer") {
+            Payload::Trailer(t) => assert_eq!(t.status_code, 1),
+            other => panic!("expected trailer, got {other:?}"),
+        }
+        server.abort();
+    }
+}

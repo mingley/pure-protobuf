@@ -218,10 +218,21 @@ pub enum Pushback {
     DoNotRetry,
 }
 
-/// Parse one `grpc-retry-pushback-ms` value as an A6 signed 32-bit delay.
+/// Parse one `grpc-retry-pushback-ms` value as a canonical A6 non-negative
+/// signed 32-bit decimal delay (`"0"` or `[1-9][0-9]*` up to `i32::MAX`).
 ///
-/// Negative, malformed, and out-of-range values ask the client not to retry.
+/// Negative values, leading signs, redundant leading zeros, whitespace,
+/// non-ASCII bytes, and out-of-range values ask the client not to retry.
 pub(crate) fn parse_pushback_value(raw: &str) -> Pushback {
+    let bytes = raw.as_bytes();
+    let canonical = match bytes {
+        b"0" => true,
+        [b'1'..=b'9', rest @ ..] => rest.iter().all(u8::is_ascii_digit),
+        _ => false,
+    };
+    if !canonical {
+        return Pushback::DoNotRetry;
+    }
     match raw
         .parse::<i32>()
         .ok()

@@ -46,6 +46,11 @@ pub(crate) trait SendStream {
     fn send_reset(&mut self, reason: Reason);
     /// Poll for a reset sent by the peer.
     fn poll_reset(&mut self, cx: &mut Context<'_>) -> Poll<Result<Reason, Error>>;
+    /// Poll until all queued, in-flight, and retiring outbound DATA frames for
+    /// this stream have been dropped, or the send side is no longer streaming.
+    fn poll_send_drained(&mut self, _cx: &mut Context<'_>) -> Poll<()> {
+        Poll::Ready(())
+    }
 }
 
 /// Inbound side of one HTTP/2 stream: DATA, trailers, flow control.

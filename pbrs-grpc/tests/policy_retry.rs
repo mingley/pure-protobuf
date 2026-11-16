@@ -2267,3 +2267,205 @@ async fn invalid_service_config_leaves_channel_unchanged() {
     assert_eq!(err.code(), Code::InvalidArgument);
     assert!(channel.service_config_doc().is_none());
 }
+
+#[tokio::test]
+async fn hedge_commits_on_initial_headers_and_cancels_in_flight_sibling() {
+    let json = r#"{"methodConfig": [{"name": [{}],
+        "hedgingPolicy": {"maxAttempts": 3, "hedgingDelay": "0.02s",
+        "nonFatalStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let (reset1_tx, reset1_rx) = tokio::sync::oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut conn = h2::server::handshake(server_io).await.expect("handshake");
+
+        // Attempt 1 arrives and stays open without sending response headers.
+        let (req1, mut respond1) = conn
+            .accept()
+            .await
+            .expect("attempt 1")
+            .expect("attempt 1 headers");
+        let mut body1 = req1.into_body();
+        while let Some(chunk) = body1.data().await {
+            let _ = chunk.expect("attempt 1 body");
+        }
+        drop(tokio::spawn(async move {
+            let reason = std::future::poll_fn(|cx| respond1.poll_reset(cx)).await;
+            let _ = reset1_tx.send(reason.expect("attempt 1 reset"));
+        }));
+
+        // Attempt 2 arrives after hedgingDelay and sends initial 200 OK headers
+        // (without END_STREAM), committing Attempt 2 per gRFC A6.
+        let (req2, mut respond2) = conn
+            .accept()
+            .await
+            .expect("attempt 2")
+            .expect("attempt 2 headers");
+        let mut body2 = req2.into_body();
+        while let Some(chunk) = body2.data().await {
+            let _ = chunk.expect("attempt 2 body");
+        }
+        let head = http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header(http::header::CONTENT_TYPE, "application/grpc")
+            .body(())
+            .expect("response head");
+        let mut send2 = respond2
+            .send_response(head, false)
+            .expect("send initial headers");
+
+        // Attempt 1 must receive RST_STREAM(CANCEL) before Attempt 2 finishes
+        // its body, and Attempt 3 must never be dispatched.
+        let reset_reason = tokio::select! {
+            res = reset1_rx => res.expect("reset oneshot"),
+            accepted = conn.accept() => panic!("unexpected attempt 3 before reset: {accepted:?}"),
+        };
+        assert_eq!(reset_reason, h2::Reason::CANCEL);
+
+        let third = tokio::time::timeout(Duration::from_millis(80), conn.accept()).await;
+        assert!(
+            third.is_err(),
+            "committed initial headers must suppress scheduled hedge 3"
+        );
+
+        // Even though UNAVAILABLE (14) is in nonFatalStatusCodes, Attempt 2 was
+        // already committed by its initial headers so its trailing status is final.
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("14"));
+        trailers.insert(
+            "grpc-message",
+            http::HeaderValue::from_static("committed-attempt-2"),
+        );
+        send2.send_trailers(trailers).expect("send trailers");
+
+        while let Some(result) = conn.accept().await {
+            let _ = result;
+        }
+    });
+
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("channel")
+        .service_config(json)
+        .expect("service config");
+    let status = tokio::time::timeout(CALL_BUDGET, say_hello(&channel))
+        .await
+        .expect("call completed")
+        .expect_err("committed attempt 2 failed with trailers");
+    assert_eq!(status.code(), Code::Unavailable);
+    assert_eq!(status.message(), "committed-attempt-2");
+
+    let stats = channel.retry_stats();
+    assert_eq!(stats.calls, 1);
+    assert_eq!(stats.hedged_sends, 1);
+    assert_eq!(stats.committed_err, 1);
+    server.abort();
+}
+
+#[tokio::test]
+async fn hedge_committed_winner_is_not_preempted_by_late_sibling_fatal_error() {
+    use pbrs::Serialize;
+    use pbrs_grpc::binlog::{BinaryLogFilter, BinaryLogger, EventType, LogRecord, Sink};
+
+    #[derive(Debug)]
+    struct HeaderSignal {
+        header_seen: tokio::sync::Notify,
+    }
+
+    impl Sink for HeaderSignal {
+        fn emit(&self, record: &LogRecord) {
+            if record.entry.event == EventType::ServerHeader {
+                self.header_seen.notify_waiters();
+            }
+        }
+    }
+
+    let json = r#"{"methodConfig": [{"name": [{}],
+        "hedgingPolicy": {"maxAttempts": 2, "hedgingDelay": "0.01s",
+        "nonFatalStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let signal = Arc::new(HeaderSignal {
+        header_seen: tokio::sync::Notify::new(),
+    });
+    let signal_for_server = Arc::clone(&signal);
+
+    let server = tokio::spawn(async move {
+        let mut conn = h2::server::handshake(server_io).await.expect("handshake");
+
+        let (req1, mut respond1) = conn
+            .accept()
+            .await
+            .expect("attempt 1")
+            .expect("attempt 1 headers");
+        let mut body1 = req1.into_body();
+        while let Some(chunk) = body1.data().await {
+            let _ = chunk.expect("attempt 1 body");
+        }
+
+        let (req2, mut respond2) = conn
+            .accept()
+            .await
+            .expect("attempt 2")
+            .expect("attempt 2 headers");
+        let mut body2 = req2.into_body();
+        while let Some(chunk) = body2.data().await {
+            let _ = chunk.expect("attempt 2 body");
+        }
+
+        let notified = signal_for_server.header_seen.notified();
+        let head2 = http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header(http::header::CONTENT_TYPE, "application/grpc")
+            .body(())
+            .expect("head2");
+        let mut send2 = respond2.send_response(head2, false).expect("send head2");
+
+        // Drive connection until client processes Attempt 2's initial headers.
+        tokio::pin!(notified);
+        loop {
+            tokio::select! {
+                () = &mut notified => break,
+                accepted = conn.accept() => assert!(accepted.is_none()),
+            }
+        }
+
+        // If Attempt 1's stream hasn't processed reset yet on the server side,
+        // try sending a fatal INTERNAL (13) trailers-only response before Attempt 2
+        // sends its reply frame. Attempt 2 must still win.
+        let fatal1 = http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header(http::header::CONTENT_TYPE, "application/grpc")
+            .header("grpc-status", "13")
+            .header("grpc-message", "late-loser-fatal")
+            .body(())
+            .expect("fatal1");
+        let _ = respond1.send_response(fatal1, true);
+
+        let mut reply = HelloReply::new();
+        reply.set_message("winner");
+        let payload = reply.serialize().expect("encode reply");
+        let frame = pbrs_grpc::codec::encode(&payload, false).expect("frame");
+        send2.send_data(frame, false).expect("send reply frame");
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+        send2.send_trailers(trailers).expect("send trailers");
+
+        while let Some(result) = conn.accept().await {
+            let _ = result;
+        }
+    });
+
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*").expect("filter"), signal);
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("channel")
+        .binary_logger(logger)
+        .service_config(json)
+        .expect("service config");
+    let reply = tokio::time::timeout(CALL_BUDGET, say_hello(&channel))
+        .await
+        .expect("call completed")
+        .expect("winner succeeded");
+    assert_eq!(name_of(reply.get_ref()), "winner");
+    server.abort();
+}

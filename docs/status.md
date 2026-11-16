@@ -2,8 +2,8 @@
 
 `pbrs` (`0.2.1`) provides Protocol Buffers messages, code generation,
 reflection, ProtoJSON (including `FieldMask` and `Any`), and text format.
-`pbrs-grpc` (`0.1.0-alpha.3` preview) provides the native HTTP/2 gRPC client
-and server; `protobuf-tonic` (`0.1.0-alpha.3` preview) integrates `pbrs`
+`pbrs-grpc` (`0.1.0`) provides the native HTTP/2 gRPC client
+and server; `protobuf-tonic` (`0.1.0`) integrates `pbrs`
 messages with tonic 0.14+. Start with the [documentation index](README.md) for
 working examples and task guides.
 
@@ -326,7 +326,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Load balancing**: resolver-managed channels default to `pick_first`. `loadBalancingConfig` can select `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, or `outlier_detection`. These are source- and test-covered, not production-qualified traffic management.
 - **Transparent retry**: Each attempt retries transparently at most once with proof of non-execution and before response commitment; see the [retry contract](retry-contract.md).
 - **Service-config retry**: `Channel::service_config` and resolver service config support `retryPolicy` with backoff, throttling, per-attempt receive timeout, pushback, and retry stats. Unary and server-streaming calls retry before response commitment; client-streaming and bidirectional calls keep only transparent setup redial.
-- **Hedging**: Unary `hedgingPolicy` is opt-in and bounded by `maxAttempts`. Another hedge can continue or win after ordinary response headers, and an outcome becoming ready after the coordinator polls can still race a new send. See the [retry contract](retry-contract.md). Streaming hedging is not supported.
+- **Hedging**: Unary `hedgingPolicy` is opt-in and bounded by `maxAttempts`. Ordinary initial response headers commit the hedge race and cancel competing in-flight attempts (`RST_STREAM(CANCEL)`). See the [retry contract](retry-contract.md). Streaming hedging is not supported.
 - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT, including TLS end-to-end through the tunnel. There is no per-channel proxy option.
 - **xDS**: xDS target URIs and the xDS control plane are not implemented.
 
@@ -379,7 +379,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 ### Observability, ORCA, and Authorization
 
 - **channelz**: the registry tracks live channels, subchannels, servers, sockets, and bounded channel traces; `ChannelzService` serves `grpc.channelz.v1`.
-- **binary logging**: `binlog::BinaryLogger` attaches to channels, servers, and routers with filters and optional header/message caps; full payload logging is supported. Client logs may include uncommitted attempts or omit early rejection trailers; see the [gRFC coverage](grfc.md).
+- **binary logging**: `binlog::BinaryLogger` attaches to channels, servers, and routers with filters and optional header/message caps; full payload logging is supported. Early upload rejections record `ServerTrailer`, peer `CANCELLED` trailers stay distinct from local `Cancel` entries, and retry or hedge logs can still include uncommitted attempts; see the [gRFC coverage](grfc.md).
 - **OpenTelemetry**: the optional `otel` feature provides metrics and tracing observers. Implemented metrics are the A66/A94 basics documented in `otel::Metrics`; retry, message-size, full connection, WRR gauge, xDS, and dynamic-label instruments are still incomplete.
 - **ORCA**: per-call trailers and out-of-band ORCA service support `weighted_round_robin`.
 - **Authorization**: A43 JSON authorization policies can be enforced on `Server` and `Router`; A59 audit logging hooks ship.

@@ -36,8 +36,8 @@ effects.
 
 Before RT-01, the `pbrs-grpc` client kernel treated "transport connection
 died" as "safe to transparently retry." This page defines that boundary,
-records the baseline bug and current hedge limitation, maps gRFC A6 commitment
-rules, and describes the transport-evidence replay rules for RT-02.
+records the baseline bug, maps gRFC A6 commitment rules, and describes the
+transport-evidence replay rules for RT-02.
 
 ## 1b. Shipped policy engine (unary)
 
@@ -49,15 +49,16 @@ method entry, then apply the configured policy:
   is in `retryableStatusCodes`, throttling allows it, and no `DoNotRetry`
   pushback arrived. Backoff is jittered exponential. A `Delay` pushback
   overrides the backoff. In a valid parsed gRPC status block, negative,
-  unparseable, non-ASCII, out-of-range, or repeated pushback values stop
-  further retries. The parser also accepts redundant leading zeros, which
-  differ from the pinned A6 wire syntax.
+  unparseable, non-ASCII, out-of-range, redundant-leading-zero, or repeated
+  pushback values stop further retries per the pinned A6 wire syntax (`0` or
+  `[1-9][0-9]*`).
 - `perAttemptRecvTimeout` bounds each attempt. When it expires, the attempt
   retries on its own, without consulting the retryable status set.
-- `hedgingPolicy` sends duplicate unary attempts. The first completed `OK`
-  or fatal status wins, and an exhausted race fails with the last non-fatal
-  error. Ordinary response headers do not yet commit the hedge race: another
-  attempt can continue or win afterward. When attempts remain and throttling
+- `hedgingPolicy` sends duplicate unary attempts. Ordinary initial response
+  headers commit the hedge race to that attempt and cancel in-flight sibling
+  attempts with `RST_STREAM(CANCEL)`; otherwise the first completed `OK` or
+  fatal status wins, guarded by a single atomic winner claim, and an exhausted
+  race fails with the last non-fatal error. When attempts remain and throttling
   permits, each non-fatal response without pushback advances the next send
   immediately. Non-negative pushback schedules the next send after that delay;
   a later in-flight response can replace the schedule. Once processed,
@@ -65,17 +66,15 @@ method entry, then apply the configured policy:
   or transparently redial under the existing limits. The coordinator polls
   cancellation and the overall deadline before admitting a pending hedge.
   While a send waits for throttling, it also listens for completed outcomes.
-  An outcome ready when polled takes priority over admission; an outcome or
-  cancellation becoming ready after its poll can still race a send admitted
-  in the same turn. Final call accounting can wait for the throttling mutex
-  before returning.
+  An outcome ready when polled takes priority over admission. Final call
+  accounting can wait for the throttling mutex before returning.
 - `retryThrottling` debits every failed unary call and credits every success.
   Retries and hedged sends past the first need more than half the bucket.
 - Transparent retry runs first, is at most once per attempt, requires proof
   of non-execution before response commitment, and does not consume a policy
   attempt. Each hedged attempt retains its own response commitment when
-  deciding whether to redial; ordinary headers still do not commit the entire
-  hedge race as described above.
+  deciding whether to redial, and ordinary initial response headers commit the
+  entire hedge race as described above.
 
 Policy retry replays the already encoded request frame. It does not
 re-serialize the request, and it does not exceed the method's caps.
@@ -295,9 +294,10 @@ Transparent retry is **strictly forbidden** in all of the following conditions:
      non-processing is ambiguous. Treat the request as potentially executed; it
      must **not** be transparently retried.
 2. **Response Headers Received (`ResponseCommitted`):**
-   - For sequential attempts, ordinary initial response `HEADERS` commit the
-     RPC. Later connection loss or stream resets fail the call. A trailers-only
-     terminal status is handled separately.
+   - Ordinary initial response `HEADERS` commit the RPC (and, for hedged unary
+     calls, commit the hedge race and cancel competing attempts). Later
+     connection loss or stream resets fail the call. A trailers-only terminal
+     status is handled separately.
 3. **Stream Resets with Other Error Codes:**
    - `RST_STREAM` with `CANCEL`, `INTERNAL_ERROR`, `PROTOCOL_ERROR`, or
      `STREAM_CLOSED` does not prove non-processing. It cannot by itself trigger

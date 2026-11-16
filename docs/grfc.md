@@ -18,7 +18,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 | Client retries | partial | Transparent retry, unary policy retry/hedging, pushback, and pre-commit server-streaming policy retry are available. The pushback parser accepts redundant leading zeros. Client-streaming/bidi require call-site retries; streaming throttling accounting is approximate. See the [retry contract](retry-contract.md) and `tests/policy_retry.rs`. |
+| A6 | Client retries | partial | Transparent retry, unary policy retry/hedging, strict A6 pushback ABNF, and pre-commit server-streaming policy retry are available. Client-streaming/bidi require call-site retries; streaming throttling accounting is approximate. See the [retry contract](retry-contract.md) and `tests/policy_retry.rs`. |
 | A8 | Client-side keepalive | shipped | `keep_alive_interval` / `keep_alive_timeout`, idle PINGs. |
 | A9 | Server-side connection management | shipped | `max_connection_age`/`idle`, GOAWAY drain, `serve_with_shutdown`. |
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
@@ -61,7 +61,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Non-fatal responses advance the next unsent attempt, subject to pushback and throttling. Ordinary response headers do not stop competing attempts; an outcome becoming ready after the coordinator polls can still race a new send. Streaming hedging is not supported. |
+| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; ordinary initial response headers commit the hedge race, cancel competing attempts with `RST_STREAM(CANCEL)`, and enforce a single winner via atomic commitment. Non-fatal responses advance the next unsent attempt, subject to pushback and throttling. Streaming hedging is not supported. |
 | A44 | xDS retry | planned | With the xDS client (route-level retry policy). |
 | A45 | Retry stats | planned | Per-call retry attempt counters. |
 | A96 | Retry OTel stats | planned | With OTel metrics. |
@@ -72,7 +72,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 |---|---|---|---|
 | A3 | Channel tracing | shipped | Bounded per-entity channel traces in the channelz registry; descriptions are capped and owner drop unregisters entities (`channelz::Trace`, `DEFAULT_MAX_TRACE_EVENTS`, `tests/channelz.rs`). |
 | A14 | Channelz | shipped | Process-global registry for channels, subchannels, servers and sockets plus `grpc.channelz.v1.Channelz` service (`ChannelzService::shared_global`, `tests/channelz.rs`). |
-| A16 | Binary logging | partial | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`. `{h;m}` sets no byte caps; numeric `{h:N;m:M}` limits each header value and message payload. Retry or hedge logs can include uncommitted attempt events, early upload rejections may omit trailers, streaming peer or codec `CANCELLED` can be logged as client cancellation, and some local streaming cancellations can be missed. A queued native sender failure emits no sender-failure event unless the upload loop reaches it; unary cancellation before logger setup may be omitted. Client peer + `grpc-trace-bin` are omitted at taps. See the [unary cancellation notes](evidence/unary-binlog-cancellation-20261110.md). |
+| A16 | Binary logging | partial | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`. `{h;m}` sets no byte caps; numeric `{h:N;m:M}` limits each header value and message payload. Early upload rejections emit `ServerTrailer`, peer `CANCELLED` trailers stay distinct from local `Cancel` entries, and local streaming/unary cancellations are deduplicated across call handles and stream drops. Retry or hedge logs can still include uncommitted attempt events, a queued native sender failure emits no sender-failure event unless the upload loop reaches it, and client peer + `grpc-trace-bin` are omitted at taps. See the [unary cancellation notes](evidence/unary-binlog-cancellation-20261110.md). |
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |
 | A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |

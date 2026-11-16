@@ -62,23 +62,20 @@ client CPU and 56% higher server CPU in longer confirmation. Keep the existing
 identity growth policy while investigating alternatives. Concrete next steps:
 
 - Closed uploads: [write_closed_upload](pbrs-grpc/src/client/streaming.rs)
-  encodes the entire closed input before sending, so earlier frames keep their
-  backing alive during later compression. Earlier sending can expose request
-  data before a later codec or budget error; deferred encoding can also let an
-  early success hide that error. Any change must preserve those semantics or
-  explicitly offer different ones. A shared compression slab needs an active
-  memory bound, not just the existing idle-cache limit, and comparisons for
-  noisy, compressible and mixed-size messages.
-- Downloads: [drain_to_wire](pbrs-grpc/src/server/drain.rs) can compress the next
-  ready message after its last suffix is queued but before the shared
-  [connection task](pbrs-grpc/src/server/connection.rs) flushes that suffix.
-  Coordinate write progress and ownership before the next large encode so
-  backing can be reclaimed. Evaluate pull-driven output or a bounded handoff,
-  with no unconditional yield, guessed completion or increased retention caps.
-- Large identity input: stage sufficiently large chunks with bounded metadata
-  and a coalescing fallback, then make one exact contiguous copy after the
-  payload arrives. Preserve header limits, error precedence, whole-chunk
-  sharing and retained-frame lifetimes; do not reserve from an untrusted claim.
+  now coalesces compressed closed-upload frames into bounded 256 KiB slabs via
+  `OutBatch::new_closed_upload` while preserving pre-send codec/budget error
+  ordering. Re-run matched noisy, compressible, and mixed-size comparisons
+  before claiming an endpoint CPU win.
+- Downloads: [drain_to_wire](pbrs-grpc/src/server/drain.rs) now coordinates
+  HTTP/2 send-buffer drain (`poll_send_drained`) before the next large
+  compressed encode so workspace backing is reclaimed without unconditional
+  yields or higher ledger caps. Re-run the full matched streaming matrix to
+  measure the end-to-end throughput and CPU effect.
+- Large identity input: [FrameReader](pbrs-grpc/src/wire/frame_reader.rs) now
+  stages multi-chunk large identity payloads with bounded metadata and makes one
+  exact contiguous copy after the full payload arrives without reserving from
+  an untrusted length prefix, and `WireStream` drops decoder staging at
+  terminal state. Confirm against the matched large-identity benchmark rows.
 
 Keep large encode retention within the shared 16 MiB ledger and 4 MiB per
 backing allocation. Scheduling and ownership changes must survive the full

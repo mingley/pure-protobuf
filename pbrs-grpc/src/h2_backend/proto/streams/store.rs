@@ -561,6 +561,16 @@ impl Resolve for Store {
     }
 }
 
+impl Store {
+    /// Resolve `key` only if the slot is still occupied by the same `StreamId`.
+    #[inline]
+    pub(super) fn try_resolve_mut(&mut self, key: Key) -> Option<&mut Stream> {
+        self.slab
+            .get_mut(key.index.0 as usize)
+            .filter(|stream| stream.id == key.stream_id)
+    }
+}
+
 impl ops::Index<Key> for Store {
     type Output = Stream;
 

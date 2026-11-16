@@ -2,9 +2,9 @@
 
 use super::call::{
     AttemptCommitment, UploadHead, cancel_attempt, cancel_requested, finish_attempt, first_of,
-    is_direct_cancellation, open, peer_rejection_from_head, poll_now, prefer_deadline,
-    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
-    send_request_frame,
+    is_direct_cancellation, open, peer_rejection_with_metadata_from_head, poll_now,
+    prefer_deadline, prefer_peer_rejection_with_trailer, reject_attempt, reset_send_on_cancel,
+    response_commits, send_request_frame,
 };
 use super::pool;
 use super::retry::{
@@ -143,7 +143,9 @@ where
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
-        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+        if let Some(_header) = cancel_rx.begin_unary_header() {
+            tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+        }
     }
     let (mut resp_fut, mut send_stream) = match open(
         send_req,
@@ -207,8 +209,9 @@ where
         }
         let may_prefer_refusal = status.is_transport()
             || std::error::Error::source(&status).is_some_and(|cause| cause.is::<TransportError>());
+        let mut rejection_trailer = None;
         let result = first_of(
-            prefer_peer_rejection_with_commitment(
+            prefer_peer_rejection_with_trailer(
                 async {
                     match ready.take() {
                         Some(head) => head,
@@ -222,6 +225,7 @@ where
                 commitment.classify(status),
                 response_committed,
                 cached_commitment.or(received.reset.then_some(true)),
+                &mut rejection_trailer,
             ),
             cancel_rx,
             deadline,
@@ -238,13 +242,17 @@ where
                         if may_prefer_refusal
                             && (!received.reset || head.status() != http::StatusCode::OK)
                         {
-                            peer_status = peer_rejection_from_head(&head, Some(committed));
+                            peer_status =
+                                peer_rejection_with_metadata_from_head(&head, Some(committed));
                         }
                     }
                     Err(error)
                         if may_prefer_refusal && error.reason() == Some(Reason::REFUSED_STREAM) =>
                     {
-                        peer_status = Some(Status::from_h2_post_dispatch(error));
+                        peer_status = Some((
+                            Status::from_h2_post_dispatch(error),
+                            crate::metadata::Metadata::new(),
+                        ));
                     }
                     Err(_) => {}
                 }
@@ -253,7 +261,8 @@ where
         // A deadline may fire while the queued head is being examined.
         let mut result = prefer_deadline(result, deadline);
         if matches!(&result, Err(status) if !is_direct_cancellation(status)) {
-            if let Some(status) = peer_status {
+            if let Some((status, trailers)) = peer_status {
+                rejection_trailer = (!status.is_transport()).then(|| (trailers, status.clone()));
                 result = Err(status);
             }
         }
@@ -272,14 +281,18 @@ where
                         Ok(head) => {
                             *response_committed = true;
                             if may_prefer_refusal && head.status() != http::StatusCode::OK {
-                                post_reset_status = peer_rejection_from_head(&head, Some(true));
+                                post_reset_status =
+                                    peer_rejection_with_metadata_from_head(&head, Some(true));
                             }
                         }
                         Err(error)
                             if may_prefer_refusal
                                 && error.reason() == Some(Reason::REFUSED_STREAM) =>
                         {
-                            post_reset_status = Some(Status::from_h2_post_dispatch(error));
+                            post_reset_status = Some((
+                                Status::from_h2_post_dispatch(error),
+                                crate::metadata::Metadata::new(),
+                            ));
                         }
                         Err(_) => {}
                     }
@@ -288,7 +301,9 @@ where
             // Keep deadline precedence if it fired while resetting.
             result = prefer_deadline(result, deadline);
             if matches!(&result, Err(status) if !is_direct_cancellation(status)) {
-                if let Some(status) = post_reset_status {
+                if let Some((status, trailers)) = post_reset_status {
+                    rejection_trailer =
+                        (!status.is_transport()).then(|| (trailers, status.clone()));
                     result = Err(status);
                 }
             }
@@ -299,6 +314,11 @@ where
         result = prefer_deadline(result, deadline);
         if !reset {
             reset_send_on_cancel(Some(&mut send_stream), &result);
+        }
+        if matches!(&result, Err(status) if !is_direct_cancellation(status)) {
+            if let (Some(tap), Some((trailers, trailer_status))) = (tap, &rejection_trailer) {
+                tap.log_trailer(trailers, trailer_status);
+            }
         }
         return result;
     }
@@ -479,11 +499,8 @@ where
     };
     send.live = false;
     let result = prefer_deadline(result, deadline);
-    if let (Some(tap), Err(status)) = (tap, &result) {
+    if let (Some(tap), Err(_)) = (tap, &result) {
         tap.log_pending_streaming_sender_failure();
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
     }
     // Channelz: the attempt's stream ends here, like unary. Sent messages
     // were claimed by the pump as written; the single response claims one
@@ -581,6 +598,34 @@ async fn pump_outbound_budget<T: CodecMessage>(
                 Ok(len) => len,
                 Err(status) => return PumpEnd::Failed(status),
             };
+            if batch.needs_reclaim_flush() {
+                loop {
+                    tokio::select! {
+                        biased;
+                        cancelled = async {
+                            cancel_rx.wait().await;
+                            cancel_rx.is_cancelled()
+                        }, if watch_cancel => {
+                            if cancelled {
+                                send.send_reset(Reason::CANCEL);
+                                return PumpEnd::Reset;
+                            }
+                            watch_cancel = false;
+                        }
+                        drained = std::future::poll_fn(|cx| {
+                            if send.poll_reset(cx).is_ready() {
+                                return std::task::Poll::Ready(false);
+                            }
+                            send.poll_send_drained(cx).map(|()| true)
+                        }) => {
+                            if !drained {
+                                return PumpEnd::Reset;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
             match budget.acquire(frame_len) {
                 Ok(permit) => permits.push(permit),
                 Err(status) => return PumpEnd::Failed(status),
@@ -679,7 +724,7 @@ fn write_closed_upload<T: CodecMessage>(
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<ClosedUpload, Status> {
     let channelz_entry = socket.and_then(crate::channelz::socket_entry);
-    let mut batch = OutBatch::new(wire);
+    let mut batch = OutBatch::new_closed_upload(wire);
     if let Some(tap) = tap {
         batch.set_tap(tap.clone());
     }
@@ -723,6 +768,7 @@ fn write_closed_upload<T: CodecMessage>(
     if let Some(frame) = batch.take_frame() {
         queued.extend(frame.into_segments());
     }
+    drop(batch);
     let mut remaining = queued.into_iter();
     while let Some(seg) = remaining.next() {
         match send.try_send_data(seg, false) {
@@ -773,6 +819,7 @@ fn closed_upload_transport_failure(
     deadline: Option<tokio::time::Instant>,
     mut status: Status,
     permit: BytePermit,
+    tap: Option<&CallLogger>,
 ) -> Status {
     // Like the biased streaming selects, an already-ready local signal wins
     // before a queued response. Do not reselect cancellation after a peer
@@ -790,20 +837,27 @@ fn closed_upload_transport_failure(
         return prefer_closed_deadline(direct, deadline);
     }
 
+    let mut rejection_trailer = None;
     let ready = poll_now(Pin::new(&mut response));
     let observed = ready.is_some();
     if let Some(head) = ready {
-        prefer_closed_upload_head(&mut status, head, false);
+        prefer_closed_upload_head(&mut status, head, false, &mut rejection_trailer);
     }
     // Linearize the failed upload before releasing its budget charge.
     send.send_reset(Reason::CANCEL);
     drop(permit);
     if !observed {
         if let Some(head) = poll_now(Pin::new(&mut response)) {
-            prefer_closed_upload_head(&mut status, head, true);
+            prefer_closed_upload_head(&mut status, head, true, &mut rejection_trailer);
         }
     }
-    prefer_closed_deadline(status, deadline)
+    let final_status = prefer_closed_deadline(status, deadline);
+    if !is_direct_cancellation(&final_status) {
+        if let (Some(tap), Some((trailers, trailer_status))) = (tap, &rejection_trailer) {
+            tap.log_trailer(trailers, trailer_status);
+        }
+    }
+    final_status
 }
 
 fn prefer_closed_deadline(status: Status, deadline: Option<tokio::time::Instant>) -> Status {
@@ -817,16 +871,21 @@ fn prefer_closed_upload_head(
     status: &mut Status,
     head: Result<http::Response<backend::RecvStream>, TransportError>,
     reset: bool,
+    rejection_trailer: &mut Option<(crate::metadata::Metadata, Status)>,
 ) {
     match head {
         // Reset can erase EOS: after it, only HTTP status and headers are
         // reliable enough to interpret.
         Ok(head) if !reset || head.status() != http::StatusCode::OK => {
-            if let Some(rejection) = peer_rejection_from_head(&head, reset.then_some(true)) {
+            if let Some((rejection, trailers)) =
+                peer_rejection_with_metadata_from_head(&head, reset.then_some(true))
+            {
+                *rejection_trailer = Some((trailers, rejection.clone()));
                 *status = rejection;
             }
         }
         Err(error) if error.reason() == Some(Reason::REFUSED_STREAM) => {
+            *rejection_trailer = None;
             *status = Status::from_h2_post_dispatch(error);
         }
         _ => {}
@@ -861,11 +920,6 @@ async fn await_closed_client_response<Resp: CodecMessage>(
         result = &mut fut => result,
     };
     send.live = false;
-    if let (Some(tap), Err(status)) = (tap, &result) {
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
-    }
     note_client_stream_end(socket, &result);
     result
 }
@@ -913,11 +967,6 @@ async fn send_client_rest<Resp: CodecMessage>(
         send.stream_mut().send_reset(Reason::CANCEL);
     }
     send.live = false;
-    if let (Some(tap), Err(status)) = (&tap, &result) {
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
-    }
     note_client_stream_end(socket, &result);
     result
 }
@@ -949,7 +998,6 @@ async fn wait_ready_bidi_http(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     cancel_rx: crate::rpc_cancel::RpcCancel,
-    tap: Option<CallLogger>,
 ) -> ReadyHttp {
     let mut send = ResetSend::new(send_stream);
     let later_cancel = cancel_rx.clone();
@@ -965,11 +1013,6 @@ async fn wait_ready_bidi_http(
         result = &mut response_fut => result,
     };
     send.live = false;
-    if let (Some(tap), Err(status)) = (&tap, &received) {
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
-    }
     ReadyHttp {
         received,
         send,
@@ -1169,11 +1212,6 @@ where
     };
     send.live = false;
     let result = prefer_deadline(result, deadline);
-    if let (Some(tap), Err(status)) = (&tap, &result) {
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
-    }
     match result {
         Ok(response) => {
             if let Some(sock) = socket {
@@ -1229,8 +1267,7 @@ where
         if let Some(items) = rx.drain_closed_channel() {
             match write_closed_upload(&mut send_stream, items, wire, &budget, &tap, socket) {
                 Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) if deadline.is_none() => {
-                    let ready =
-                        wait_ready_bidi_http(resp_fut, send_stream, cancel_rx, tap.clone()).await;
+                    let ready = wait_ready_bidi_http(resp_fut, send_stream, cancel_rx).await;
                     return finish_ready_bidi(ready, wire, tap, socket);
                 }
                 Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) => {
@@ -1266,6 +1303,7 @@ where
                         deadline,
                         status,
                         permit,
+                        tap.as_ref(),
                     ));
                 }
                 Err(status) => return Err(status),
@@ -1507,11 +1545,6 @@ where
     } else {
         prefer_deadline(result, deadline)
     };
-    if let (Some(tap), Err(status)) = (&tap, &result) {
-        if status.code() == Code::Cancelled {
-            tap.log_streaming_cancel_once();
-        }
-    }
     // Channelz: count the attempt's stream like unary (started on every
     // post-setup attempt, end on failure now and on success via the bound
     // Streaming's polls/drop). Sent messages were claimed by the pump.
@@ -1594,7 +1627,7 @@ impl super::Channel {
         let channel = self.clone();
         let state = channel.local.service_config.get();
         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
-        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel = crate::rpc_cancel::RpcCancel::new_unary(channel.local.binlog.is_some());
         let cancel_rx = cancel.clone();
         let reset = cancel.clone();
         let wire = channel.wire_for(path, state.as_deref());
@@ -1674,6 +1707,9 @@ impl super::Channel {
                     .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+                let cancel_log = tap
+                    .as_ref()
+                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
                 let retry_policy = channel
                     .method_config_for(path)
                     .and_then(|method| method.retry_policy);
@@ -1809,7 +1845,7 @@ impl super::Channel {
                                     call_guard.finish(&Status::ok());
                                     channel.local.retry_stats.record_committed(true);
                                     return Ok(pool::attach_conn(
-                                        response,
+                                        response.map(|stream| stream.bind_cancel_log(cancel_log)),
                                         lease,
                                         driver,
                                         Some(reset),
@@ -2080,7 +2116,7 @@ impl super::Channel {
         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
         let wire = self.wire_for(path, state.as_deref());
         let (tx, rx) = input(wire, req.compress());
-        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel = crate::rpc_cancel::RpcCancel::new_unary(self.local.binlog.is_some());
         let cancel_rx = cancel.clone();
         let channel = self.clone();
         let observer = self.local.observer.clone();
@@ -2155,6 +2191,9 @@ impl super::Channel {
                     .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+                let _cancel_log = tap
+                    .as_ref()
+                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
                 let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -2249,7 +2288,13 @@ impl super::Channel {
                                 }
                                 Ok(ClosedUpload::TransportFailed { status, permit }) => {
                                     Err(closed_upload_transport_failure(
-                                        resp_fut, &mut send, &cancel_rx, deadline, status, permit,
+                                        resp_fut,
+                                        &mut send,
+                                        &cancel_rx,
+                                        deadline,
+                                        status,
+                                        permit,
+                                        tap.as_ref(),
                                     ))
                                 }
                                 Err(status) => Err(status),
@@ -2423,7 +2468,7 @@ impl super::Channel {
         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
         let wire = channel.wire_for(path, state.as_deref());
         let (tx, rx) = input(wire, req.compress());
-        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel = crate::rpc_cancel::RpcCancel::new_unary(channel.local.binlog.is_some());
         let cancel_rx = cancel.clone();
         let reset = cancel.clone();
         let observer = channel.local.observer.clone();
@@ -2498,6 +2543,9 @@ impl super::Channel {
                     .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
+                let cancel_log = tap
+                    .as_ref()
+                    .map(|logger| cancel_rx.observe_unary_cancel(logger));
                 let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -2571,13 +2619,8 @@ impl super::Channel {
                             channelz_socket,
                         ) {
                             Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) => {
-                                let ready = wait_ready_bidi_http(
-                                    resp_fut,
-                                    send,
-                                    cancel_rx.clone(),
-                                    tap.clone(),
-                                )
-                                .await;
+                                let ready =
+                                    wait_ready_bidi_http(resp_fut, send, cancel_rx.clone()).await;
                                 finish_ready_bidi(ready, wire, tap.clone(), channelz_socket)
                             }
                             Ok(ClosedUpload::Rest(rest)) => {
@@ -2595,7 +2638,13 @@ impl super::Channel {
                             }
                             Ok(ClosedUpload::TransportFailed { status, permit }) => {
                                 Err(closed_upload_transport_failure(
-                                    resp_fut, &mut send, &cancel_rx, deadline, status, permit,
+                                    resp_fut,
+                                    &mut send,
+                                    &cancel_rx,
+                                    deadline,
+                                    status,
+                                    permit,
+                                    tap.as_ref(),
                                 ))
                             }
                             Err(status) => Err(status),
@@ -2657,7 +2706,7 @@ impl super::Channel {
                 finish_attempt(&mut attempt_guard, &Status::ok());
                 call_guard.finish(&Status::ok());
                 Ok(pool::attach_conn(
-                    response,
+                    response.map(|stream| stream.bind_cancel_log(cancel_log)),
                     lease,
                     driver,
                     Some(reset),

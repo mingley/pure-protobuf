@@ -1,11 +1,11 @@
 [package]
 name = "protobuf-tonic"
-version = "0.1.0-alpha.3"
+version = "0.1.0"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2024"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
-description = "tonic 0.14+ Codec and code generator stubs over pbrs (preview / pre-release)"
+description = "tonic 0.14+ Codec and code generator stubs over pbrs"
 repository = "https://github.com/mingley/pure-protobuf"
 documentation = "https://docs.rs/protobuf-tonic/"
 readme = "README.md"

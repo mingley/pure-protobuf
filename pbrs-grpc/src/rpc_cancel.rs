@@ -57,8 +57,11 @@ fn emit_cancel(logger: Option<CallLogger>) {
     if let Some(logger) = logger {
         // Sink code is user supplied. Never hold the waiter lock while calling
         // it, and do not let a sink panic prevent cancellation from waking.
+        // Share the per-call streaming_cancel_logged guard so a streaming RPC
+        // that failed via StreamSender::fail(Cancelled) and later drops or
+        // cancels its CallHandle/Streaming never emits a duplicate Cancel.
         drop(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-            || logger.log_cancel(),
+            || logger.log_streaming_cancel_once(),
         )));
     }
 }
@@ -283,11 +286,10 @@ impl RpcCancel {
     /// Signal while dropping a call whose future cannot be polled again.
     ///
     /// Only `Call::drop` may use this: the future cannot be polled again.
-    /// The owning unary future is currently the only production registrar,
-    /// and it registers before spawning hedges. Once drop begins, that future
-    /// cannot be polled again, so an absent registration cannot appear later.
-    /// If streaming or a spawned task can register later, this shortcut must
-    /// be removed or revalidated with a new registration handoff.
+    /// The owning `Call` future is the only production registrar, and it
+    /// registers before spawning hedges or returning a response stream. Once
+    /// `Call::drop` begins, an unpolled future cannot be polled again, so an
+    /// absent registration cannot appear later.
     pub(crate) fn signal_on_drop(&self) {
         let inner = self.inner();
         inner.cancelled.store(true, Ordering::Release);

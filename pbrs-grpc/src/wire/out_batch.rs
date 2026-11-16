@@ -1,7 +1,8 @@
 //! Batched stream output: OutBatch.
 
 use super::encode::{
-    EncodeScratch, STREAM_BATCH_BYTES, SegSink, SinkCheckpoint, append_frame_with_ready,
+    CLOSED_UPLOAD_SLAB_BYTES, EncodeScratch, STREAM_BATCH_BYTES, SegSink, SinkCheckpoint,
+    append_frame_closed_upload, append_frame_with_ready,
 };
 use super::send::{ImmediateSend, send_frame, send_frame_if_ready};
 use crate::binlog::CallLogger;
@@ -17,7 +18,9 @@ pub(crate) struct OutBatch {
     scratch: EncodeScratch,
     wire: Wire,
     tap: Option<CallLogger>,
+    batch_target: usize,
     compressed_only: bool,
+    closed_upload: bool,
 }
 
 impl OutBatch {
@@ -33,13 +36,33 @@ impl OutBatch {
             scratch: EncodeScratch::new(),
             wire,
             tap: None,
+            batch_target: STREAM_BATCH_BYTES,
             compressed_only: true,
+            closed_upload: false,
+        }
+    }
+
+    pub(crate) fn new_closed_upload(wire: Wire) -> Self {
+        Self {
+            sink: SegSink::new(),
+            scratch: EncodeScratch::new(),
+            wire,
+            tap: None,
+            batch_target: CLOSED_UPLOAD_SLAB_BYTES,
+            compressed_only: true,
+            closed_upload: true,
         }
     }
 
     /// Log every encoded message to `tap` as it joins the batch.
     pub(crate) fn set_tap(&mut self, tap: CallLogger) {
         self.tap = Some(tap);
+    }
+
+    /// Whether the batch holds an idle retained compressed buffer whose prior
+    /// outbound HTTP/2 DATA frame has not yet drained.
+    pub(crate) fn needs_reclaim_flush(&mut self) -> bool {
+        self.sink.needs_reclaim_flush()
     }
 
     /// Encode one message into the batch without writing.
@@ -59,15 +82,28 @@ impl OutBatch {
         }
         let mut guard = SinkEncodeGuard::new(&mut self.sink, &mut self.scratch);
         guard.sink.prepare_encode();
-        append_frame_with_ready(
-            &mut guard.sink,
-            guard.scratch,
-            &item.message,
-            item.compressed.then_some(self.wire.send_codec),
-            self.wire.limits,
-            self.wire.gzip_level,
-            ready_messages,
-        )?;
+        let codec = item.compressed.then_some(self.wire.send_codec);
+        if self.closed_upload {
+            append_frame_closed_upload(
+                &mut guard.sink,
+                guard.scratch,
+                &item.message,
+                codec,
+                self.wire.limits,
+                self.wire.gzip_level,
+                ready_messages,
+            )?;
+        } else {
+            append_frame_with_ready(
+                &mut guard.sink,
+                guard.scratch,
+                &item.message,
+                codec,
+                self.wire.limits,
+                self.wire.gzip_level,
+                ready_messages,
+            )?;
+        }
         if let Some(tap) = &self.tap {
             let (segs, tail) = guard.sink.segments_since(&guard.checkpoint);
             for seg in segs {
@@ -88,7 +124,7 @@ impl OutBatch {
 
     /// Whether the batch has reached the size worth writing on its own.
     pub(crate) fn is_full(&self) -> bool {
-        self.sink.len() >= STREAM_BATCH_BYTES
+        self.sink.len() >= self.batch_target
     }
 
     /// Take the accumulated frame, leaving the batch empty.
@@ -96,6 +132,10 @@ impl OutBatch {
     pub(crate) fn take_frame(&mut self) -> Option<super::encode::SegFrame> {
         if self.sink.is_empty() {
             return None;
+        }
+        if self.closed_upload {
+            self.compressed_only = true;
+            return Some(std::mem::replace(&mut self.sink, SegSink::new()).finish());
         }
         Some(
             self.sink
@@ -650,6 +690,104 @@ mod tests {
         for fail in [false, true] {
             suffix_control::<false>(fail);
             suffix_control::<true>(fail);
+        }
+    }
+
+    #[test]
+    fn needs_reclaim_flush_waits_for_live_frame_and_reclaims_in_place_once_dropped() {
+        let (mut batch, first, _saved) = warmed_output();
+        let first_ptr = first
+            .into_segments()
+            .next()
+            .expect("first segment")
+            .as_ptr();
+        let (_, first_seg_hold, _) = warmed_output();
+        // Verify live frame blocks reclamation without dropping the lease.
+        let mut live_batch = OutBatch::new(ChannelConfig::new().wire());
+        live_batch
+            .encode_ready(Framed::compressed(NoiseOutput::new(0)), 1)
+            .expect("warm live batch");
+        let live_frame = live_batch.take_frame().expect("live frame");
+        let live_ptr = live_frame
+            .clone()
+            .into_segments()
+            .next()
+            .expect("live segment")
+            .as_ptr();
+        assert!(live_batch.needs_reclaim_flush());
+        assert!(
+            live_batch.needs_reclaim_flush(),
+            "lease stays armed across repeated checks while frame is in flight"
+        );
+        drop(live_frame);
+        assert!(
+            !live_batch.needs_reclaim_flush(),
+            "retired frame reclaims backing immediately"
+        );
+        live_batch
+            .encode_ready(Framed::compressed(NoiseOutput::new(0)), 1)
+            .expect("second compressed frame");
+        let second_ptr = live_batch
+            .take_frame()
+            .expect("second frame")
+            .into_segments()
+            .next()
+            .expect("second segment")
+            .as_ptr();
+        assert_eq!(
+            second_ptr, live_ptr,
+            "reused exact compressed output backing"
+        );
+        drop(first_seg_hold);
+        assert!(!first_ptr.is_null());
+        assert!(!batch.needs_reclaim_flush());
+    }
+
+    #[test]
+    fn closed_upload_coalesces_bounded_slabs_without_retained_lease() {
+        for compressed in [false, true] {
+            let wire = ChannelConfig::new().wire();
+            let mut batch = OutBatch::new_closed_upload(wire);
+            let count = 32usize;
+            let mut expected = Vec::new();
+            let mut segments = Vec::new();
+            for index in 0..count {
+                let mut message = crate::testing::Payload::new();
+                message.set_body(vec![0x5C; 16 * 1024]);
+                expected.extend(
+                    crate::wire::encode::encode_msg(
+                        &message,
+                        compressed.then_some(wire.send_codec),
+                        wire.limits,
+                        wire.gzip_level,
+                    )
+                    .expect("independent frame")
+                    .concat(),
+                );
+                batch
+                    .encode_ready(
+                        Framed {
+                            message,
+                            compressed,
+                        },
+                        count - index,
+                    )
+                    .expect("closed upload encode");
+                if batch.is_full() {
+                    segments.extend(batch.take_frame().expect("full slab").into_segments());
+                }
+            }
+            if let Some(frame) = batch.take_frame() {
+                segments.extend(frame.into_segments());
+            }
+            assert_eq!(batch.sink.output_cache_state(), (0, None, false));
+            assert!(
+                segments.len() <= 4,
+                "32 x 16 KiB messages should coalesce into bounded slabs, got {} segments",
+                segments.len()
+            );
+            let actual: Vec<u8> = segments.into_iter().flatten().collect();
+            assert_eq!(actual, expected);
         }
     }
 }

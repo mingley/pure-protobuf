@@ -1584,39 +1584,53 @@ pub fn has_historical_qualifier(text: &str, pos: usize, window: usize) -> bool {
     context.contains("older") || context.contains("predate") || context.contains("unsupported")
 }
 
+/// Every `<crate_name> = "req"` (or `<crate_name> = { version = "req", ... }`)
+/// dependency requirement cited in a document, as `(line_number, requirement)`.
+pub fn find_crate_requirements(content: &str, crate_name: &str) -> Vec<(usize, String)> {
+    let bytes = content.as_bytes();
+    let mut out = Vec::new();
+    let mut start = 0;
+    while let Some(rel) = content[start..].find(crate_name) {
+        let abs = start + rel;
+        let boundary_before = abs == 0
+            || !matches!(
+                bytes[abs - 1],
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' | b':'
+            );
+        if boundary_before {
+            let after = &content[abs + crate_name.len()..];
+            let value = after
+                .trim_start_matches(' ')
+                .strip_prefix('=')
+                .map(|rest| rest.trim_start_matches(' '));
+            let req = value.and_then(|value| {
+                if let Some(rest) = value.strip_prefix('"') {
+                    rest.find('"').map(|end| rest[..end].to_string())
+                } else if value.starts_with('{') {
+                    let pos = value.find("version")?;
+                    let rest = value[pos + "version".len()..].trim_start();
+                    let quoted = rest.strip_prefix('=')?.trim_start();
+                    let inner = quoted.strip_prefix('"')?;
+                    inner.find('"').map(|end| inner[..end].to_string())
+                } else {
+                    None
+                }
+            });
+            if let Some(req) = req {
+                let line = content[..abs].matches('\n').count() + 1;
+                out.push((line, req));
+            }
+        }
+        start = abs + crate_name.len();
+    }
+    out
+}
+
 /// Every `pbrs = "req"` (or `pbrs = { version = "req", ... }`) dependency
 /// requirement cited in a document, as `(line_number, requirement)`.
 /// `pbrs-grpc`, `pbrs_build`, and `pbrs::` paths never match.
 pub fn find_pbrs_requirements(content: &str) -> Vec<(usize, String)> {
-    let mut out = Vec::new();
-    let mut start = 0;
-    while let Some(rel) = content[start..].find("pbrs") {
-        let abs = start + rel;
-        let after = &content[abs + "pbrs".len()..];
-        let value = after
-            .trim_start_matches(' ')
-            .strip_prefix('=')
-            .map(|rest| rest.trim_start_matches(' '));
-        let req = value.and_then(|value| {
-            if let Some(rest) = value.strip_prefix('"') {
-                rest.find('"').map(|end| rest[..end].to_string())
-            } else if value.starts_with('{') {
-                let pos = value.find("version")?;
-                let rest = value[pos + "version".len()..].trim_start();
-                let quoted = rest.strip_prefix('=')?.trim_start();
-                let inner = quoted.strip_prefix('"')?;
-                inner.find('"').map(|end| inner[..end].to_string())
-            } else {
-                None
-            }
-        });
-        if let Some(req) = req {
-            let line = content[..abs].matches('\n').count() + 1;
-            out.push((line, req));
-        }
-        start = abs + "pbrs".len();
-    }
-    out
+    find_crate_requirements(content, "pbrs")
 }
 
 /// Every `X.Y.Z-alpha.N` token in a document, as
@@ -1725,24 +1739,75 @@ pub fn check_pbrs_requirements(
         .collect()
 }
 
-/// Parse an alpha version for ordering historical references.
-fn parse_alpha_version(version: &str) -> Option<(u64, u64, u64, u64)> {
-    let (base, alpha) = version.split_once("-alpha.")?;
-    let number = |s: &str| {
-        (!s.is_empty()
-            && (s.len() == 1 || !s.starts_with('0'))
-            && s.bytes().all(|byte| byte.is_ascii_digit()))
-        .then(|| s.parse::<u64>().ok())
-        .flatten()
-    };
+/// Checks `<crate_name> = "req"` adapter citations in one document against the manifest.
+pub fn check_adapter_requirements(
+    rel: &str,
+    content: &str,
+    crate_name: &str,
+    expected_minor: &str,
+    full_version: &str,
+) -> Vec<String> {
+    let is_prerelease = parse_alpha_version(full_version).is_some();
+    find_crate_requirements(content, crate_name)
+        .into_iter()
+        .filter(|(_, req)| {
+            if is_prerelease {
+                req != full_version
+            } else {
+                req != expected_minor && req != full_version
+            }
+        })
+        .map(|(line, req)| {
+            format!(
+                "{rel}:{line}: documented `{crate_name} = \"{req}\"` does not match {crate_name}/Cargo.toml version {full_version}"
+            )
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AdapterRelease {
+    Alpha(u64),
+    Stable,
+}
+
+fn parse_semver_number(s: &str) -> Option<u64> {
+    (!s.is_empty()
+        && (s.len() == 1 || !s.starts_with('0'))
+        && s.bytes().all(|byte| byte.is_ascii_digit()))
+    .then(|| s.parse::<u64>().ok())
+    .flatten()
+}
+
+fn parse_semver_triple(base: &str) -> Option<(u64, u64, u64)> {
     let mut parts = base.split('.');
-    let major = number(parts.next()?)?;
-    let minor = number(parts.next()?)?;
-    let patch = number(parts.next()?)?;
+    let major = parse_semver_number(parts.next()?)?;
+    let minor = parse_semver_number(parts.next()?)?;
+    let patch = parse_semver_number(parts.next()?)?;
     if parts.next().is_some() {
         return None;
     }
-    Some((major, minor, patch, number(alpha)?))
+    Some((major, minor, patch))
+}
+
+/// Parse an alpha version for ordering historical references.
+fn parse_alpha_version(version: &str) -> Option<(u64, u64, u64, u64)> {
+    let (base, alpha) = version.split_once("-alpha.")?;
+    let (major, minor, patch) = parse_semver_triple(base)?;
+    Some((major, minor, patch, parse_semver_number(alpha)?))
+}
+
+/// Parse either a `X.Y.Z-alpha.N` pre-release or a stable `X.Y.Z` adapter version,
+/// ordered per SemVer (`0.1.0-alpha.N < 0.1.0`).
+fn parse_adapter_version(version: &str) -> Option<(u64, u64, u64, AdapterRelease)> {
+    if let Some((major, minor, patch, alpha)) = parse_alpha_version(version) {
+        return Some((major, minor, patch, AdapterRelease::Alpha(alpha)));
+    }
+    if version.contains('-') || version.contains('+') {
+        return None;
+    }
+    let (major, minor, patch) = parse_semver_triple(version)?;
+    Some((major, minor, patch, AdapterRelease::Stable))
 }
 
 /// Read the published adapter baseline from both pinned CI semver commands.
@@ -1780,7 +1845,7 @@ fn published_adapter_baseline(workflow: &str) -> Result<String, String> {
             return Err("adapter semver command has ambiguous baseline versions".to_string());
         }
         let version = baselines[0][1];
-        if slot.is_some() || parse_alpha_version(version).is_none() {
+        if slot.is_some() || parse_adapter_version(version).is_none() {
             return Err("duplicate or invalid adapter semver baseline".to_string());
         }
         *slot = Some(version.to_string());
@@ -1815,7 +1880,8 @@ pub fn check_prerelease_mentions(
     current: &str,
     published: &str,
 ) -> Vec<String> {
-    let current_order = parse_alpha_version(current);
+    let current_order = parse_adapter_version(current);
+    let published_order = parse_adapter_version(published);
     find_prerelease_versions(content)
         .into_iter()
         .filter(|(_, offset, token)| {
@@ -1833,10 +1899,10 @@ pub fn check_prerelease_mentions(
             let published_scope = has_published_qualifier(&content[start..end]);
             let known_published = token == published
                 && published_scope
-                && parse_alpha_version(published)
+                && published_order
                     .zip(current_order)
                     .is_some_and(|(published, current)| published <= current);
-            let older = parse_alpha_version(token)
+            let older = parse_adapter_version(token)
                 .zip(current_order)
                 .is_some_and(|(version, current)| version < current)
                 && has_historical_qualifier(content, *offset, 150);
@@ -1896,11 +1962,13 @@ pub fn validate_documented_versions() -> Result<(), Vec<String>> {
         ));
     }
     let pbrs_minor = major_minor(&pbrs_version);
+    let adapter_minor = major_minor(&grpc_version);
+    let adapter_is_prerelease = parse_alpha_version(&grpc_version).is_some();
     let published_adapter =
         published_adapter_baseline(&read_workspace_file(".github/workflows/ci.yml"))
             .map_err(|error| vec![error])?;
-    if !parse_alpha_version(&published_adapter)
-        .zip(parse_alpha_version(&grpc_version))
+    if !parse_adapter_version(&published_adapter)
+        .zip(parse_adapter_version(&grpc_version))
         .is_some_and(|(published, current)| published <= current)
     {
         errors.push("published adapter baseline exceeds the current source version".to_string());
@@ -1916,16 +1984,34 @@ pub fn validate_documented_versions() -> Result<(), Vec<String>> {
         match fs::read_to_string(&path) {
             Ok(content) => {
                 pbrs_mentions += find_pbrs_requirements(&content).len();
-                current_adapter_mentions += find_prerelease_versions(&content)
-                    .iter()
-                    .filter(|(_, _, token)| token == &grpc_version)
-                    .count();
+                if adapter_is_prerelease {
+                    current_adapter_mentions += find_prerelease_versions(&content)
+                        .iter()
+                        .filter(|(_, _, token)| token == &grpc_version)
+                        .count();
+                } else {
+                    for crate_name in ["pbrs-grpc", "protobuf-tonic"] {
+                        current_adapter_mentions += find_crate_requirements(&content, crate_name)
+                            .iter()
+                            .filter(|(_, req)| req == &grpc_version || req == &adapter_minor)
+                            .count();
+                    }
+                }
                 errors.extend(check_pbrs_requirements(
                     &rel,
                     &content,
                     &pbrs_minor,
                     &pbrs_version,
                 ));
+                for crate_name in ["pbrs-grpc", "protobuf-tonic"] {
+                    errors.extend(check_adapter_requirements(
+                        &rel,
+                        &content,
+                        crate_name,
+                        &adapter_minor,
+                        &grpc_version,
+                    ));
+                }
                 errors.extend(check_prerelease_mentions(
                     &rel,
                     &content,
@@ -2234,6 +2320,68 @@ fn test_published_adapter_baseline_is_pinned_and_unambiguous() {
     );
     assert!(parse_alpha_version("0.1.0-alpha.+2").is_none());
     assert!(parse_alpha_version("0.1.0-alpha.02").is_none());
+    assert!(
+        parse_adapter_version("0.1.0-alpha.3") < parse_adapter_version("0.1.0"),
+        "pre-release alpha must sort before stable 0.1.0"
+    );
+    let stable_baseline = valid.replace("0.1.0-alpha.2", "0.1.0");
+    assert_eq!(
+        published_adapter_baseline(&stable_baseline).unwrap(),
+        "0.1.0"
+    );
+    assert!(
+        check_prerelease_mentions(
+            "doc.md",
+            "The older `0.1.0-alpha.3` preview predated stable `0.1.0`.",
+            "0.1.0",
+            "0.1.0",
+        )
+        .is_empty()
+    );
+    assert!(
+        check_prerelease_mentions(
+            "doc.md",
+            "The published `0.1.0-alpha.3` baseline is checked before `0.1.0` uploads.",
+            "0.1.0",
+            "0.1.0-alpha.3",
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        check_prerelease_mentions(
+            "doc.md",
+            "Unscoped `0.1.0-alpha.3` mention after `0.1.0` ships.",
+            "0.1.0",
+            "0.1.0",
+        )
+        .len(),
+        1
+    );
+    assert!(
+        check_adapter_requirements(
+            "doc.md",
+            "pbrs-grpc = \"0.1.0\"",
+            "pbrs-grpc",
+            "0.1",
+            "0.1.0"
+        )
+        .is_empty()
+    );
+    assert!(
+        check_adapter_requirements("doc.md", "pbrs-grpc = \"0.1\"", "pbrs-grpc", "0.1", "0.1.0")
+            .is_empty()
+    );
+    assert_eq!(
+        check_adapter_requirements(
+            "doc.md",
+            "pbrs-grpc = \"0.1.0-alpha.3\"",
+            "pbrs-grpc",
+            "0.1",
+            "0.1.0"
+        )
+        .len(),
+        1
+    );
 }
 
 #[test]

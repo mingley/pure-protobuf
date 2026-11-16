@@ -80,7 +80,7 @@ pub(crate) struct Prioritized<B> {
     inner: B,
     limit: u32,
     end_of_stream: bool,
-    stream: store::Key,
+    pub(super) stream: store::Key,
 }
 
 // Scratch ownership for one staging pass, never stored in the engine. Visible
@@ -135,6 +135,12 @@ impl<B> RetiredData<B> {
     {
         self.last().payload().inner.has_remaining()
     }
+
+    pub(super) fn stream_keys(&self) -> impl Iterator<Item = store::Key> + '_ {
+        self.frames[..self.len]
+            .iter()
+            .filter_map(|slot| slot.as_ref().map(|frame| frame.payload().stream))
+    }
 }
 
 // ===== impl Prioritize =====
@@ -169,6 +175,14 @@ impl Prioritize {
 
     pub(crate) fn max_buffer_size(&self) -> usize {
         self.max_buffer_size
+    }
+
+    #[inline]
+    pub(super) fn in_flight_stream(&self) -> Option<store::Key> {
+        match self.in_flight_data_frame {
+            InFlightData::DataFrame(key) => Some(key),
+            InFlightData::Nothing | InFlightData::Drop => None,
+        }
     }
 
     /// Queue a frame to be sent to the remote

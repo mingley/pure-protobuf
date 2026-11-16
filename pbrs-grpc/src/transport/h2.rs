@@ -246,6 +246,10 @@ impl super::SendStream for SendStream {
     fn poll_reset(&mut self, cx: &mut Context<'_>) -> Poll<Result<Reason, Error>> {
         self.0.poll_reset(cx).map(|r| r.map(Reason).map_err(Error))
     }
+
+    fn poll_send_drained(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.0.poll_send_drained(cx)
+    }
 }
 
 // ---------------------------------------------------------------------------

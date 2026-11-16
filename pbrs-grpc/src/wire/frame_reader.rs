@@ -16,6 +16,7 @@ use crate::workspace::RetainedDecodeLease;
 use bytes::{Buf, Bytes, BytesMut};
 use futures_util::future::Either;
 use http::{HeaderMap, StatusCode};
+use std::collections::VecDeque;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -174,9 +175,23 @@ pub(crate) fn h2_error(e: TransportError) -> Status {
 /// `carry` precedes `chunk` on the wire. Only the bytes needed to complete a
 /// straddling frame enter `carry`; the remainder stays in `chunk`, so following
 /// whole frames retain the ordinary shared-buffer path.
+///
+/// Large identity frames (`>= 64 KiB`) arriving across normal HTTP/2 DATA
+/// chunks (`>= 4 KiB`) stage their received `Bytes` segments in `staged` and
+/// assemble into `carry` in a single exact-sized pass once the full frame has
+/// arrived, avoiding geometric `BytesMut` doublings and intermediate `memcpy`s
+/// while never pre-allocating unreceived header claims.
+const STAGE_MIN_FRAME_BYTES: usize = 64 * 1024;
+const STAGE_MIN_CHUNK_BYTES: usize = 4 * 1024;
+const MAX_STAGED_CHUNKS: usize = 64;
+const MAX_RETAINED_SMALL_CARRY_BYTES: usize = 1024 * 1024;
+
 pub(crate) struct FrameReader {
     pub(crate) chunk: Bytes,
     pub(crate) carry: BytesMut,
+    staged: VecDeque<Bytes>,
+    staged_len: usize,
+    staged_frame_len: usize,
     pub(crate) limits: MessageLimits,
 }
 
@@ -185,30 +200,154 @@ impl FrameReader {
         Self {
             chunk: Bytes::new(),
             carry: BytesMut::new(),
+            staged: VecDeque::new(),
+            staged_len: 0,
+            staged_frame_len: 0,
             limits,
         }
     }
 
+    /// Release any retained carry/staging capacity once the stream terminates.
+    pub(crate) fn release_buffers(&mut self) {
+        self.chunk = Bytes::new();
+        self.carry = BytesMut::new();
+        self.staged = VecDeque::new();
+        self.staged_len = 0;
+        self.staged_frame_len = 0;
+    }
+
     pub(crate) fn push(&mut self, next: Bytes) {
+        if next.is_empty() {
+            return;
+        }
+        if !self.staged.is_empty() {
+            let buffered = self.staged_len.saturating_add(self.chunk.len());
+            let completes = buffered.saturating_add(next.len()) >= self.staged_frame_len;
+            let stays_stageable = self.chunk.len() >= STAGE_MIN_CHUNK_BYTES || completes;
+            if self.staged.len() < MAX_STAGED_CHUNKS
+                && buffered < self.staged_frame_len
+                && stays_stageable
+            {
+                if !self.chunk.is_empty() {
+                    let prev = std::mem::take(&mut self.chunk);
+                    self.staged_len = self.staged_len.saturating_add(prev.len());
+                    self.staged.push_back(prev);
+                }
+                self.chunk = next;
+                return;
+            }
+            self.spill_staged_to_carry(next.len());
+            self.chunk = next;
+            return;
+        }
         if !self.chunk.is_empty() {
-            // The first unconsumed DATA chunk has not entered carry yet.
-            // Reserve before copying it: reserving a short suffix after a
-            // full-size first chunk would already force Vec's doubling.
             if self.carry.is_empty() {
+                if let Some(frame_len) = self.stageable_identity_frame_len(next.len()) {
+                    let first = std::mem::take(&mut self.chunk);
+                    self.staged_len = first.len();
+                    self.staged_frame_len = frame_len;
+                    self.staged.push_back(first);
+                    self.chunk = next;
+                    return;
+                }
+                // The first unconsumed DATA chunk has not entered carry yet.
+                // Reserve before copying it: reserving a short suffix after a
+                // full-size first chunk would already force Vec's doubling.
                 if let Some(frame_len) = self.anticipated_frame_len(next.len()) {
                     if !self.carry.try_reclaim(frame_len) {
                         self.carry = BytesMut::with_capacity(frame_len);
                     }
+                } else if self.carry.try_reclaim(MAX_RETAINED_SMALL_CARRY_BYTES + 1) {
+                    self.carry = BytesMut::new();
                 }
             }
             crate::copy_counts::note_carry(self.chunk.len());
             self.carry.extend_from_slice(&self.chunk);
         }
         self.chunk = next;
-        // Identity keeps its original incremental allocation policy: header-
-        // time reservation hurt throughput, and observed-half reservation
-        // raised endpoint CPU. Only compressed frames anticipate validated
-        // length after actual half-frame input has arrived.
+    }
+
+    fn stageable_identity_frame_len(&self, next_len: usize) -> Option<usize> {
+        let flag = self.chunk.first().copied()?;
+        if flag != 0 {
+            return None;
+        }
+        let encoded = self.chunk.get(1..codec::HEADER_LEN)?;
+        let mut length = [0u8; 4];
+        length.copy_from_slice(encoded);
+        let payload_len = usize::try_from(u32::from_be_bytes(length)).ok()?;
+        self.limits.check_decode(payload_len).ok()?;
+        let frame_len = codec::HEADER_LEN.checked_add(payload_len)?;
+        if frame_len < STAGE_MIN_FRAME_BYTES || self.chunk.len() >= frame_len {
+            return None;
+        }
+        let completes = self.chunk.len().saturating_add(next_len) >= frame_len;
+        if next_len < STAGE_MIN_CHUNK_BYTES && !completes {
+            return None;
+        }
+        if self.chunk.len() < STAGE_MIN_CHUNK_BYTES && next_len < STAGE_MIN_CHUNK_BYTES {
+            return None;
+        }
+        Some(frame_len)
+    }
+
+    fn spill_staged_to_carry(&mut self, next_len: usize) {
+        let observed = self
+            .staged_len
+            .saturating_add(self.chunk.len())
+            .saturating_add(next_len);
+        if !self.carry.try_reclaim(observed) {
+            self.carry = BytesMut::with_capacity(observed);
+        }
+        while let Some(seg) = self.staged.pop_front() {
+            crate::copy_counts::note_carry(seg.len());
+            self.carry.extend_from_slice(&seg);
+        }
+        self.staged_len = 0;
+        self.staged_frame_len = 0;
+        if !self.chunk.is_empty() {
+            crate::copy_counts::note_carry(self.chunk.len());
+            self.carry.extend_from_slice(&self.chunk);
+            self.chunk = Bytes::new();
+        }
+    }
+
+    fn assemble_staged_frame(&mut self) -> Result<Option<Frame>, Status> {
+        let payload_len = self.staged_frame_len.saturating_sub(codec::HEADER_LEN);
+        if self.carry.try_reclaim(payload_len) {
+            if self.carry.capacity() > MAX_RETAINED_SMALL_CARRY_BYTES
+                && payload_len < self.carry.capacity() / 4
+            {
+                self.carry = BytesMut::with_capacity(payload_len);
+            }
+        } else {
+            self.carry = BytesMut::with_capacity(payload_len);
+        }
+        if let Some(first) = self.staged.pop_front() {
+            let first_body = first
+                .get(codec::HEADER_LEN..)
+                .ok_or_else(|| Status::internal("truncated gRPC frame"))?;
+            crate::copy_counts::note_carry(first_body.len());
+            self.carry.extend_from_slice(first_body);
+        }
+        while let Some(seg) = self.staged.pop_front() {
+            crate::copy_counts::note_carry(seg.len());
+            self.carry.extend_from_slice(&seg);
+        }
+        let from_chunk = self.staged_frame_len.saturating_sub(self.staged_len);
+        let tail = self
+            .chunk
+            .get(..from_chunk)
+            .ok_or_else(|| Status::internal("truncated gRPC frame"))?;
+        crate::copy_counts::note_carry(tail.len());
+        self.carry.extend_from_slice(tail);
+        self.chunk.advance(from_chunk);
+        self.staged_len = 0;
+        self.staged_frame_len = 0;
+        Ok(Some(Frame {
+            compressed: false,
+            payload: self.carry.split().freeze(),
+        }))
     }
 
     // A rejected or incomplete header keeps the existing deferred error path.
@@ -233,6 +372,12 @@ impl FrameReader {
     }
 
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
+        if !self.staged.is_empty() {
+            if self.staged_len.saturating_add(self.chunk.len()) < self.staged_frame_len {
+                return Ok(None);
+            }
+            return self.assemble_staged_frame();
+        }
         if self.carry.is_empty() {
             return codec::pop_from_chunk(&mut self.chunk, self.limits);
         }
@@ -289,7 +434,7 @@ impl FrameReader {
     /// A stream that ended mid-frame is a protocol violation, not an
     /// empty message.
     pub(crate) fn finish(&self) -> Result<(), Status> {
-        if self.chunk.is_empty() && self.carry.is_empty() {
+        if self.chunk.is_empty() && self.carry.is_empty() && self.staged.is_empty() {
             Ok(())
         } else {
             Err(Status::internal("truncated gRPC frame"))
@@ -552,9 +697,17 @@ impl<T> WireStream<T> {
         self
     }
 
-    /// Release retained decode memory even if a terminal stream stays alive.
+    /// Release retained decode memory while trailers may still be pending.
     pub(crate) fn release_workspace(&mut self) {
         self.workspace = None;
+    }
+
+    /// Release all retained decode, framing, and timer state once the stream
+    /// reaches a terminal outcome, even if the caller holds onto `Streaming`.
+    pub(crate) fn release_terminal(&mut self) {
+        self.workspace = None;
+        self.sleep = None;
+        self.reader.release_buffers();
     }
 
     /// Whether DATA and trailers have both been consumed, so a Drop must
@@ -590,19 +743,19 @@ impl<T> WireStream<T> {
     ) -> Poll<Result<Option<Framed<T>>, Status>> {
         if let Some(at) = self.deadline {
             if tokio::time::Instant::now() >= at {
-                self.release_workspace();
+                self.release_terminal();
                 return Poll::Ready(Err(Status::deadline_exceeded()));
             }
             if let Some(sleep) = &mut self.sleep {
                 if sleep.as_mut().poll(cx).is_ready() {
-                    self.release_workspace();
+                    self.release_terminal();
                     return Poll::Ready(Err(Status::deadline_exceeded()));
                 }
             }
         }
         let result = self.poll_next_inner(cx);
         if matches!(result, Poll::Ready(Err(_)) | Poll::Ready(Ok(None))) {
-            self.release_workspace();
+            self.release_terminal();
         }
         match result {
             Poll::Ready(Err(status))
@@ -1136,9 +1289,11 @@ mod tests {
             (b"\xff", Pushback::DoNotRetry),
             (b"2147483648", Pushback::DoNotRetry),
             (b"0", Pushback::Delay(Duration::ZERO)),
-            (b"-0", Pushback::Delay(Duration::ZERO)),
-            (b"0001", Pushback::Delay(Duration::from_millis(1))),
-            (b"+1", Pushback::Delay(Duration::from_millis(1))),
+            (b"00", Pushback::DoNotRetry),
+            (b"+0", Pushback::DoNotRetry),
+            (b"-0", Pushback::DoNotRetry),
+            (b"0001", Pushback::DoNotRetry),
+            (b"+1", Pushback::DoNotRetry),
             (
                 b"2147483647",
                 Pushback::Delay(Duration::from_millis(2_147_483_647)),
@@ -1420,7 +1575,7 @@ mod tests {
     }
 
     #[test]
-    fn large_identity_retains_original_incremental_growth_policy() {
+    fn large_identity_stages_chunks_and_assembles_once_without_overshoot() {
         let payload = vec![0xAB; 8 * 1024 * 1024 + 9];
         let wire = framed(&payload);
         let mut reader = FrameReader::new(MessageLimits::unlimited());
@@ -1430,21 +1585,74 @@ mod tests {
             if let Some(done) = reader.next_frame().expect("valid fragment") {
                 frame = Some(done);
             } else if index == 7 {
-                assert_eq!(reader.carry.len(), 8 * 1024 * 1024);
-                assert_eq!(reader.carry.capacity(), 8 * 1024 * 1024);
-                assert!(
-                    reader.carry.capacity() < wire.len(),
-                    "no identity tail anticipation"
-                );
+                assert_eq!(reader.carry.len(), 0);
+                assert_eq!(reader.carry.capacity(), 0);
+                assert_eq!(reader.staged_len + reader.chunk.len(), 8 * 1024 * 1024);
             }
         }
         let frame = frame.expect("complete identity frame");
+        let first_ptr = frame.payload.as_ptr();
         assert!(!frame.compressed);
         assert_eq!(frame.payload.as_ref(), payload);
-        // The original BytesMut growth policy doubles only when the actual
-        // final bytes arrive. Keep this rejected-hint holdout explicit.
-        assert_eq!(reader.carry.capacity() + wire.len(), 16 * 1024 * 1024);
+        assert_eq!(reader.carry.capacity(), 0);
         reader.finish().expect("complete input");
+
+        // Dropping the completed frame allows carry to reclaim the exact
+        // payload-sized backing buffer (not a 16 MiB geometric doubling).
+        drop(frame);
+        assert!(reader.carry.try_reclaim(payload.len()));
+        assert_eq!(
+            reader.carry.capacity(),
+            payload.len(),
+            "exact payload-sized allocation without 2x overshoot"
+        );
+        let mut second = None;
+        for chunk in wire.chunks(1024 * 1024) {
+            reader.push(Bytes::copy_from_slice(chunk));
+            if let Some(done) = reader.next_frame().expect("valid second fragment") {
+                second = Some(done);
+            }
+        }
+        let second = second.expect("second complete identity frame");
+        assert_eq!(
+            second.payload.as_ptr(),
+            first_ptr,
+            "reclaimed exact backing"
+        );
+        assert_eq!(second.payload.as_ref(), payload);
+        reader.finish().expect("complete second input");
+    }
+
+    #[test]
+    fn staged_identity_spills_to_carry_on_tiny_drip_without_preallocating_claim() {
+        let payload = vec![0x5A; 256 * 1024];
+        let wire = framed(&payload);
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(Bytes::copy_from_slice(&wire[..8 * 1024]));
+        assert!(reader.next_frame().expect("first 8 KiB").is_none());
+        reader.push(Bytes::copy_from_slice(&wire[8 * 1024..16 * 1024]));
+        assert!(reader.next_frame().expect("staged second 8 KiB").is_none());
+        assert!(!reader.staged.is_empty());
+        assert_eq!(reader.carry.capacity(), 0);
+
+        // Trickle two small chunks (< 4 KiB) so staging falls back to carry
+        // using only observed bytes rather than the 256 KiB header claim.
+        reader.push(Bytes::copy_from_slice(&wire[16 * 1024..16 * 1024 + 64]));
+        assert!(reader.next_frame().expect("small chunk 1").is_none());
+        reader.push(Bytes::copy_from_slice(
+            &wire[16 * 1024 + 64..16 * 1024 + 128],
+        ));
+        assert!(reader.next_frame().expect("small chunk 2").is_none());
+        assert!(reader.staged.is_empty());
+        assert!(reader.carry.capacity() < 32 * 1024);
+
+        reader.push(Bytes::copy_from_slice(&wire[16 * 1024 + 128..]));
+        let frame = reader
+            .next_frame()
+            .expect("remaining bytes")
+            .expect("complete spilled frame");
+        assert_eq!(frame.payload.as_ref(), payload);
+        reader.finish().expect("clean finish");
     }
 
     #[test]

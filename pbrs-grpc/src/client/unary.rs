@@ -2,9 +2,9 @@
 
 use super::call::{
     AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of,
-    is_direct_cancellation, open, peer_rejection_from_head, poll_now, prefer_deadline,
-    prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
-    send_request_frame,
+    is_direct_cancellation, open, peer_rejection_with_metadata_from_head, poll_now,
+    prefer_deadline, prefer_peer_rejection_with_trailer, reject_attempt, reset_send_on_cancel,
+    response_commits, send_request_frame,
 };
 use super::retry::{
     HedgeUnary, PolicyDecision, PolicyRetryDispatch, RequestReplay, policy_retry_delay,
@@ -32,6 +32,50 @@ pub(crate) struct UnaryFailure {
     pub(crate) status: Status,
     /// Whether the response headers committed this attempt.
     pub(crate) response_committed: bool,
+    /// Whether this hedged attempt yielded because a sibling already committed
+    /// or terminated the hedge group.
+    pub(crate) sibling_aborted: bool,
+}
+
+async fn wait_hedge_lost(hedge_attempt: Option<(&super::retry::HedgeCommit, u32)>) {
+    match hedge_attempt {
+        Some((commit, attempt)) => commit.wait_lost(attempt).await,
+        None => std::future::pending().await,
+    }
+}
+
+struct ResetSendOnDrop {
+    inner: backend::SendStream,
+    live: bool,
+}
+
+impl ResetSendOnDrop {
+    const fn new(inner: backend::SendStream) -> Self {
+        Self { inner, live: true }
+    }
+
+    const fn stream_mut(&mut self) -> &mut backend::SendStream {
+        &mut self.inner
+    }
+
+    const fn disarm(&mut self) {
+        self.live = false;
+    }
+
+    fn reset(&mut self) {
+        if self.live {
+            self.inner.send_reset(Reason::CANCEL);
+            self.live = false;
+        }
+    }
+}
+
+impl Drop for ResetSendOnDrop {
+    fn drop(&mut self) {
+        if self.live {
+            self.inner.send_reset(Reason::CANCEL);
+        }
+    }
 }
 
 // The peer rejection helper inspects transport-sourced errors without
@@ -49,10 +93,12 @@ fn prefer_ready_refusal<T>(
     result: &mut Result<T, Status>,
     error: crate::transport::Error,
     inspect_peer: bool,
+    rejection_trailer: &mut Option<(crate::metadata::Metadata, Status)>,
 ) {
     if error.reason() == Some(Reason::REFUSED_STREAM)
         && peer_rejection_allowed(result, inspect_peer)
     {
+        *rejection_trailer = None;
         *result = Err(Status::from_h2_post_dispatch(error));
     }
 }
@@ -62,6 +108,15 @@ impl UnaryFailure {
         Self {
             status,
             response_committed: false,
+            sibling_aborted: false,
+        }
+    }
+
+    fn sibling_aborted() -> Self {
+        Self {
+            status: Status::cancelled(),
+            response_committed: false,
+            sibling_aborted: true,
         }
     }
 }
@@ -86,6 +141,7 @@ pub(crate) async fn run_unary_frame<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+    hedge_attempt: Option<(&super::retry::HedgeCommit, u32)>,
 ) -> Result<Response<Resp>, UnaryFailure>
 where
     Resp: CodecMessage + Send,
@@ -105,13 +161,15 @@ where
         permit,
         tap,
         policy_dispatch,
+        hedge_attempt,
     )
     .await
 }
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "one transport handle plus request, cancel, limits, scheme, and tap"
+    clippy::too_many_lines,
+    reason = "one transport handle plus request, cancel, limits, scheme, hedge commit, and tap"
 )]
 async fn run_unary_inner<Resp>(
     send_req: backend::SendRequest,
@@ -128,52 +186,73 @@ async fn run_unary_inner<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+    hedge_attempt: Option<(&super::retry::HedgeCommit, u32)>,
 ) -> Result<Response<Resp>, UnaryFailure>
 where
     Resp: CodecMessage + Send,
 {
+    if hedge_attempt.is_some_and(|(hc, attempt)| hc.has_lost(attempt)) {
+        return Err(UnaryFailure::sibling_aborted());
+    }
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
         if let Some(_header) = cancel_rx.begin_unary_header() {
             tap.log_client_header(md, path, routing.authority().as_str(), timeout);
         }
     }
-    let (mut resp_fut, mut send_stream) = match open(
-        send_req,
-        routing,
-        path,
-        md,
-        timeout,
-        deadline,
-        &cancel_rx,
-        compress.then_some(wire.send_codec),
-        wire.accept_gzip,
-        &user_agent,
-    )
-    .await
-    {
+    let opened = tokio::select! {
+        biased;
+        () = wait_hedge_lost(hedge_attempt) => {
+            return Err(UnaryFailure::sibling_aborted());
+        }
+        opened = open(
+            send_req,
+            routing,
+            path,
+            md,
+            timeout,
+            deadline,
+            &cancel_rx,
+            compress.then_some(wire.send_codec),
+            wire.accept_gzip,
+            &user_agent,
+        ) => opened,
+    };
+    let (mut resp_fut, send_stream) = match opened {
         Ok(opened) => opened,
         // HEADERS never went out; the caller retains the encoded frame.
         Err(status) => {
             return Err(UnaryFailure::uncommitted(commitment.classify(status)));
         }
     };
+    let mut send_stream = ResetSendOnDrop::new(send_stream);
+    if hedge_attempt.is_some_and(|(hc, attempt)| hc.has_lost(attempt)) {
+        send_stream.reset();
+        return Err(UnaryFailure::sibling_aborted());
+    }
     if let Some(dispatch) = policy_dispatch {
         dispatch.on_headers_opened();
     }
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
     let mut received = UploadHead::default();
-    let sent = send_request_frame(
-        &mut send_stream,
-        frame,
-        wire.send_buffer,
-        &cancel_rx,
-        deadline,
-        &mut resp_fut,
-        &mut received,
-    )
-    .await;
+    let sent = tokio::select! {
+        biased;
+        () = wait_hedge_lost(hedge_attempt) => {
+            drop(permit);
+            send_stream.reset();
+            return Err(UnaryFailure::sibling_aborted());
+        }
+        sent = send_request_frame(
+            send_stream.stream_mut(),
+            frame,
+            wire.send_buffer,
+            &cancel_rx,
+            deadline,
+            &mut resp_fut,
+            &mut received,
+        ) => sent,
+    };
     drop(permit);
     if sent.is_ok() {
         if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
@@ -192,11 +271,19 @@ where
         committed: cached_commitment,
         reset: upload_reset,
     } = received;
+    if upload_reset {
+        send_stream.disarm();
+    }
     // A head first observed after any upload reset has lost reliable EOS
     // state. Preserve earlier snapshots, and otherwise commit conservatively.
     let cached_commitment = cached_commitment.or(upload_reset.then_some(true));
     if let Err(status) = sent {
+        if hedge_attempt.is_some_and(|(hc, attempt)| hc.has_lost(attempt)) {
+            send_stream.reset();
+            return Err(UnaryFailure::sibling_aborted());
+        }
         let mut response_committed = false;
+        let mut rejection_trailer: Option<(crate::metadata::Metadata, Status)> = None;
         // The upload may have waited for flow credit while initial response
         // headers arrived. Preserve classification made before a reset.
         let mut response = std::pin::pin!(resp_fut);
@@ -206,9 +293,15 @@ where
             response_committed = cached_commitment.unwrap_or_else(|| response_commits(head));
         }
         if is_direct_cancellation(&status) {
+            reset_send_on_cancel(
+                Some(send_stream.stream_mut()),
+                &Err::<(), _>(status.clone()),
+            );
+            send_stream.disarm();
             return Err(UnaryFailure {
                 status,
                 response_committed,
+                sibling_aborted: false,
             });
         }
         // Match the peer-rejection helper's eligibility without waiting for
@@ -216,29 +309,36 @@ where
         let inspect_peer = status.is_transport()
             || std::error::Error::source(&status)
                 .is_some_and(|cause| cause.is::<crate::transport::Error>());
-        let result = first_of(
-            prefer_peer_rejection_with_commitment(
-                async {
-                    match ready.take() {
-                        Some(result) => result,
-                        None => {
-                            let head = response.as_mut().await;
-                            observed = true;
-                            head
+        let result = tokio::select! {
+            biased;
+            () = wait_hedge_lost(hedge_attempt) => {
+                send_stream.reset();
+                return Err(UnaryFailure::sibling_aborted());
+            }
+            result = first_of(
+                prefer_peer_rejection_with_trailer(
+                    async {
+                        match ready.take() {
+                            Some(result) => result,
+                            None => {
+                                let head = response.as_mut().await;
+                                observed = true;
+                                head
+                            }
                         }
-                    }
-                },
-                commitment.classify(status),
-                &mut response_committed,
-                cached_commitment,
-            ),
-            cancel_rx,
-            deadline,
-        )
-        .await;
+                    },
+                    commitment.classify(status),
+                    &mut response_committed,
+                    cached_commitment,
+                    &mut rejection_trailer,
+                ),
+                cancel_rx,
+                deadline,
+            ) => result,
+        };
         // Poll around reset: a head can arrive after the first poll but
         // before the reset takes the transport lock.
-        let mut peer_status = None;
+        let mut peer_status: Option<(Status, Option<crate::metadata::Metadata>)> = None;
         if !observed {
             if let Some(head) = poll_now(response.as_mut()) {
                 observed = true;
@@ -248,13 +348,15 @@ where
                             cached_commitment.unwrap_or_else(|| response_commits(&head));
                         if inspect_peer && (!upload_reset || head.status() != http::StatusCode::OK)
                         {
-                            peer_status = peer_rejection_from_head(&head, cached_commitment);
+                            peer_status =
+                                peer_rejection_with_metadata_from_head(&head, cached_commitment)
+                                    .map(|(s, md)| (s, Some(md)));
                         }
                     }
                     Err(error)
                         if inspect_peer && error.reason() == Some(Reason::REFUSED_STREAM) =>
                     {
-                        peer_status = Some(Status::from_h2_post_dispatch(error));
+                        peer_status = Some((Status::from_h2_post_dispatch(error), None));
                     }
                     Err(_) => {}
                 }
@@ -263,8 +365,12 @@ where
         // Prefer a fired deadline on the original race result before letting
         // newly observed peer evidence replace a local send error.
         let mut result = prefer_deadline(result, deadline);
+        if matches!(&result, Err(s) if s.code() == Code::DeadlineExceeded) {
+            rejection_trailer = None;
+        }
         if peer_rejection_allowed(&result, inspect_peer) {
-            if let Some(status) = peer_status {
+            if let Some((status, md)) = peer_status {
+                rejection_trailer = md.map(|md| (md, status.clone()));
                 result = Err(status);
             }
         }
@@ -272,12 +378,13 @@ where
         let mut post_reset_status = None;
         let reset = if !observed && result.is_err() {
             // Even a non-timeout local error needs a cutoff before retry.
-            send_stream.send_reset(Reason::CANCEL);
+            send_stream.reset();
             match poll_now(response.as_mut()) {
                 Some(Ok(head)) => {
                     response_committed = true;
                     if inspect_peer && head.status() != http::StatusCode::OK {
-                        post_reset_status = peer_rejection_from_head(&head, Some(true));
+                        post_reset_status =
+                            peer_rejection_with_metadata_from_head(&head, Some(true));
                     }
                 }
                 Some(Err(error)) => post_reset_error = Some(error),
@@ -288,30 +395,65 @@ where
             &result,
             Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
         ) {
-            reset_send_on_cancel(Some(&mut send_stream), &result);
+            reset_send_on_cancel(Some(send_stream.stream_mut()), &result);
+            send_stream.disarm();
             true
         } else {
             false
         };
         // Reset can block on the transport lock until after the deadline.
         let mut result = prefer_deadline(result, deadline);
+        if matches!(&result, Err(s) if s.code() == Code::DeadlineExceeded) {
+            rejection_trailer = None;
+        }
         if peer_rejection_allowed(&result, inspect_peer) {
-            if let Some(status) = post_reset_status {
+            if let Some((status, md)) = post_reset_status {
+                rejection_trailer = Some((md, status.clone()));
                 result = Err(status);
                 result = prefer_deadline(result, deadline);
+                if matches!(&result, Err(s) if s.code() == Code::DeadlineExceeded) {
+                    rejection_trailer = None;
+                }
             }
         }
         if let Some(error) = post_reset_error {
-            prefer_ready_refusal(&mut result, error, inspect_peer);
+            prefer_ready_refusal(&mut result, error, inspect_peer, &mut rejection_trailer);
             result = prefer_deadline(result, deadline);
+            if matches!(&result, Err(s) if s.code() == Code::DeadlineExceeded) {
+                rejection_trailer = None;
+            }
         }
         if !reset {
             // A previously UNAVAILABLE result may now be a deadline.
-            reset_send_on_cancel(Some(&mut send_stream), &result);
+            reset_send_on_cancel(Some(send_stream.stream_mut()), &result);
+        }
+        if let Some((hc, attempt)) = hedge_attempt {
+            if response_committed {
+                if !hc.try_commit(attempt) {
+                    if !reset && !upload_reset {
+                        send_stream.reset();
+                    }
+                    return Err(UnaryFailure::sibling_aborted());
+                }
+            } else if hc.has_lost(attempt) {
+                if !reset && !upload_reset {
+                    send_stream.reset();
+                }
+                return Err(UnaryFailure::sibling_aborted());
+            }
+        }
+        send_stream.disarm();
+        if let (Some(tap), Some((md, peer_status)), Err(final_status)) =
+            (tap, &rejection_trailer, &result)
+        {
+            if !is_direct_cancellation(final_status) && final_status.code() == peer_status.code() {
+                tap.log_trailer(md, final_status);
+            }
         }
         return result.map_err(|status| UnaryFailure {
             status,
             response_committed,
+            sibling_aborted: false,
         });
     }
     let mut response_committed = false;
@@ -323,19 +465,45 @@ where
     }
     let result = first_of(
         async {
-            let response = match ready.take() {
+            let head_res = match ready.take() {
                 Some(head) => head,
-                None => {
-                    let head = response.as_mut().await;
-                    observed = true;
-                    head
+                None => tokio::select! {
+                    biased;
+                    () = wait_hedge_lost(hedge_attempt) => {
+                        send_stream.reset();
+                        return Err(Status::cancelled());
+                    }
+                    head = response.as_mut() => {
+                        observed = true;
+                        head
+                    }
+                },
+            };
+            let response = match head_res {
+                Ok(response) => response,
+                Err(error) => {
+                    if hedge_attempt.is_some_and(|(hc, attempt)| hc.has_lost(attempt)) {
+                        send_stream.disarm();
+                        return Err(Status::cancelled());
+                    }
+                    return Err(commitment.classify_h2(error));
                 }
-            }
-            .map_err(|e| commitment.classify_h2(e))?;
+            };
             // A valid trailers-only application failure remains eligible.
             // Headers followed by a body or trailers commit the response,
             // including a subsequent transport reset or attempt timeout.
             response_committed = cached_commitment.unwrap_or_else(|| response_commits(&response));
+            if let Some((hc, attempt)) = hedge_attempt {
+                if response_committed {
+                    if !hc.try_commit(attempt) {
+                        send_stream.reset();
+                        return Err(Status::cancelled());
+                    }
+                } else if hc.has_lost(attempt) {
+                    send_stream.disarm();
+                    return Err(Status::cancelled());
+                }
+            }
             commitment = AttemptCommitment::ResponseCommitted;
             finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap)
                 .await
@@ -345,6 +513,10 @@ where
         deadline,
     )
     .await;
+    if hedge_attempt.is_some_and(|(hc, attempt)| hc.has_lost(attempt) && !hc.did_commit(attempt)) {
+        send_stream.reset();
+        return Err(UnaryFailure::sibling_aborted());
+    }
     if !observed {
         if let Some(head) = poll_now(response.as_mut()) {
             observed = true;
@@ -355,7 +527,7 @@ where
     }
     let result = prefer_deadline(result, deadline);
     let reset = if !observed && result.is_err() {
-        send_stream.send_reset(Reason::CANCEL);
+        send_stream.reset();
         if let Some(Ok(_)) = poll_now(response.as_mut()) {
             response_committed = true;
         }
@@ -364,18 +536,21 @@ where
         &result,
         Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
     ) {
-        reset_send_on_cancel(Some(&mut send_stream), &result);
+        reset_send_on_cancel(Some(send_stream.stream_mut()), &result);
+        send_stream.disarm();
         true
     } else {
         false
     };
     let result = prefer_deadline(result, deadline);
     if !reset {
-        reset_send_on_cancel(Some(&mut send_stream), &result);
+        reset_send_on_cancel(Some(send_stream.stream_mut()), &result);
     }
+    send_stream.disarm();
     result.map_err(|status| UnaryFailure {
         status,
         response_committed,
+        sibling_aborted: false,
     })
 }
 
@@ -652,6 +827,7 @@ impl super::Channel {
                         byte_permit,
                         tap.as_ref(),
                         policy_dispatch.as_mut(),
+                        None,
                     )
                     .await;
                     // This HTTP/2 attempt has ended. Backoff retains the
@@ -664,6 +840,7 @@ impl super::Channel {
                         Err(UnaryFailure {
                             status,
                             response_committed: false,
+                            ..
                         }) if !retried
                             && replay.allowed()
                             && status.is_transparent_retryable()

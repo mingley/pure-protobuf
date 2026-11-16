@@ -54,8 +54,8 @@ the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
 from the Cargo manifests.
 
 Current manifest versions (check `Cargo.toml` before tagging): `pbrs` `0.2.1`;
-adapters `0.1.0-alpha.3` (updating from the older published `pbrs` `0.2.0` and
-adapter `0.1.0-alpha.2` releases). See [the changelog](../CHANGELOG.md).
+adapters `0.1.0` (updating from the older published `0.1.0-alpha.3` and
+`0.1.0-alpha.2` adapter previews and `pbrs` `0.2.0`). See [the changelog](../CHANGELOG.md).
 A `v1.0.0` tag does not promote the adapters. From the older `0.1.0-alpha.2`
 release on, both adapters build from checked
 descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still
@@ -159,10 +159,10 @@ development push; the publisher still requires every job on its exact SHA.
    provenance rehearsal for that exact commit. Neither action publishes.
 3. Sign an annotated tag on the SHA with `v` plus a version that **matches at least one** crate
    manifest (for example `v0.2.1` for `pbrs` `0.2.1`, or
-   `v0.1.0-alpha.3` for an adapter). Push the tag only after qualification:
+   `v0.1.0` for an adapter). Push the tag only after qualification:
    ```bash
-   git tag -s v0.2.1 -m 'Release v0.2.1'
-   git push origin v0.2.1
+   git tag -s v0.1.0 -m 'Release v0.1.0'
+   git push origin v0.1.0
    ```
    The workflow rejects lightweight tags, unsigned tags, and signatures that
    GitHub does not mark verified. The signed tag object's name must match

@@ -11,12 +11,13 @@ promotion gates.
 | Crate | Version | Scope |
 |---|---|---|
 | `pbrs` | `0.2.1` | Core protobuf runtime and generator |
-| `pbrs-grpc` | `0.1.0-alpha.3` | Native gRPC preview |
-| `protobuf-tonic` | `0.1.0-alpha.3` | Tonic 0.14+ adapter preview |
+| `pbrs-grpc` | `0.1.0` | Native gRPC client and server (`0.1.x` line) |
+| `protobuf-tonic` | `0.1.0` | Tonic 0.14+ adapter (`0.1.x` line) |
 
-Both adapters require `pbrs 0.2.1` at runtime and build time. Keep adapter
-pre-release notices until sustained soak and promotion evidence support
-promoting a profile.
+Both adapters require `pbrs 0.2.1` at runtime and build time (updating from the
+older published `0.1.0-alpha.3` preview releases). Keep profile-specific
+qualification boundaries documented until sustained soak and promotion evidence
+support promoting additional profiles.
 
 At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
 the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
@@ -35,7 +36,7 @@ and [`5fe70efd`](https://github.com/mingley/pure-protobuf/actions/runs/427730965
 remain retained; tagged publication always re-verifies exact-SHA required CI on
 the tagged commit.
 
-Prior to `0.2.1` / `0.1.0-alpha.3`, a November 10, 2026
+Prior to `0.1.0` and the older `0.1.0-alpha.3` preview, a November 10, 2026
 [registry check](https://github.com/mingley/pure-protobuf/actions/runs/42863659596)
 and [published-package smoke check](https://github.com/mingley/pure-protobuf/actions/runs/42863675030)
 verified the older published `pbrs` `0.2.0` and `pbrs-grpc` `0.1.0-alpha.2`

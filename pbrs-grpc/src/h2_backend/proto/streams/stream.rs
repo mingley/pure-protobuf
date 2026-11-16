@@ -55,6 +55,12 @@ pub(super) struct Stream {
     /// Task tracking additional send capacity (i.e. window updates).
     send_task: Option<Waker>,
 
+    /// Task waiting for all queued and retiring outbound DATA frames to drop.
+    pub(super) drain_task: Option<Waker>,
+
+    /// Count of retired outbound DATA frames currently dropping outside engine locks.
+    pub(super) retiring_data: u32,
+
     /// Frames pending for this stream being sent to the socket
     pub pending_send: buffer::Deque,
 
@@ -206,6 +212,8 @@ impl Stream {
             std::ptr::addr_of_mut!((*slot).requested_send_capacity).write(0);
             std::ptr::addr_of_mut!((*slot).buffered_send_data).write(0);
             std::ptr::addr_of_mut!((*slot).send_task).write(None);
+            std::ptr::addr_of_mut!((*slot).drain_task).write(None);
+            std::ptr::addr_of_mut!((*slot).retiring_data).write(0);
             std::ptr::addr_of_mut!((*slot).pending_send).write(buffer::Deque::new());
             std::ptr::addr_of_mut!((*slot).is_pending_send_capacity).write(false);
             std::ptr::addr_of_mut!((*slot).next_pending_send_capacity).write(None);
@@ -296,6 +304,7 @@ impl Stream {
     /// holds bytes. A bare end-of-stream with no wakers can be overwritten.
     pub(super) fn drop_is_nop(&self) -> bool {
         self.send_task.is_none()
+            && self.drain_task.is_none()
             && self.recv_task.is_none()
             && self.push_task.is_none()
             && self.state.is_bare_end()
@@ -410,9 +419,10 @@ impl Stream {
 
     /// Terminal queue cleanup transfers callbacks to its caller for waking
     /// after the stream and send-buffer locks have been released.
-    pub(super) fn take_tasks_for_terminal(&mut self) -> [Option<Waker>; 3] {
+    pub(super) fn take_tasks_for_terminal(&mut self) -> [Option<Waker>; 4] {
         [
             self.send_task.take(),
+            self.drain_task.take(),
             self.recv_task.take(),
             self.push_task.take(),
         ]
@@ -429,6 +439,19 @@ impl Stream {
 
     pub fn wait_send(&mut self, cx: &Context) {
         self.send_task = Some(cx.waker().clone());
+    }
+
+    pub(super) fn wait_drain(&mut self, cx: &Context) {
+        match self.drain_task.as_mut() {
+            Some(waker) => waker.clone_from(cx.waker()),
+            None => self.drain_task = Some(cx.waker().clone()),
+        }
+    }
+
+    pub(super) fn notify_drain(&mut self) {
+        if let Some(task) = self.drain_task.take() {
+            task.wake();
+        }
     }
 
     pub fn notify_recv(&mut self) {
@@ -448,6 +471,7 @@ impl Stream {
     pub(super) fn set_reset(&mut self, reason: Reason, initiator: Initiator) {
         self.state.set_reset(self.id, reason, initiator);
         self.notify_send();
+        self.notify_drain();
         self.notify_push();
         self.notify_recv();
     }
@@ -466,6 +490,7 @@ impl fmt::Debug for Stream {
             .field("requested_send_capacity", &self.requested_send_capacity)
             .field("buffered_send_data", &self.buffered_send_data)
             .h2_field_some("send_task", &self.send_task.as_ref().map(|_| ()))
+            .h2_field_some("drain_task", &self.drain_task.as_ref().map(|_| ()))
             .h2_field_if_then(
                 "pending_send",
                 !self.pending_send.is_empty(),

@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "pbrs-grpc"
-version = "0.1.0-alpha.3"
+version = "0.1.0"
 dependencies = [
  "atomic-waker",
  "base64",

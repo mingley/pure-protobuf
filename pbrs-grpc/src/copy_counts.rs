@@ -24,7 +24,7 @@
 //! context switches, application tasks, or task completion.
 
 #[cfg(feature = "copy-counts")]
-pub use crate::workspace::{RetainedDecodeCounts, RetainedEncodeCounts};
+pub use crate::workspace::{OutputReclaimCounts, RetainedDecodeCounts, RetainedEncodeCounts};
 
 /// Read the process-wide idle decoded-buffer reservations and capacity gauges.
 ///
@@ -44,6 +44,13 @@ pub fn retained_decode_counts() -> RetainedDecodeCounts {
 #[cfg(feature = "copy-counts")]
 pub fn retained_encode_counts() -> RetainedEncodeCounts {
     crate::workspace::retained_encode_counts()
+}
+
+/// Read lifetime in-place reclamation counters for retained compressed output
+/// workspaces.
+#[cfg(feature = "copy-counts")]
+pub fn output_reclaim_counts() -> OutputReclaimCounts {
+    crate::workspace::output_reclaim_counts()
 }
 
 /// Process-wide counts of named library task spawn expressions (RX-10a).

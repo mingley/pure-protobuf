@@ -251,6 +251,10 @@ pub struct Streaming<T> {
     /// resets the RPC, including bidi while the send half is still held.
     /// `None` on application channels and server-inbound streams.
     reset: Option<crate::rpc_cancel::RpcCancel>,
+    /// Keeps binary-log caller-cancel registration alive until this received
+    /// stream finishes or is dropped. `None` when binary logging is disabled,
+    /// on application channels, and on server-inbound streams.
+    cancel_log: Option<crate::rpc_cancel::UnaryCancelLog>,
     /// Ends a bidi request pump when its response ends or is dropped. Separate
     /// from caller cancellation so clean EOF leaves CallHandle state intact.
     outbound_completion: Option<tokio::sync::oneshot::Sender<()>>,
@@ -326,6 +330,7 @@ impl<T> Streaming<T> {
             lease: None,
             driver: None,
             reset: None,
+            cancel_log: None,
             outbound_completion: None,
             rpc_slot: None,
             terminated: false,
@@ -376,6 +381,7 @@ impl<T> Streaming<T> {
                 lease: None,
                 driver: None,
                 reset: None,
+                cancel_log: None,
                 outbound_completion: None,
                 rpc_slot: None,
                 terminated: false,
@@ -398,11 +404,22 @@ impl<T> Streaming<T> {
             lease: None,
             driver: None,
             reset: None,
+            cancel_log: None,
             outbound_completion: None,
             rpc_slot: None,
             terminated: false,
             channelz: None,
         }
+    }
+
+    pub(crate) fn bind_cancel_log(
+        mut self,
+        cancel_log: Option<crate::rpc_cancel::UnaryCancelLog>,
+    ) -> Self {
+        if !self.finished() {
+            self.cancel_log = cancel_log;
+        }
+        self
     }
 
     pub(crate) fn with_outbound_completion(
@@ -517,6 +534,7 @@ impl<T> Streaming<T> {
         let poll = self.poll_source(cx);
         if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
             self.terminated = true;
+            self.cancel_log.take();
             self.outbound_completion.take();
         }
         match &poll {
@@ -563,12 +581,12 @@ impl<T> Streaming<T> {
                         .is_some_and(crate::rpc_cancel::RpcCancel::is_cancelled)
                 };
                 if cancelled() {
-                    wire.release_workspace();
+                    wire.release_terminal();
                     return Poll::Ready(Err(wire.local_cancel_status()));
                 }
                 let poll = wire.poll_next(cx);
                 if cancelled() {
-                    wire.release_workspace();
+                    wire.release_terminal();
                     Poll::Ready(Err(wire.local_cancel_status()))
                 } else {
                     poll
@@ -623,6 +641,7 @@ impl<T> Streaming<T> {
             }
         };
         self.terminated = true;
+        self.cancel_log.take();
         self.outbound_completion.take();
         if result.is_ok() {
             self.reset.take();
@@ -738,6 +757,7 @@ impl<T> Drop for Streaming<T> {
                 reset.signal();
             }
         }
+        self.cancel_log.take();
         let clean = self.channelz.as_ref().is_some_and(|state| state.clean_end);
         self.channelz_end(clean);
     }
