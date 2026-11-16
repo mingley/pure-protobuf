@@ -80,10 +80,9 @@ constructors, builder methods, trait methods, and public associated types:
 
 The CI comparison covers all public APIs of `pbrs`, `pbrs-grpc`, and
 `protobuf-tonic`, which is deliberately stricter than the named minimum. It
-compares against the published releases (`0.2.1`, and the older published
-`0.1.0-alpha.3` baselines until `0.1.0` is indexed on crates.io), so deleting
+compares against the published releases (`0.2.1` and `0.1.0`), so deleting
 or incompatibly changing any listed API fails before merge. CI explicitly selects the tool's `minor`
-release policy: additive APIs are allowed, and an unchanged alpha version
+release policy: additive APIs are allowed, and an unchanged pre-release or `0.x` version
 cannot infer a major release that skips all compatibility checks.
 The maintainer approved installing pinned
 `cargo-semver-checks` 0.50.0 for this purpose on 2026-09-30; changing that pin
