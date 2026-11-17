@@ -557,11 +557,10 @@ impl LazyBytes {
 
     /// Parse a bytes span from the parent message bytes.
     ///
-    /// Sparse spans below [`Self::SHARE_THRESHOLD`] are copied when the parent
-    /// frame is a large shared buffer, so a small field never pins a large
-    /// frame; dense spans and spans at or above [`Self::SHARE_THRESHOLD`]
-    /// window the parent. A private parent (the copying `parse` path) is
-    /// always windowed: it pins nothing foreign.
+    /// Spans below [`Self::SHARE_THRESHOLD`] are copied when the parent frame
+    /// is shared, so a small field never pins the caller's buffer. Spans at
+    /// or above the threshold window the parent. A private parent (the
+    /// copying `parse` path) is always windowed: it pins nothing foreign.
     /// Generated `merge_inner` calls this with the message's wire slot.
     #[inline]
     pub fn from_parse_span(
@@ -575,7 +574,7 @@ impl LazyBytes {
             return Self::Empty;
         }
         if let Some(w) = slot.as_ref() {
-            if w.should_window_span(len) {
+            if !w.is_shared() || len >= Self::SHARE_THRESHOLD {
                 return Self::from_wire(w.window(rel_start, rel_end));
             }
             return Self::from_bytes(&data[rel_start..rel_end]);
@@ -591,7 +590,7 @@ impl LazyBytes {
         if len == 0 {
             return Self::Empty;
         }
-        if wire.should_window_span(len) {
+        if !wire.is_shared() || len >= Self::SHARE_THRESHOLD {
             return Self::from_wire(wire.window(rel_start, rel_end));
         }
         Self::from_bytes(&wire.as_slice()[rel_start..rel_end])
@@ -975,6 +974,37 @@ impl<T: MergeBytes + core::fmt::Debug> core::fmt::Debug for LazyMsg<T> {
 mod tests {
     use super::{LazyBytes, LazyStr, Wire};
     use crate::ProtoString;
+
+    #[test]
+    fn default_bytes_span_policy_matches_direct_and_map_paths() {
+        for len in [1, 16, 23, 24, 4095, 4096, 4097] {
+            for padding in [0, 1, 8192] {
+                let frame = bytes::Bytes::from(vec![0x9b; len + padding]);
+                let shared_wire = Wire::from_bytes(frame.clone());
+                let mut slot = Some(shared_wire.clone());
+                let direct = LazyBytes::from_parse_span(&mut slot, &frame, 0, len);
+                let map = LazyBytes::from_wire_span(&shared_wire, 0, len);
+                for value in [&direct, &map] {
+                    assert_eq!(value.as_bytes(), &frame[..len]);
+                    assert_eq!(
+                        value.as_bytes().as_ptr() == frame.as_ptr(),
+                        len >= LazyBytes::SHARE_THRESHOLD,
+                        "shared parent: len={len}, padding={padding}"
+                    );
+                }
+
+                let private_wire = Wire::from_slice(&frame);
+                let private_ptr = private_wire.as_slice().as_ptr();
+                let mut slot = Some(private_wire.clone());
+                let direct = LazyBytes::from_parse_span(&mut slot, &frame, 0, len);
+                let map = LazyBytes::from_wire_span(&private_wire, 0, len);
+                for value in [&direct, &map] {
+                    assert_eq!(value.as_bytes(), &frame[..len]);
+                    assert_eq!(value.as_bytes().as_ptr(), private_ptr);
+                }
+            }
+        }
+    }
 
     #[test]
     fn bytes_from_vec_transfers_payload_with_exact_and_spare_capacity() {
