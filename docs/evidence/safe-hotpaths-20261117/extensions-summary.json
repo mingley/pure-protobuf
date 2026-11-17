@@ -1,0 +1,118 @@
+{
+  "aa": {
+    "mtls": {
+      "probe_ratio_median": 0.9967001119479741,
+      "probe_ratio_range": [
+        0.9528474060859782,
+        1.0019999227948453
+      ],
+      "cpu_ratio_median": 0.9975211669819071,
+      "cpu_ratio_range": [
+        0.9527123610763671,
+        1.0000279819423192
+      ],
+      "base_ns_per_lookup_median": 10.2816969,
+      "candidate_ns_per_lookup_median": 10.2637366
+    },
+    "tls": {
+      "probe_ratio_median": 0.9981763056909385,
+      "probe_ratio_range": [
+        0.959541904386019,
+        1.0040006817481306
+      ],
+      "cpu_ratio_median": 0.9972676044901245,
+      "cpu_ratio_range": [
+        0.9615555331383029,
+        1.0000945070407763
+      ],
+      "base_ns_per_lookup_median": 9.086869,
+      "candidate_ns_per_lookup_median": 9.0878546
+    },
+    "tcp": {
+      "probe_ratio_median": 0.9976448489940588,
+      "probe_ratio_range": [
+        0.9477025635125056,
+        0.9997383214225749
+      ],
+      "cpu_ratio_median": 0.996523984828645,
+      "cpu_ratio_range": [
+        0.9479138765839085,
+        0.9999346098935238
+      ],
+      "base_ns_per_lookup_median": 8.7854985,
+      "candidate_ns_per_lookup_median": 8.7804851
+    },
+    "control": {
+      "probe_ratio_median": 1.001299655846719,
+      "probe_ratio_range": [
+        1.0009664682955643,
+        1.0020236002984464
+      ],
+      "cpu_ratio_median": 1.0016689926917128,
+      "cpu_ratio_range": [
+        0.9999295576218652,
+        1.0023879758392813
+      ],
+      "base_ns_per_lookup_median": 1.0641839000000002,
+      "candidate_ns_per_lookup_median": 1.064916
+    }
+  },
+  "candidate": {
+    "mtls": {
+      "probe_ratio_median": 0.8464387845226551,
+      "probe_ratio_range": [
+        0.7943992030565433,
+        0.8479079652967688
+      ],
+      "cpu_ratio_median": 0.8528641009120985,
+      "cpu_ratio_range": [
+        0.8036674601075494,
+        0.8549325191297299
+      ],
+      "base_ns_per_lookup_median": 10.272047,
+      "candidate_ns_per_lookup_median": 8.698831299999998
+    },
+    "tls": {
+      "probe_ratio_median": 0.9974151549601243,
+      "probe_ratio_range": [
+        0.9470519184543631,
+        1.142253414510683
+      ],
+      "cpu_ratio_median": 0.9985766237155675,
+      "cpu_ratio_range": [
+        0.9513345996200949,
+        1.13709958861663
+      ],
+      "base_ns_per_lookup_median": 9.0660148,
+      "candidate_ns_per_lookup_median": 9.052288
+    },
+    "tcp": {
+      "probe_ratio_median": 0.9523530887102281,
+      "probe_ratio_range": [
+        0.9331944405868301,
+        1.0737933297505966
+      ],
+      "cpu_ratio_median": 0.9549452772292428,
+      "cpu_ratio_range": [
+        0.9356862661265367,
+        1.0695482364749163
+      ],
+      "base_ns_per_lookup_median": 8.7676048,
+      "candidate_ns_per_lookup_median": 8.3465974
+    },
+    "control": {
+      "probe_ratio_median": 0.9997730837390065,
+      "probe_ratio_range": [
+        0.9948618508177508,
+        1.0038592796067822
+      ],
+      "cpu_ratio_median": 0.9962530907088083,
+      "cpu_ratio_range": [
+        0.9872399445215331,
+        1.0073293958585228
+      ],
+      "base_ns_per_lookup_median": 1.0634109,
+      "candidate_ns_per_lookup_median": 1.0617553000000002
+    }
+  }
+}

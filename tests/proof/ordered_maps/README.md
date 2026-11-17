@@ -33,7 +33,10 @@ Eighteen source controls compare exact selector placement and replacing/clearing
 builder calls with prost-build. Descriptor-set and plugin-request entry points
 must emit the same selected bindings. A following unconfigured request checks
 state reset. Empty and unmatched selections must equal current default output;
-its hashes must also match the frozen 05a3 generator in `baseline-default.json`.
+its hashes must match the reviewed current generator output in
+`current-default.json`. That manifest also pins the build script and schemas.
+`baseline-default.json` remains byte-for-byte frozen for the historical 05a3
+reproduction; its digest is checked separately.
 
 ## Wire and ownership boundaries
 

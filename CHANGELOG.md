@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- Restore Rust 1.85 compatibility in shared-string parsing, compression,
+  receive accounting and frame reuse.
+- Restore the documented copy policy for unselected shared byte fields smaller
+  than 4096 bytes. Explicitly selected `ProtoBytes` fields keep sharing input.
+- Avoid allocating storage for an empty repeated field's mutable slice while
+  preserving existing buffers and reserved capacity.
+- Avoid parent-wire allocation for owned scalar-only map values. Payload-bearing
+  values retain their existing backing strategy; shared input, unknown fields
+  and required-value validation remain covered.
+- Publish derived connection metadata after the transport scheme is known, so
+  TLS requests with existing context do not acquire derived cleartext TCP info.
+  Preserve application overrides and borrow peer identity during lazy lookups.
+- Remove redundant pooled gzip/zlib decoder resets while keeping reset-on-return,
+  later gzip-member resets and bounded pools.
+
+See the [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
+for source-specific checks, measured component costs and held experiments.
+These changes do not alter the published version numbers.
+
 ## pbrs-grpc 0.1.0 / protobuf-tonic 0.1.0
 
 First non-prerelease `0.1.0` versions of `pbrs-grpc` and `protobuf-tonic`,

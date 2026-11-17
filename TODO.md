@@ -37,6 +37,12 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
+records the latest contract repairs, decoder work and component measurements.
+Keep its source-specific results separate from dedicated-host qualification.
+The handoff below describes the wider queue; its cards remain open until their
+full acceptance criteria pass.
+
 ### Handoff snapshot & remaining TODO queue
 
 Two transport/framing optimization tracks just landed on `main` (dev-loop
@@ -93,11 +99,16 @@ dedicated-host leadership claims):
      `Option<Box<LazyStr>>` / `Option<Box<LazyBytes>>` on hot (`Dense`)
      `optional`/`oneof` fields with niche/sentinel `OptLazyStr`/`OptLazyBytes`
      while keeping boxed `ColdPlacement` on wide (`Sparse`) messages.
-   - **Inline `Packed<T, C>` wire cache & zero-copy LE borrow (`src/packed.rs`,
-     `PK-14`):** switch `PackedInner.encoded` from `OnceLock<Vec<u8>>` to
-     `OnceLock<ProtoBytes>` (inline SSO `<= 23B`) and borrow `decoded` slices
-     directly on little-endian `C::MEMCPY_SAFE` fixed-width types instead of
-     populating a duplicate byte cache.
+     The empty mutable-slice allocation is fixed. A full storage replacement
+     must still preserve public mutable-`Vec` behavior, zero-copy `Vec`
+     conversions, zeroed defaults, alignment and drop semantics.
+   - **Packed encoding storage (`src/packed.rs`, `PK-14`):** both
+     [decoded-slice borrowing candidates](docs/evidence/held-packed-borrow-20261117/README.md)
+     remain held after warmed lookup regressions. Retain their cold-allocation
+     gains and losses when evaluating the next design. The safe public
+     `MEMCPY_SAFE` flag cannot authorize a generic unsafe cast; use concrete
+     scalar implementations and keep checked byte lengths. The earlier inline
+     varint-cache experiment also remains unshipped.
    - **Eager/inline submessage decode (`src/lazy.rs`, `src/codegen/parse.rs`,
      `PK-27`, `PK-29`):** bypass `LazyMsg<T>` `Wire::window` `Arc` clones and
      `MemoCell` double-buffering on `owned_decode` / `read_all` paths for

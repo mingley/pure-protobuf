@@ -1,0 +1,99 @@
+name: Check borrowed request connect-info publication
+on:
+  push:
+    branches: [scratch/connect-info-identity-borrow-20261117]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+jobs:
+  correctness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Select candidate and install protoc
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 13109f6ee3539b1def96e2464f79bd4163801694
+          git checkout --detach 13109f6ee3539b1def96e2464f79bd4163801694
+          test -z "$(git status --porcelain --untracked-files=all)"
+          bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Format and connect-info behavior
+        run: |
+          set -euo pipefail
+          cargo fmt --check
+          cargo test --locked -p pbrs-grpc --lib request::tests
+          cargo test --locked -p pbrs-grpc --test connect_info
+          cargo test --locked -p pbrs-grpc --features tonic --test connect_info
+      - name: Strict library lint
+        run: cargo clippy --locked -p pbrs-grpc --lib --all-features -- -D warnings
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build exact sources with identical test-only probes
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 13109f6ee3539b1def96e2464f79bd4163801694
+          bash scripts/ci-install-apt.sh protobuf-compiler
+          mkdir -p "$RUNNER_TEMP/evidence"
+          git diff --binary 56bc4e53ae7369a18d1ca01fae81d350afb61cf4 13109f6ee3539b1def96e2464f79bd4163801694 -- pbrs-grpc/src/request.rs > "$RUNNER_TEMP/evidence/candidate.patch"
+          cp scratch/request-ext-probe.rs scratch/request-ext-perf.py "$RUNNER_TEMP/evidence/"
+          git worktree add --detach "$RUNNER_TEMP/base-source" 56bc4e53ae7369a18d1ca01fae81d350afb61cf4
+          git worktree add --detach "$RUNNER_TEMP/candidate-source" 13109f6ee3539b1def96e2464f79bd4163801694
+          for name in base candidate; do
+            source_dir="$RUNNER_TEMP/$name-source"
+            cp "$source_dir/pbrs-grpc/src/request.rs" "$RUNNER_TEMP/evidence/$name-request.rs"
+            PROBE="$GITHUB_WORKSPACE/scratch/request-ext-probe.rs" SOURCE_DIR="$source_dir" python3 - <<'PY'
+          import os
+          from pathlib import Path
+          source = Path(os.environ["SOURCE_DIR"]) / "pbrs-grpc/src/request.rs"
+          text = source.read_text()
+          anchor = "mod tests {\n"
+          assert text.count(anchor) == 1
+          source.write_text(text.replace(anchor, anchor + Path(os.environ["PROBE"]).read_text(), 1))
+          PY
+            git -C "$source_dir" diff --binary HEAD -- pbrs-grpc/src/request.rs > "$RUNNER_TEMP/evidence/$name-probe.patch"
+            CARGO_TARGET_DIR="$RUNNER_TEMP/target-$name" cargo test --locked --release --lib --no-run --manifest-path "$source_dir/pbrs-grpc/Cargo.toml" --message-format=json > "$RUNNER_TEMP/evidence/$name-build.jsonl"
+            BUILD="$RUNNER_TEMP/evidence/$name-build.jsonl" DEST="$RUNNER_TEMP/evidence/$name-bin" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import shutil
+          records = [json.loads(line) for line in Path(os.environ["BUILD"]).read_text().splitlines() if line.startswith("{")]
+          paths = [row["executable"] for row in records if row.get("reason") == "compiler-artifact" and row.get("executable") and row["target"]["name"] == "pbrs_grpc"]
+          assert len(paths) == 1, paths
+          shutil.copy2(paths[0], os.environ["DEST"])
+          PY
+          done
+          sha256sum "$RUNNER_TEMP/evidence/"*-bin > "$RUNNER_TEMP/evidence/binary-hashes.txt"
+          rustc -Vv > "$RUNNER_TEMP/evidence/rustc.txt"
+          sha256sum Cargo.lock > "$RUNNER_TEMP/evidence/lock-hash.txt"
+      - name: Balanced component controls
+        run: |
+          set -euo pipefail
+          python3 scratch/request-ext-perf.py "$RUNNER_TEMP/evidence/base-bin" "$RUNNER_TEMP/evidence/candidate-bin" "$RUNNER_TEMP/evidence/results.json"
+      - name: Retain diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: request-extension-borrow-screen
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 90
+  cleanup:
+    needs: [correctness, performance]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove only this scratch branch
+        run: git push --force-with-lease="refs/heads/scratch/connect-info-identity-borrow-20261117:$GITHUB_SHA" origin ":refs/heads/scratch/connect-info-identity-borrow-20261117"

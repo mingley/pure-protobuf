@@ -12,6 +12,10 @@ Historical results retain their dated source and raw captures where available.
 Read the [benchmark contract](benchmark-contract.md) before making a broader
 performance claim.
 
+The [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md) groups
+current runtime repairs, decoder CPU measurements, request-extension costs and
+held packed experiments. These component results complement the comparisons below.
+
 ## Compare pbrs with tonic and Prost
 
 Start with the workload closest to yours. These are measurements of the named

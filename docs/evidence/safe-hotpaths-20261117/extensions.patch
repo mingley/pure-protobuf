@@ -1,0 +1,82 @@
+diff --git a/pbrs-grpc/src/request.rs b/pbrs-grpc/src/request.rs
+--- a/pbrs-grpc/src/request.rs
++++ b/pbrs-grpc/src/request.rs
+@@ -1052,14 +1052,14 @@ impl<T> Request<T> {
+             return;
+         }
+         let https = self.scheme.as_deref() == Some("https");
+-        let identity = self.peer_identity.clone();
++        let identity = self.peer_identity.as_ref();
+         self.extensions.publish(|map| {
+             insert_connect_info(
+                 map,
+                 https.then_some("https"),
+                 remote_addr,
+                 local_addr,
+-                identity.as_ref(),
++                identity,
+             );
+         });
+     }
+@@ -3462,6 +3462,61 @@ mod tests {
+     use crate::tls::PeerIdentity;
+     use std::time::Duration;
+ 
++    #[test]
++    fn tls_connect_info_preserves_identity_and_user_overrides() {
++        use super::TlsConnectInfo;
++
++        for identity in [None, PeerIdentity::from_der_certs([b"peer-leaf"])] {
++            let mut request = Request::new(7_u32);
++            request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
++            request.local_addr = Some("127.0.0.1:443".parse().expect("local"));
++            request.peer_identity = identity.clone();
++            request.set_http(None, Some(super::HttpStr::from_static("https")), None);
++            let first = request
++                .extensions()
++                .get::<TlsConnectInfo>()
++                .expect("TLS connect info");
++            assert_eq!(first.peer_identity(), identity.as_ref());
++            assert_eq!(first.get_ref().remote_addr(), request.remote_addr());
++            let first_address = std::ptr::from_ref(first);
++            for _ in 0..4 {
++                assert_eq!(
++                    request
++                        .extensions()
++                        .get::<TlsConnectInfo>()
++                        .map(std::ptr::from_ref),
++                    Some(first_address)
++                );
++            }
++            let rebuilt = request.map(|value| value + 1);
++            assert_eq!(*rebuilt.get_ref(), 8);
++            assert_eq!(
++                rebuilt
++                    .extensions()
++                    .get::<TlsConnectInfo>()
++                    .expect("mapped TLS info")
++                    .peer_identity(),
++                identity.as_ref()
++            );
++        }
++
++        let user_identity = PeerIdentity::from_der_certs([b"user-leaf"]);
++        let mut request = Request::new(());
++        request.extensions_mut().insert(TlsConnectInfo::new(
++            TcpConnectInfo::default(),
++            user_identity.clone(),
++        ));
++        request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
++        request.peer_identity = PeerIdentity::from_der_certs([b"transport-leaf"]);
++        request.set_http(None, Some(super::HttpStr::from_static("https")), None);
++        let info = request
++            .extensions()
++            .get::<TlsConnectInfo>()
++            .expect("user TLS info");
++        assert_eq!(info.peer_identity(), user_identity.as_ref());
++        assert_eq!(info.get_ref().remote_addr(), None);
++    }
++
+     #[test]
+     fn publishing_connect_info_does_not_clone_user_extensions() {
+         struct Context(std::sync::Arc<std::sync::atomic::AtomicUsize>);

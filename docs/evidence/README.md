@@ -5,6 +5,10 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [November 17 follow-up](safe-hotpaths-20261117/README.md) records runtime
+contract repairs, pooled-decoder measurements, connection-info costs and the
+held packed experiments, with raw results and reproduction scripts.
+
 The [balanced authority storage record](balanced-authority-storage-20261106/README.md)
 checks the selected-endpoint routing fix with all 216 constructor records and
 three native layouts. The owned route enum restores the connection handle's
