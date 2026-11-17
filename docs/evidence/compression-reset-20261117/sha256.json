@@ -1,0 +1,19 @@
+{
+  "baseline.sha": "ea7ef4039db622438f37ca85398a67fdaa99b631726590001c6098568d2efab7",
+  "binary-sha256.txt": "0eddf6ac22bd7ae9990478439f623a075041240bb2bb4527d78010847965d41d",
+  "candidate.sha": "6355deffc697b6a4c59ad025c1df4ff4d38f1e36ad21dc56aa1fa2d9292efbf7",
+  "check.py": "bc724894d93ce77867454553ec99fa212bfaa2bac5a72d78fcccc846b10d8f6e",
+  "compression-dirty-state-mutant.patch": "da4cbe4e8c1cc8bff85edd75381fc028d2bb849b3f17849a90decb3a8b29221a",
+  "compression-reset.patch": "0dd0840a7778b9a86e53fa4d466925552b50c18fc21c3e39127e03c80699b8ae",
+  "dirty-state-mutant.log": "cad70c9f215a2973e8a68db25fac4c5b5106696d309a639f650aa3cb6ae6adaa",
+  "driver.py": "6e7c8f3e33619b808e8f03ad6400568e73e5a847842c9c8fc87f44ce30e4cf5d",
+  "gate-jobs.json": "edfc9f8e70e45c6a8ce9f6de0d9073ba93874659e894e568466cb1756c56fefc",
+  "lscpu.txt": "0535bb1480e83c69fe356e41634e13a277dab7414cf5d563975b02388982cb37",
+  "perf-jobs.json": "05f5e913ac7d70e2a0bc12150c809eaa60486a660348cfc2fe27bd40258078cb",
+  "probe.rs": "6068e65bf71639534a82b4073383a9fed4ef62a54a26d8e3e458c7446d664c27",
+  "results.json": "deda26a1f8f9d1017205190bb1b38c8c25246bc6bf0d22a953a6b4cfe1625b8e",
+  "rustc.txt": "be69adad9137eaa0bdac1dd07e2fe286b1831fc8bad193ea27806ca0c7c8e7c6",
+  "summary.txt": "67f7eb24d21586bc44dd8c4de433e325e776b79a4729d57d132acc9c159f03d9",
+  "uname.txt": "4be565484e5d2351365ea25322c384b18705d10640b1e9268089424c40cb766b",
+  "check-report.txt": "93fa0fdcaf28317e282f51c4261ce66a1ee110887dd8552b93d3f7a7ce1bc980"
+}

@@ -1,0 +1,2729 @@
+{
+  "scope": "shared-host whole-process component CPU; not RPC or qualification",
+  "base": "e0d6d09230c4e53934be6aa8aa928612bb40733d",
+  "candidate": "2f27343e23770571c3ab40a15038c6dcb2ed5217",
+  "affinity": [
+    0
+  ],
+  "available_cpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "blocks": 4,
+  "runs": {
+    "gzip-empty": {
+      "iterations": 262144,
+      "calibration": {
+        "cpu": 0.49700499999999986,
+        "output": {
+          "iterations": 262144,
+          "payload_len": 0,
+          "encoded_len": 20,
+          "sum": 0
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.503186,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.47982700000000017,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.350844,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3395709999999998,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.702345747207819,
+          "base_control": 0.9535778022441009,
+          "candidate_control": 0.9678689103989232
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.47587499999999966,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.48476800000000014,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3190349999999999,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3268460000000002,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.6723423790107254,
+          "base_control": 1.0186876805883909,
+          "candidate_control": 1.0244832071716279
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4832599999999996,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.4738629999999995,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.33703099999999925,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3368160000000003,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.7040338598069424,
+          "base_control": 0.9805549807557007,
+          "candidate_control": 0.9993620764855489
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.48342000000000007,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.48085700000000015,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3367750000000004,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3363629999999997,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 20,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.6980753455697895,
+          "base_control": 0.9946981920483225,
+          "candidate_control": 0.9987766312820112
+        }
+      ]
+    },
+    "gzip-1k-noise": {
+      "iterations": 524288,
+      "calibration": {
+        "cpu": 0.40957800000000005,
+        "output": {
+          "iterations": 524288,
+          "payload_len": 1024,
+          "encoded_len": 1047,
+          "sum": 536870912
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.40895100000000123,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.40582000000000024,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.20664299999999852,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.2057549999999997,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.5061520353571709,
+          "base_control": 0.9923438260329454,
+          "candidate_control": 0.9957027337001552
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4094370000000004,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.4073639999999993,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2042899999999997,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.20378499999999994,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.49960149412157895,
+          "base_control": 0.9949369500069581,
+          "candidate_control": 0.997528023887612
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.40732100000000165,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.4179630000000006,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.20372699999999916,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.20400800000000024,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.4940541680197342,
+          "base_control": 1.0261268139870001,
+          "candidate_control": 1.0013792968040618
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4071850000000006,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.4070499999999986,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.20484300000000077,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.20249900000000048,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.5002757189263562,
+          "base_control": 0.9996684553704042,
+          "candidate_control": 0.9885570900640965
+        }
+      ]
+    },
+    "gzip-64k-noise": {
+      "iterations": 2048,
+      "calibration": {
+        "cpu": 0.3051429999999997,
+        "output": {
+          "iterations": 2048,
+          "payload_len": 65536,
+          "encoded_len": 65612,
+          "sum": 134217728
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28403999999999957,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2844729999999995,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.283687999999999,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2855040000000006,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 1.001194343840863,
+          "base_control": 1.0015244331784252,
+          "candidate_control": 1.006401398719726
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28314099999999914,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2845419999999999,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2815930000000011,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.28297600000000067,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9945145442086565,
+          "base_control": 1.0049480647451297,
+          "candidate_control": 1.0049113436768655
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28888900000000206,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2838640000000022,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.283378,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.282355,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9877434077167572,
+          "base_control": 0.9826057759208561,
+          "candidate_control": 0.9963899808736034
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28347499999999753,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2835389999999994,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2793299999999991,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2819809999999995,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65612,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9899420472863133,
+          "base_control": 1.0002257694682135,
+          "candidate_control": 1.0094905667132081
+        }
+      ]
+    },
+    "gzip-1m-zero": {
+      "iterations": 4096,
+      "calibration": {
+        "cpu": 0.3488760000000021,
+        "output": {
+          "iterations": 4096,
+          "payload_len": 1048576,
+          "encoded_len": 4834,
+          "sum": 4294967296
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.34746099999999824,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.34673099999999824,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.34334700000000273,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.35156599999999816,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ]
+          },
+          "ratio": 1.001038617558261,
+          "base_control": 0.9978990447848823,
+          "candidate_control": 1.023937882084292
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.3475940000000004,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.3479459999999986,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.34735499999999986,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.3460670000000022,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ]
+          },
+          "ratio": 0.9969548839750454,
+          "base_control": 1.0010126757078608,
+          "candidate_control": 0.9962919779476395
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.3481159999999981,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.34735200000000155,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3453550000000011,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.3460719999999978,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ]
+          },
+          "ratio": 0.9941895241765246,
+          "base_control": 0.9978053292580733,
+          "candidate_control": 1.0020761245674645
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.34528800000000076,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.34240900000000174,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3438539999999998,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              },
+              {
+                "cpu": 0.3476100000000013,
+                "output": {
+                  "iterations": 4096,
+                  "payload_len": 1048576,
+                  "encoded_len": 4834,
+                  "sum": 4294967296
+                }
+              }
+            ]
+          },
+          "ratio": 1.0054777031163415,
+          "base_control": 0.9916620328537366,
+          "candidate_control": 1.0109232406777338
+        }
+      ]
+    },
+    "gzip-roundtrip-1k-noise": {
+      "iterations": 32768,
+      "calibration": {
+        "cpu": 0.28867299999999985,
+        "output": {
+          "iterations": 32768,
+          "payload_len": 1024,
+          "encoded_len": 1047,
+          "sum": 33554432
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.29186500000000215,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.28998700000000116,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.27730899999999986,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.31243999999999966,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 1.0135721798670385,
+          "base_control": 0.9935655183046923,
+          "candidate_control": 1.1266853942713717
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2916709999999999,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.29098000000000035,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2738259999999985,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.2724249999999988,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9375269243509359,
+          "base_control": 0.9976308923410296,
+          "candidate_control": 0.9948836122209005
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2883760000000008,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.28805199999999664,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2760550000000005,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.2802500000000021,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9650901760497496,
+          "base_control": 0.998876466834951,
+          "candidate_control": 1.015196247124673
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2887829999999977,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.2889919999999995,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.27634300000000045,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.27475100000000113,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9538211241400271,
+          "base_control": 1.0007237268121802,
+          "candidate_control": 0.9942390435075276
+        }
+      ]
+    },
+    "gzip-encode-control-1k-noise": {
+      "iterations": 32768,
+      "calibration": {
+        "cpu": 0.26537800000000045,
+        "output": {
+          "iterations": 32768,
+          "payload_len": 1024,
+          "encoded_len": 1047,
+          "sum": 34308096
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2622429999999993,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.2622260000000012,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2596980000000002,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.26452099999999756,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ]
+          },
+          "ratio": 0.999523327403521,
+          "base_control": 0.9999351746281193,
+          "candidate_control": 1.0185715715946884
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2587650000000024,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.2575260000000008,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.26045899999999667,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.26000900000000216,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ]
+          },
+          "ratio": 1.0080903986317709,
+          "base_control": 0.9952118717755432,
+          "candidate_control": 0.9982722808580448
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.26132600000000006,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.2622090000000017,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2604539999999941,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.26103000000000354,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ]
+          },
+          "ratio": 0.9960824013676179,
+          "base_control": 1.003378921347289,
+          "candidate_control": 1.0022115229561053
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2654250000000017,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.26108699999999585,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.25914000000000337,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              },
+              {
+                "cpu": 0.2610850000000009,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1047,
+                  "sum": 34308096
+                }
+              }
+            ]
+          },
+          "ratio": 0.9880591515483155,
+          "base_control": 0.9836564001130044,
+          "candidate_control": 1.0075055954310315
+        }
+      ]
+    },
+    "deflate-empty": {
+      "iterations": 262144,
+      "calibration": {
+        "cpu": 0.4083970000000011,
+        "output": {
+          "iterations": 262144,
+          "payload_len": 0,
+          "encoded_len": 8,
+          "sum": 0
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4105760000000016,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.4096530000000014,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3357720000000013,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.33232600000000456,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.814526187198945,
+          "base_control": 0.9977519387397212,
+          "candidate_control": 0.9897370834971447
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.40562099999999696,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.40822400000000464,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.32985000000000325,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3345080000000001,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.8163200609452684,
+          "base_control": 1.006417320602256,
+          "candidate_control": 1.014121570410783
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4093060000000043,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.4084099999999983,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3382189999999986,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.3318010000000029,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.8193798335852538,
+          "base_control": 0.9978109287427841,
+          "candidate_control": 0.9810241293363302
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.4076890000000024,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.4089750000000004,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3275370000000014,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              },
+              {
+                "cpu": 0.32870599999999683,
+                "output": {
+                  "iterations": 262144,
+                  "payload_len": 0,
+                  "encoded_len": 8,
+                  "sum": 0
+                }
+              }
+            ]
+          },
+          "ratio": 0.8035654810301373,
+          "base_control": 1.0031543652146562,
+          "candidate_control": 1.003569062426521
+        }
+      ]
+    },
+    "deflate-1k-noise": {
+      "iterations": 524288,
+      "calibration": {
+        "cpu": 0.30838099999999424,
+        "output": {
+          "iterations": 524288,
+          "payload_len": 1024,
+          "encoded_len": 1035,
+          "sum": 536870912
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.30863399999999497,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.3107730000000001,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.24471399999999902,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.20549500000000354,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.7268387344670082,
+          "base_control": 1.0069305390851466,
+          "candidate_control": 0.8397353645480208
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.3146920000000038,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.311209000000001,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2067500000000023,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.21119900000000352,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.6677557632916429,
+          "base_control": 0.988932035132756,
+          "candidate_control": 1.0215187424425691
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.316468999999996,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.3078730000000015,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.21556000000000183,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.20751099999999767,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.6776270057116152,
+          "base_control": 0.972837781899666,
+          "candidate_control": 0.9626600482464089
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.3091640000000011,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.30984499999999415,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.20575699999999683,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              },
+              {
+                "cpu": 0.2062310000000011,
+                "output": {
+                  "iterations": 524288,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 536870912
+                }
+              }
+            ]
+          },
+          "ratio": 0.6655605976649791,
+          "base_control": 1.0022027144169212,
+          "candidate_control": 1.002303688331402
+        }
+      ]
+    },
+    "deflate-64k-noise": {
+      "iterations": 2048,
+      "calibration": {
+        "cpu": 0.2874130000000016,
+        "output": {
+          "iterations": 2048,
+          "payload_len": 65536,
+          "encoded_len": 65600,
+          "sum": 134217728
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2861379999999948,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.28740300000000335,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.28779800000000066,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.28853099999999743,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 1.0048610299873941,
+          "base_control": 1.004420943740463,
+          "candidate_control": 1.0025469252739656
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.34363299999999786,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2877620000000008,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.3189199999999994,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.29025200000000245,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9648033323038718,
+          "base_control": 0.837410842381269,
+          "candidate_control": 0.9101091182741846
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28912100000000157,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2898380000000014,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2873499999999965,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.28827099999999994,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9942344794709013,
+          "base_control": 1.002479930548109,
+          "candidate_control": 1.0032051505133233
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2878520000000001,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2872559999999985,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2871729999999987,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              },
+              {
+                "cpu": 0.2873100000000043,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 65536,
+                  "encoded_len": 65600,
+                  "sum": 134217728
+                }
+              }
+            ]
+          },
+          "ratio": 0.9989132475987195,
+          "base_control": 0.9979294915442602,
+          "candidate_control": 1.000477064347991
+        }
+      ]
+    },
+    "deflate-1m-zero": {
+      "iterations": 2048,
+      "calibration": {
+        "cpu": 0.2547469999999986,
+        "output": {
+          "iterations": 2048,
+          "payload_len": 1048576,
+          "encoded_len": 4822,
+          "sum": 2147483648
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2525749999999972,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.25393699999999847,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.25273100000000415,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.252144999999999,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ]
+          },
+          "ratio": 0.9967700666519402,
+          "base_control": 1.0053924576858408,
+          "candidate_control": 0.9976813291602331
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.25132900000000236,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.253273,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2536459999999942,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.2538649999999975,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ]
+          },
+          "ratio": 1.0057649394968495,
+          "base_control": 1.0077348813706244,
+          "candidate_control": 1.0008634080569112
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.25223599999999413,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.2541560000000085,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.25281200000000514,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.25316799999999473,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ]
+          },
+          "ratio": 0.9991864010489843,
+          "base_control": 1.0076119189965524,
+          "candidate_control": 1.0014081610049743
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2514009999999994,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.3854849999999945,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.25124099999999605,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              },
+              {
+                "cpu": 0.24212299999999834,
+                "output": {
+                  "iterations": 2048,
+                  "payload_len": 1048576,
+                  "encoded_len": 4822,
+                  "sum": 2147483648
+                }
+              }
+            ]
+          },
+          "ratio": 0.7746504083933374,
+          "base_control": 1.5333471227242352,
+          "candidate_control": 0.9637081527298575
+        }
+      ]
+    },
+    "deflate-roundtrip-1k-noise": {
+      "iterations": 32768,
+      "calibration": {
+        "cpu": 0.2716569999999964,
+        "output": {
+          "iterations": 32768,
+          "payload_len": 1024,
+          "encoded_len": 1035,
+          "sum": 33554432
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.27543000000000617,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.28719700000000825,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.28059199999999324,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.27782900000000144,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.99252435450126,
+          "base_control": 1.0427222887848158,
+          "candidate_control": 0.9901529623082915
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28476600000000707,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.28512099999999896,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.27490599999999643,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.2758470000000012,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9664249228355652,
+          "base_control": 1.0012466375901332,
+          "candidate_control": 1.0034229882214458
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.285983000000004,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.289199999999997,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.27456399999999803,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.27658700000000636,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9582185148031208,
+          "base_control": 1.0112489203903483,
+          "candidate_control": 1.0073680453373652
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.28612299999999935,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.28994599999999976,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2762510000000028,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              },
+              {
+                "cpu": 0.2771079999999953,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33554432
+                }
+              }
+            ]
+          },
+          "ratio": 0.9605776391369768,
+          "base_control": 1.013361386536561,
+          "candidate_control": 1.003102251213543
+        }
+      ]
+    },
+    "deflate-encode-control-1k-noise": {
+      "iterations": 32768,
+      "calibration": {
+        "cpu": 0.27144500000000166,
+        "output": {
+          "iterations": 32768,
+          "payload_len": 1024,
+          "encoded_len": 1035,
+          "sum": 33914880
+        }
+      },
+      "blocks": [
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.26425700000000235,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.26567699999999433,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2610789999999969,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.2623730000000006,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ]
+          },
+          "ratio": 0.9877682881264473,
+          "base_control": 1.0053735568026276,
+          "candidate_control": 1.0049563542069784
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2634869999999961,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.2655840000000023,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2628100000000024,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.26011200000000045,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ]
+          },
+          "ratio": 0.9883777413617536,
+          "base_control": 1.0079586469161905,
+          "candidate_control": 0.9897340283855185
+        },
+        {
+          "order": [
+            "base",
+            "candidate",
+            "candidate",
+            "base"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.2721419999999962,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.27061199999999686,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2623789999999896,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.2611650000000002,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ]
+          },
+          "ratio": 0.9646064331170225,
+          "base_control": 0.9943779350486166,
+          "candidate_control": 0.9953731053171578
+        },
+        {
+          "order": [
+            "candidate",
+            "base",
+            "base",
+            "candidate"
+          ],
+          "samples": {
+            "base": [
+              {
+                "cpu": 0.26222800000000007,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.26778800000000275,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ],
+            "candidate": [
+              {
+                "cpu": 0.2673640000000118,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              },
+              {
+                "cpu": 0.260593,
+                "output": {
+                  "iterations": 32768,
+                  "payload_len": 1024,
+                  "encoded_len": 1035,
+                  "sum": 33914880
+                }
+              }
+            ]
+          },
+          "ratio": 0.99611521161627,
+          "base_control": 1.0212029226474773,
+          "candidate_control": 0.9746749749404875
+        }
+      ]
+    }
+  }
+}

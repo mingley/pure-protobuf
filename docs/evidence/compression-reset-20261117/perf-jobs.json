@@ -1,0 +1,121 @@
+{
+  "run_id": 44034241587,
+  "head_sha": "aa3b01462e512d5fa94d3316bd20f19f9465ba09",
+  "url": "https://github.com/mingley/pure-protobuf/actions/runs/44034241587",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 133873162146,
+      "name": "component-screen",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:50:56Z",
+          "completed_at": "2026-11-17T06:50:57Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:50:57Z",
+          "completed_at": "2026-11-17T06:51:16Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:51:16Z",
+          "completed_at": "2026-11-17T06:51:24Z"
+        },
+        {
+          "name": "Install protobuf compiler",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-17T06:51:24Z",
+          "completed_at": "2026-11-17T06:51:36Z"
+        },
+        {
+          "name": "Build exact library source pair with identical example only",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-17T06:51:36Z",
+          "completed_at": "2026-11-17T06:55:24Z"
+        },
+        {
+          "name": "Four alternating blocks per case and duplicate-executable controls",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-17T06:55:24Z",
+          "completed_at": "2026-11-17T06:56:31Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-17T06:56:31Z",
+          "completed_at": "2026-11-17T06:56:32Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-17T06:56:32Z",
+          "completed_at": "2026-11-17T06:56:32Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-11-17T06:56:32Z",
+          "completed_at": "2026-11-17T06:56:32Z"
+        }
+      ]
+    },
+    {
+      "id": 133875386483,
+      "name": "cleanup",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:57:00Z",
+          "completed_at": "2026-11-17T06:57:00Z"
+        },
+        {
+          "name": "Remove isolated driver ref with lease",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:57:00Z",
+          "completed_at": "2026-11-17T06:57:02Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:57:02Z",
+          "completed_at": "2026-11-17T06:57:02Z"
+        }
+      ]
+    }
+  ]
+}

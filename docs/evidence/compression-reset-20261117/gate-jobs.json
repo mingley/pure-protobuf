@@ -1,0 +1,305 @@
+{
+  "run_id": 44034149687,
+  "head_sha": "e620ba692c3ca10f059b9af0825a6a75cf60d60d",
+  "url": "https://github.com/mingley/pure-protobuf/actions/runs/44034149687",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 133872863531,
+      "name": "negative-control",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:50:12Z",
+          "completed_at": "2026-11-17T06:50:13Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:50:13Z",
+          "completed_at": "2026-11-17T06:50:35Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@stable",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:50:35Z",
+          "completed_at": "2026-11-17T06:50:46Z"
+        },
+        {
+          "name": "Install protobuf compiler",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-17T06:50:46Z",
+          "completed_at": "2026-11-17T06:51:13Z"
+        },
+        {
+          "name": "Remove reset on return and demand diagnostic test failure",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-17T06:51:13Z",
+          "completed_at": "2026-11-17T06:52:15Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-17T06:52:15Z",
+          "completed_at": "2026-11-17T06:52:16Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-17T06:52:16Z",
+          "completed_at": "2026-11-17T06:52:16Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-17T06:52:16Z",
+          "completed_at": "2026-11-17T06:52:16Z"
+        }
+      ]
+    },
+    {
+      "id": 133872863749,
+      "name": "correctness (stable)",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:50:13Z",
+          "completed_at": "2026-11-17T06:50:13Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:50:14Z",
+          "completed_at": "2026-11-17T06:50:46Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@master",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:50:46Z",
+          "completed_at": "2026-11-17T06:50:55Z"
+        },
+        {
+          "name": "Verify source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-17T06:50:55Z",
+          "completed_at": "2026-11-17T06:50:55Z"
+        },
+        {
+          "name": "Install protobuf compiler",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-17T06:50:55Z",
+          "completed_at": "2026-11-17T06:51:09Z"
+        },
+        {
+          "name": "Compression correctness",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-17T06:51:09Z",
+          "completed_at": "2026-11-17T06:52:53Z"
+        },
+        {
+          "name": "Tonic gzip interoperability",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-17T06:52:53Z",
+          "completed_at": "2026-11-17T06:53:58Z"
+        },
+        {
+          "name": "Formatting and strict all-feature lint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-17T06:53:58Z",
+          "completed_at": "2026-11-17T06:55:02Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-17T06:55:02Z",
+          "completed_at": "2026-11-17T06:55:03Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-17T06:55:03Z",
+          "completed_at": "2026-11-17T06:55:03Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-17T06:55:03Z",
+          "completed_at": "2026-11-17T06:55:03Z"
+        }
+      ]
+    },
+    {
+      "id": 133872863864,
+      "name": "correctness (1.85.0)",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:50:13Z",
+          "completed_at": "2026-11-17T06:50:16Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:50:16Z",
+          "completed_at": "2026-11-17T06:51:01Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@master",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:51:01Z",
+          "completed_at": "2026-11-17T06:51:09Z"
+        },
+        {
+          "name": "Verify source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-17T06:51:09Z",
+          "completed_at": "2026-11-17T06:51:09Z"
+        },
+        {
+          "name": "Install protobuf compiler",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-17T06:51:09Z",
+          "completed_at": "2026-11-17T06:51:43Z"
+        },
+        {
+          "name": "Compression correctness",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-17T06:51:43Z",
+          "completed_at": "2026-11-17T06:53:45Z"
+        },
+        {
+          "name": "Tonic gzip interoperability",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-17T06:53:45Z",
+          "completed_at": "2026-11-17T06:53:45Z"
+        },
+        {
+          "name": "Formatting and strict all-feature lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-17T06:53:45Z",
+          "completed_at": "2026-11-17T06:53:45Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-17T06:53:45Z",
+          "completed_at": "2026-11-17T06:53:46Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-17T06:53:46Z",
+          "completed_at": "2026-11-17T06:53:46Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-17T06:53:46Z",
+          "completed_at": "2026-11-17T06:53:46Z"
+        }
+      ]
+    },
+    {
+      "id": 133874801854,
+      "name": "cleanup",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-17T06:56:17Z",
+          "completed_at": "2026-11-17T06:56:17Z"
+        },
+        {
+          "name": "Remove isolated driver ref with lease",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-17T06:56:17Z",
+          "completed_at": "2026-11-17T06:56:18Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-17T06:56:18Z",
+          "completed_at": "2026-11-17T06:56:18Z"
+        }
+      ]
+    }
+  ]
+}

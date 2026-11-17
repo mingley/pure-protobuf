@@ -1,0 +1,26 @@
+diff --git a/pbrs-grpc/src/compression/deflate.rs b/pbrs-grpc/src/compression/deflate.rs
+index 21b2942d..27991a75 100644
+--- a/pbrs-grpc/src/compression/deflate.rs
++++ b/pbrs-grpc/src/compression/deflate.rs
+@@ -131,7 +131,7 @@ impl Drop for PooledZlibReader<'_> {
+             .try_with(|cell| {
+                 if let Ok(mut pool) = cell.try_borrow_mut() {
+                     if pool.len() < MAX_POOLED_DECODERS {
+-                        decomp.reset(true);
++
+                         pool.push(decomp);
+                     }
+                 }
+diff --git a/pbrs-grpc/src/compression/gzip.rs b/pbrs-grpc/src/compression/gzip.rs
+index cd993233..0449f189 100644
+--- a/pbrs-grpc/src/compression/gzip.rs
++++ b/pbrs-grpc/src/compression/gzip.rs
+@@ -115,7 +115,7 @@ fn release_raw_decompressor(mut decomp: Decompress) {
+         .try_with(|cell| {
+             if let Ok(mut pool) = cell.try_borrow_mut() {
+                 if pool.len() < MAX_POOLED_DECODERS {
+-                    decomp.reset(false);
++
+                     pool.push(decomp);
+                 }
+             }

@@ -1,0 +1,13 @@
+gzip-empty: median 0.7002, range 0.6723..0.7040
+gzip-1k-noise: median 0.4999, range 0.4941..0.5062
+gzip-64k-noise: median 0.9922, range 0.9877..1.0012
+gzip-1m-zero: median 0.9990, range 0.9942..1.0055
+gzip-roundtrip-1k-noise: median 0.9595, range 0.9375..1.0136
+gzip-encode-control-1k-noise: median 0.9978, range 0.9881..1.0081
+deflate-empty: median 0.8154, range 0.8036..0.8194
+deflate-1k-noise: median 0.6727, range 0.6656..0.7268
+deflate-64k-noise: median 0.9966, range 0.9648..1.0049
+deflate-1m-zero: median 0.9980, range 0.7747..1.0058
+deflate-roundtrip-1k-noise: median 0.9635, range 0.9582..0.9925
+deflate-encode-control-1k-noise: median 0.9881, range 0.9646..0.9961
+Retained source IDs, file hashes, workloads, samples and ratios agree.
