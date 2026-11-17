@@ -15,6 +15,11 @@ and Prost decoding. Separate checks preserve clone independence, merging,
 unknown fields, failed-merge state, proto2 legacy bytes, proto3 UTF-8 rejection, unread truncation,
 recursion limits, required-field merging, oneof replacement, maps and groups.
 
+A scalar-only map checks that borrowed parsing allocates only the map container,
+while payload-bearing maps still share private parent storage. Separate cases
+cover shared-buffer lifetimes, duplicate keys, value-fragment merging, unknown
+fields, and malformed entry boundaries.
+
 A scalar-and-child node also checks the owned profile's smaller metadata layout.
 The 64-node fixture distinguishes the work each profile performs: owned
 parsing allocates one box per actual child and later traversal allocates nothing;

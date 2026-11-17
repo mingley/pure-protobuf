@@ -32,3 +32,7 @@ message FreeChoice {
     int32 replacement = 3;
   }
 }
+
+message RequiredMap {
+  map<int32, Required> values = 1;
+}

@@ -639,7 +639,7 @@ use {runtime}::prelude::*;\n\
                 }
             }
             emit_message(&mut src, desc, edition2024);
-            emit_map_decoders(&mut src, desc, edition2024)?;
+            emit_map_decoders(&mut src, desc, edition2024, &pool)?;
         }
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
         if !typed_extensions.is_empty() {

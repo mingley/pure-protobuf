@@ -1051,10 +1051,38 @@ pub(crate) fn emit_merge_arm(
     let _ = writeln!(src, "                    }}");
 }
 
+// Scalar map values consume their wire eagerly. Passing through an existing
+// source still supports shared input, but borrowed input needs no retained frame.
+// Keep the parent allocation for payload-bearing values: it amortizes their
+// private backing storage across entries.
+fn scalar_map_value(field: &FieldDescriptor, pool: &DescriptorPool) -> bool {
+    field
+        .message
+        .as_ref()
+        .and_then(|entry| entry.field(2))
+        .and_then(field_message_name)
+        .and_then(|name| pool.get_message(name))
+        .is_some_and(|value| {
+            !value.message_set_wire_format
+                && !is_extern_type(&value.full_name)
+                && value.fields.values().all(|field| {
+                    field.cardinality != Cardinality::Repeated
+                        && !matches!(
+                            field.field_type,
+                            FieldType::String
+                                | FieldType::Bytes
+                                | FieldType::Message
+                                | FieldType::Group
+                        )
+                })
+        })
+}
+
 pub(crate) fn emit_map_decoders(
     src: &mut String,
     desc: &MessageDescriptor,
     edition2024: bool,
+    pool: &DescriptorPool,
 ) -> Result<(), CodegenError> {
     let runtime = runtime_crate_path();
     bind_field_idents(desc);
@@ -1118,11 +1146,12 @@ pub(crate) fn emit_map_decoders(
                 .as_ref()
                 .and_then(|entry| entry.field(2))
                 .is_some_and(field_needs_initialization);
-            let child_wire = if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
+            let owned = OWNED_MESSAGE_FIELDS.with(|owned| owned.get());
+            let child_wire = if owned && !scalar_map_value(f, pool) {
                 runtime_path(
                     "::core::option::Option::Some(::pbrs::rt::Wire::ensure(wire, parent_data).window(start + s, start + e))",
                 )
-            } else if bytes_child_shares_wire(f) {
+            } else if owned || bytes_child_shares_wire(f) {
                 Cow::Borrowed("wire.as_ref().map(|source| source.window(start + s, start + e))")
             } else {
                 Cow::Borrowed("::core::option::Option::None")

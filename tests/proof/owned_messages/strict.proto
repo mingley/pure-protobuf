@@ -16,3 +16,13 @@ message BlobRoot {
   repeated Blob children = 2;
   map<int32, Blob> values = 3;
 }
+
+// Scalar-only map values need no retained parse frame in the owned profile.
+message ScalarValue {
+  int64 n = 1;
+  fixed64 stamp = 2;
+  bool ready = 3;
+}
+message ScalarRoot {
+  map<int32, ScalarValue> values = 1;
+}
