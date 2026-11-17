@@ -1,7 +1,7 @@
 # Implementation status
 
 The source patch candidates are `pbrs 0.2.2`, `pbrs-grpc 0.1.1`, and
-`protobuf-tonic 0.1.1`. The last published versions are `pbrs 0.2.1` and
+`protobuf-tonic` (`0.1.1`). The last published versions are `pbrs 0.2.1` and
 adapters `0.1.0`; the candidates keep the same qualification boundaries.
 
 `pbrs` provides Protocol Buffers messages, code generation, reflection,
