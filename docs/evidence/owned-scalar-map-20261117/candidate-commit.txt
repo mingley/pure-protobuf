@@ -1,0 +1,13 @@
+commit 79fa7c2b658a21d1fb85800f6f16024deb79ebe6
+Author:     mingley <46031485+mingley@users.noreply.github.com>
+AuthorDate: Tue Nov 17 00:59:34 2026 -0600
+Commit:     mingley <46031485+mingley@users.noreply.github.com>
+CommitDate: Tue Nov 17 00:59:34 2026 -0600
+
+    Avoid retaining wire for owned scalar map values
+    
+    Resolve the map value descriptor and elide the private parent frame only
+    for singular scalar-only owned values. Keep payload-sharing behavior for
+    strings, bytes, repeated and nested values. Cover generated borrowed and
+    shared parsing, merge rules, unknown fields, malformed boundaries, and
+    required scalar values checked after value-fragment merging and key replacement.

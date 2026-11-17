@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "532c3814a53fdb10092d64d6f85fa57db031bd18",
+  "candidate_commit": "79fa7c2b658a21d1fb85800f6f16024deb79ebe6",
+  "measurement_driver_commit": "56de2a2e143abf9b9cd56e6b7700bcbad606648f",
+  "measurement_run": "https://github.com/mingley/pure-protobuf/actions/runs/44036214749",
+  "measurement_artifact": "https://github.com/mingley/pure-protobuf/actions/runs/44036214749/artifacts/14307647288",
+  "measurement_artifact_zip_sha256": "f1c50d87afc2527493c407d188102a0f036d12ec0a7a41754fd9d0109e8dc2bc",
+  "correctness_commit": "c7ca94d0b83bba92744daa4098422b52576ba37d",
+  "correctness_run": "https://github.com/mingley/pure-protobuf/actions/runs/44034605442",
+  "correctness_artifact": "https://github.com/mingley/pure-protobuf/actions/runs/44034605442/artifacts/14306169084",
+  "correctness_artifact_zip_sha256": "3500a1fa12dd2dece0bf6ed0a76a6b1ab6103d6522b3bc1dc706450c53132e0b",
+  "correctness_relation": "Production blobs are identical. Final proof differs only in rustfmt layout.",
+  "candidate_tree": "98c0a54759647e7b4bf89c39c4de0219d409d9fd",
+  "compiler": "1.99.1",
+  "msrv_consumer": "1.85.0",
+  "harness_blob": "861f2f6a5b8966691f250549ac7d6f82607e7947",
+  "source_blobs": {
+    "src/codegen/parse.rs": "4fbb6e61899eab98513f71fc36aa87819d8a6853",
+    "src/codegen/descriptors.rs": "6f498d5cdb38ad18371c92ec73707f50611038b8",
+    "tests/proof/owned_messages/src/main.rs": "4d0ae44e1d45f4c0788db549fa41c932795ffff1",
+    "tests/proof/owned_messages/build.rs": "22c4c8b88ecfd99afff12d613ce74982dc329abc",
+    "tests/proof/owned_messages/proof.proto": "548fcf7d4f9be50d9ce73fcee59d3b258a6ae992",
+    "tests/proof/owned_messages/strict.proto": "7991746c56999291ac1099fe1528681ee0a3651c",
+    "tests/proof/owned_messages/src/map_spans.rs": "3a0ad88568b650106683955adf8167936fe0bad4",
+    "tests/proof/owned_messages/Cargo.toml": "08eec6c781ef6d8c584a626d66100aa1f6a496b1",
+    "tests/proof/owned_messages/Cargo.lock": "005b4fefd481b2ffc773e9d48963383b4618d560"
+  }
+}

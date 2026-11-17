@@ -1,0 +1,249 @@
+diff --git a/src/codegen/descriptors.rs b/src/codegen/descriptors.rs
+index 970f1112..6f498d5c 100644
+--- a/src/codegen/descriptors.rs
++++ b/src/codegen/descriptors.rs
+@@ -639,7 +639,7 @@ use {runtime}::prelude::*;\n\
+                 }
+             }
+             emit_message(&mut src, desc, edition2024);
+-            emit_map_decoders(&mut src, desc, edition2024)?;
++            emit_map_decoders(&mut src, desc, edition2024, &pool)?;
+         }
+         emit_nested_mods(&mut src, &emit_names, &emit_enums);
+         if !typed_extensions.is_empty() {
+diff --git a/src/codegen/parse.rs b/src/codegen/parse.rs
+index d5aa4b0f..4fbb6e61 100644
+--- a/src/codegen/parse.rs
++++ b/src/codegen/parse.rs
+@@ -1051,10 +1051,38 @@ pub(crate) fn emit_merge_arm(
+     let _ = writeln!(src, "                    }}");
+ }
+ 
++// Scalar map values consume their wire eagerly. Passing through an existing
++// source still supports shared input, but borrowed input needs no retained frame.
++// Keep the parent allocation for payload-bearing values: it amortizes their
++// private backing storage across entries.
++fn scalar_map_value(field: &FieldDescriptor, pool: &DescriptorPool) -> bool {
++    field
++        .message
++        .as_ref()
++        .and_then(|entry| entry.field(2))
++        .and_then(field_message_name)
++        .and_then(|name| pool.get_message(name))
++        .is_some_and(|value| {
++            !value.message_set_wire_format
++                && !is_extern_type(&value.full_name)
++                && value.fields.values().all(|field| {
++                    field.cardinality != Cardinality::Repeated
++                        && !matches!(
++                            field.field_type,
++                            FieldType::String
++                                | FieldType::Bytes
++                                | FieldType::Message
++                                | FieldType::Group
++                        )
++                })
++        })
++}
++
+ pub(crate) fn emit_map_decoders(
+     src: &mut String,
+     desc: &MessageDescriptor,
+     edition2024: bool,
++    pool: &DescriptorPool,
+ ) -> Result<(), CodegenError> {
+     let runtime = runtime_crate_path();
+     bind_field_idents(desc);
+@@ -1118,11 +1146,12 @@ pub(crate) fn emit_map_decoders(
+                 .as_ref()
+                 .and_then(|entry| entry.field(2))
+                 .is_some_and(field_needs_initialization);
+-            let child_wire = if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
++            let owned = OWNED_MESSAGE_FIELDS.with(|owned| owned.get());
++            let child_wire = if owned && !scalar_map_value(f, pool) {
+                 runtime_path(
+                     "::core::option::Option::Some(::pbrs::rt::Wire::ensure(wire, parent_data).window(start + s, start + e))",
+                 )
+-            } else if bytes_child_shares_wire(f) {
++            } else if owned || bytes_child_shares_wire(f) {
+                 Cow::Borrowed("wire.as_ref().map(|source| source.window(start + s, start + e))")
+             } else {
+                 Cow::Borrowed("::core::option::Option::None")
+diff --git a/tests/proof/owned_messages/README.md b/tests/proof/owned_messages/README.md
+index bae33105..ee52aa3d 100644
+--- a/tests/proof/owned_messages/README.md
++++ b/tests/proof/owned_messages/README.md
+@@ -15,6 +15,11 @@ and Prost decoding. Separate checks preserve clone independence, merging,
+ unknown fields, failed-merge state, proto2 legacy bytes, proto3 UTF-8 rejection, unread truncation,
+ recursion limits, required-field merging, oneof replacement, maps and groups.
+ 
++A scalar-only map checks that borrowed parsing allocates only the map container,
++while payload-bearing maps still share private parent storage. Separate cases
++cover shared-buffer lifetimes, duplicate keys, value-fragment merging, unknown
++fields, and malformed entry boundaries.
++
+ A scalar-and-child node also checks the owned profile's smaller metadata layout.
+ The 64-node fixture distinguishes the work each profile performs: owned
+ parsing allocates one box per actual child and later traversal allocates nothing;
+diff --git a/tests/proof/owned_messages/proof.proto b/tests/proof/owned_messages/proof.proto
+index bbafb3ef..548fcf7d 100644
+--- a/tests/proof/owned_messages/proof.proto
++++ b/tests/proof/owned_messages/proof.proto
+@@ -32,3 +32,7 @@ message FreeChoice {
+     int32 replacement = 3;
+   }
+ }
++
++message RequiredMap {
++  map<int32, Required> values = 1;
++}
+diff --git a/tests/proof/owned_messages/src/map_spans.rs b/tests/proof/owned_messages/src/map_spans.rs
+index 5fdcaf57..3a0ad885 100644
+--- a/tests/proof/owned_messages/src/map_spans.rs
++++ b/tests/proof/owned_messages/src/map_spans.rs
+@@ -8,6 +8,8 @@ mod api {
+ }
+ 
+ pub(super) fn verify() {
++    scalar_values();
++    required_values();
+     // Every short string fits existing inline storage. The only allocations
+     // are the map's backing object and entry vector; no wire buffer is needed.
+     let first = [bytes(1, b"key"), bytes(2, b"before")].concat();
+@@ -98,3 +100,118 @@ pub(super) fn verify() {
+     nested_offsets!(lazy, false);
+     nested_offsets!(defaulted, false);
+ }
++
++fn scalar_values() {
++    use super::owned::strict_types::ScalarRoot;
++
++    let value = [
++        scalar(1, 42),
++        vec![0x11],
++        99u64.to_le_bytes().to_vec(),
++        scalar(3, 1),
++    ]
++    .concat();
++    let entry = [scalar(1, 7), bytes(2, &value)].concat();
++    let wire = bytes(1, &entry);
++    let mut parsed = None;
++    let allocations = allocated(|| parsed = Some(ScalarRoot::parse(&wire).unwrap()));
++    let parsed = parsed.unwrap();
++    assert_eq!(
++        allocations, 2,
++        "scalar map values must allocate only the map container, without copying the wire"
++    );
++    let value = parsed.values().get(7).unwrap();
++    assert_eq!((value.n(), value.stamp(), value.ready()), (42, 99, true));
++    let shared = pbrs::rt::Bytes::from(wire.clone());
++    let from_shared = ScalarRoot::parse_bytes(shared.clone()).unwrap();
++    drop(shared);
++    assert_eq!(from_shared, parsed);
++
++    // Repeated value occurrences merge inside an entry, while duplicate map
++    // keys replace the complete value. Neither rule depends on retained wire.
++    let merged_entry = [
++        scalar(1, 7),
++        bytes(2, &scalar(1, 5)),
++        bytes(2, &scalar(3, 1)),
++    ]
++    .concat();
++    let merged = ScalarRoot::parse(&bytes(1, &merged_entry)).unwrap();
++    let value = merged.values().get(7).unwrap();
++    assert_eq!((value.n(), value.stamp(), value.ready()), (5, 0, true));
++    let replacement = [scalar(1, 7), bytes(2, &scalar(1, 9))].concat();
++    let replaced =
++        ScalarRoot::parse(&[bytes(1, &merged_entry), bytes(1, &replacement)].concat()).unwrap();
++    let value = replaced.values().get(7).unwrap();
++    assert_eq!((value.n(), value.stamp(), value.ready()), (9, 0, false));
++
++    // Child unknown fields survive serialization, and malformed child fields
++    // cannot read bytes from the next entry.
++    let unknown = [scalar(1, 4), scalar(99, 123)].concat();
++    let entry = [scalar(1, 7), bytes(2, &unknown)].concat();
++    let parsed = ScalarRoot::parse(&bytes(1, &entry)).unwrap();
++    let encoded_child = parsed.values().get(7).unwrap().serialize().unwrap();
++    assert!(
++        encoded_child
++            .windows(3)
++            .any(|span| span == [0x98, 0x06, 123])
++    );
++    let payload = vec![0x5a; 1024];
++    let unknown = [scalar(1, 4), bytes(99, &payload), scalar(101, 9)].concat();
++    let entry = [scalar(1, 7), bytes(2, &unknown)].concat();
++    let source = bytes(1, &entry);
++    let borrowed = ScalarRoot::parse(&source).unwrap();
++    let shared = ScalarRoot::parse_bytes(pbrs::rt::Bytes::from(source)).unwrap();
++    for parsed in [borrowed, shared] {
++        assert_eq!(
++            parsed.values().get(7).unwrap().serialize().unwrap(),
++            unknown
++        );
++    }
++
++    for malformed in [
++        &[0x08, 0x80][..],
++        &[0x11, 0x00][..],
++        &[0x0a, 0x08, b'x'][..],
++    ] {
++        let bad = [scalar(1, 7), bytes(2, malformed)].concat();
++        let input = [bytes(1, &bad), bytes(1, &replacement)].concat();
++        assert!(ScalarRoot::parse(&input).is_err());
++        assert!(ScalarRoot::parse_bytes(pbrs::rt::Bytes::from(input)).is_err());
++    }
++    println!(
++        "PASS scalar map messages: two container allocations, merge, unknowns, shared lifetime and bounds"
++    );
++}
++
++fn required_values() {
++    use super::owned::types::RequiredMap;
++
++    let left = scalar(1, 3);
++    let right = scalar(2, 5);
++    let fragments = [scalar(1, 7), bytes(2, &left), bytes(2, &right)].concat();
++    let complete = [left.clone(), right].concat();
++    let complete_entry = [scalar(1, 7), bytes(2, &complete)].concat();
++    let incomplete_entry = [scalar(1, 7), bytes(2, &left)].concat();
++    for input in [
++        bytes(1, &fragments),
++        [bytes(1, &incomplete_entry), bytes(1, &complete_entry)].concat(),
++    ] {
++        let borrowed = RequiredMap::parse(&input).unwrap();
++        let shared = RequiredMap::parse_bytes(pbrs::rt::Bytes::from(input)).unwrap();
++        for parsed in [borrowed, shared] {
++            let value = parsed.values().get(7).unwrap();
++            assert_eq!((value.left(), value.right()), (3, 5));
++        }
++    }
++    for input in [
++        bytes(1, &incomplete_entry),
++        bytes(1, &scalar(1, 7)),
++        [bytes(1, &complete_entry), bytes(1, &incomplete_entry)].concat(),
++    ] {
++        assert!(RequiredMap::parse(&input).is_err());
++        assert!(RequiredMap::parse_bytes(pbrs::rt::Bytes::from(input)).is_err());
++    }
++    println!(
++        "PASS scalar required map values: final-tree checks after fragment merging and key replacement"
++    );
++}
+diff --git a/tests/proof/owned_messages/strict.proto b/tests/proof/owned_messages/strict.proto
+index cf669c08..7991746c 100644
+--- a/tests/proof/owned_messages/strict.proto
++++ b/tests/proof/owned_messages/strict.proto
+@@ -16,3 +16,13 @@ message BlobRoot {
+   repeated Blob children = 2;
+   map<int32, Blob> values = 3;
+ }
++
++// Scalar-only map values need no retained parse frame in the owned profile.
++message ScalarValue {
++  int64 n = 1;
++  fixed64 stamp = 2;
++  bool ready = 3;
++}
++message ScalarRoot {
++  map<int32, ScalarValue> values = 1;
++}

@@ -1,0 +1,199 @@
+name: Owned scalar-map allocation and CPU diagnostic
+on:
+  push:
+    branches: ["codex/owned-scalar-map-final-20261117"]
+permissions:
+  contents: write
+env:
+  BASE_SHA: 532c3814a53fdb10092d64d6f85fa57db031bd18
+  CANDIDATE_SHA: 79fa7c2b658a21d1fb85800f6f16024deb79ebe6
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: 1.99.1
+          components: rustfmt
+      - name: Install schema compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Prepare clean source-pinned worktrees
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          artifact_dir="$RUNNER_TEMP/owned-map-evidence"
+          mkdir -p "$artifact_dir"
+          printf 'ARTIFACTS=%s\n' "$artifact_dir" >> "$GITHUB_ENV"
+          printf 'BASE_TREE=%s\n' "$RUNNER_TEMP/owned-map-base" >> "$GITHUB_ENV"
+          printf 'CAND_TREE=%s\n' "$RUNNER_TEMP/owned-map-candidate" >> "$GITHUB_ENV"
+          cp .github/diagnostics/owned-scalar-map.rs "$artifact_dir/harness.rs"
+          cp .github/workflows/owned-scalar-map-diagnostic.yml "$artifact_dir/workflow.yml"
+          git diff "$BASE_SHA" "$CANDIDATE_SHA" -- > "$artifact_dir/candidate.patch"
+          git show --format=fuller --no-patch "$CANDIDATE_SHA" > "$artifact_dir/candidate-commit.txt"
+          printf "Parser correctness: run44034605442 sourcec7ca94d0; this candidate differs only in rustfmt proof layouts.\\nProduction parser/generator blobs are unchanged.\\n" > "$artifact_dir/previous-correctness.txt"
+          {
+            date -u --iso-8601=seconds
+            uname -a
+            lscpu
+            rustc -Vv
+            cargo -V
+            protoc --version
+            printf 'driver=%s\nbaseline=%s\ncandidate=%s\n' "$GITHUB_SHA" "$BASE_SHA" "$CANDIDATE_SHA"
+            printf 'CARGO_INCREMENTAL=%s CARGO_BUILD_JOBS=%s\n' "$CARGO_INCREMENTAL" "$CARGO_BUILD_JOBS"
+          } > "$artifact_dir/environment.txt"
+          git worktree add --detach "$RUNNER_TEMP/owned-map-base" "$BASE_SHA"
+          git worktree add --detach "$RUNNER_TEMP/owned-map-candidate" "$CANDIDATE_SHA"
+          test -z "$(git -C "$RUNNER_TEMP/owned-map-base" status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git -C "$RUNNER_TEMP/owned-map-candidate" status --porcelain=v1 --untracked-files=all)"
+      - name: Candidate generated-consumer and parser correctness
+        run: |
+          set -euo pipefail
+          cd "$CAND_TREE"
+          cargo run --locked --release --manifest-path tests/proof/owned_messages/Cargo.toml 2>&1 | tee "$ARTIFACTS/candidate-proof.log"
+          rustfmt --edition 2024 --check src/codegen/parse.rs tests/proof/owned_messages/src/map_spans.rs 2>&1 | tee "$ARTIFACTS/format-check.log"
+      - name: Build identical diagnostic consumers
+        run: |
+          set -euo pipefail
+          cp "$CAND_TREE/tests/proof/owned_messages/strict.proto" "$BASE_TREE/tests/proof/owned_messages/strict.proto"
+          cp "$CAND_TREE/tests/proof/owned_messages/proof.proto" "$BASE_TREE/tests/proof/owned_messages/proof.proto"
+          cp "$CAND_TREE/tests/proof/owned_messages/src/map_spans.rs" "$BASE_TREE/tests/proof/owned_messages/src/map_spans.rs"
+          python3 -I - <<'PY'
+          import os
+          from pathlib import Path
+          for name in ("BASE_TREE", "CAND_TREE"):
+              tree = Path(os.environ[name])
+              main = tree / "tests/proof/owned_messages/src/main.rs"
+              source = main.read_text()
+              assert source.count("fn main() {") == 1
+              source = "mod map_bench;\n" + source
+              source = source.replace("fn main() {", 'fn main() {\n    if std::env::args().nth(1).as_deref() == Some("--map-bench") { map_bench::run(); return; }')
+              main.write_text(source)
+              (main.parent / "map_bench.rs").write_text((Path(os.environ["ARTIFACTS"]) / "harness.rs").read_text())
+          PY
+          for side in base candidate; do
+            if [[ "$side" == base ]]; then tree="$BASE_TREE"; else tree="$CAND_TREE"; fi
+            cargo build --locked --release --manifest-path "$tree/tests/proof/owned_messages/Cargo.toml" 2>&1 | tee "$ARTIFACTS/$side-build.log"
+            git -C "$tree" status --porcelain=v1 --untracked-files=all > "$ARTIFACTS/$side-status.txt"
+            git -C "$tree" diff --binary HEAD -- > "$ARTIFACTS/$side-harness-diff.patch"
+            sha256sum "$tree/tests/proof/owned_messages/target/release/pbrs-owned-messages-proof" > "$ARTIFACTS/$side-binary.sha256"
+            cp "$tree/tests/proof/owned_messages/target/release/pbrs-owned-messages-proof" "$ARTIFACTS/$side-pbrs-owned-messages-proof"
+          done
+          base_out="$(find "$BASE_TREE/tests/proof/owned_messages/target/release/build" -path '*/out/default/strict.rs' -print -quit)"
+          candidate_out="$(find "$CAND_TREE/tests/proof/owned_messages/target/release/build" -path '*/out/default/strict.rs' -print -quit)"
+          test -n "$base_out"
+          test -n "$candidate_out"
+          for profile in default lazy; do
+            for schema in strict proof; do
+              cmp "$(dirname "$(dirname "$base_out")")/$profile/$schema.rs" "$(dirname "$(dirname "$candidate_out")")/$profile/$schema.rs"
+            done
+          done
+          printf 'default/lazy proof+strict outputs are byte-identical across base and candidate\n' > "$ARTIFACTS/default-profile-parity.txt"
+          set +e
+          "$BASE_TREE/tests/proof/owned_messages/target/release/pbrs-owned-messages-proof" > "$ARTIFACTS/baseline-negative-control.log" 2>&1
+          negative_status=$?
+          set -e
+          test "$negative_status" = 101
+          grep -F 'scalar map values must allocate only the map container' "$ARTIFACTS/baseline-negative-control.log"
+          "$CAND_TREE/tests/proof/owned_messages/target/release/pbrs-owned-messages-proof" > "$ARTIFACTS/candidate-instrumented-proof.log"
+      - name: Core MSRV consumer
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.0 --profile minimal
+          CARGO_TARGET_DIR="$RUNNER_TEMP/owned-map-msrv-target" cargo +1.85.0 run --locked --release --manifest-path "$CAND_TREE/tests/proof/owned_messages/Cargo.toml" 2>&1 | tee "$ARTIFACTS/msrv-proof.log"
+      - name: Balanced raw CPU and allocation samples
+        run: |
+          python3 -I - <<'PY'
+          import hashlib, json, os, statistics, subprocess
+          from pathlib import Path
+          root = Path(os.environ["ARTIFACTS"])
+          raw = root / "raw"
+          raw.mkdir()
+          trees = {"base": Path(os.environ["BASE_TREE"]), "candidate": Path(os.environ["CAND_TREE"])}
+          cpu = min(os.sched_getaffinity(0))
+          cells = []
+          for case in ("scalar1", "scalar32", "scalar512", "scalar32u"):
+              for source in ("borrowed", "shared"):
+                  for operation in ("owned_decode", "parse_touch"):
+                      cells.append((case, "owned", source, operation))
+          for source in ("borrowed", "shared"):
+              for operation in ("owned_decode", "parse_touch"):
+                  cells.append(("scalar32", "default", source, operation))
+          for operation in ("owned_decode", "parse_touch"):
+              cells.append(("scalar32", "prost", "borrowed", operation))
+          for case in ("blob32", "blob8192", "node64"):
+              for source in ("borrowed", "shared"):
+                  for operation in ("owned_decode", "parse_touch"):
+                      cells.append((case, "owned", source, operation))
+          sizes = {"scalar1":300000,"scalar32":30000,"scalar512":1000,"scalar32u":5000,"blob32":10000,"blob8192":1000,"node64":20000}
+          schedule, outcomes, samples = [], [], []
+          for repeat in range(4):
+              for index, cell in enumerate(cells if repeat % 2 == 0 else list(reversed(cells))):
+                  order = ("base", "candidate") if (repeat // 2 + cells.index(cell)) % 2 == 0 else ("candidate", "base")
+                  for side in order:
+                      schedule.append({"ordinal":len(schedule),"repeat":repeat,"cell":cell,"side":side})
+          (root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n")
+          for item in schedule:
+              case, impl, source, op = item["cell"]
+              side = item["side"]
+              binary = trees[side] / "tests/proof/owned_messages/target/release/pbrs-owned-messages-proof"
+              command = ["taskset", "-c", str(cpu), str(binary), "--map-bench", case, impl, source, op, str(sizes[case]), "100"]
+              label = str(item["ordinal"]).zfill(3) + "-" + "-".join(item["cell"]) + "-" + side
+              result = subprocess.run(command, capture_output=True, timeout=90)
+              (raw / (label + ".json")).write_bytes(result.stdout)
+              (raw / (label + ".stderr")).write_bytes(result.stderr)
+              outcomes.append(dict(item, returncode=result.returncode, command=command))
+              (root / "outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+              assert result.returncode == 0, label
+              data = json.loads(result.stdout)
+              assert data["schema"] == "owned-scalar-map/1"
+              assert (data["case"],data["implementation"],data["input"],data["operation"]) == tuple(item["cell"])
+              assert data["iterations"] == sizes[case] and data["warmup"] == 100
+              assert len(bytes.fromhex(data["wire_hex"])) == data["wire_bytes"]
+              assert data["wall_ns"] > 0 and data["allocations"] >= 0
+              samples.append(dict(item, data=data))
+          summary = []
+          for cell in cells:
+              selected = {side:[s["data"] for s in samples if tuple(s["cell"]) == cell and s["side"] == side] for side in trees}
+              reference = selected["base"][0]
+              for side in trees:
+                  for sample in selected[side]:
+                      for field in ("wire_hex","wire_bytes","expected_checksum","iterations","allocation_iterations"):
+                          assert sample[field] == reference[field], (cell,field)
+              allocs = {side:{s["allocations"] for s in data} for side,data in selected.items()}
+              assert all(len(v)==1 for v in allocs.values()), cell
+              base_alloc, cand_alloc = next(iter(allocs["base"])), next(iter(allocs["candidate"]))
+              expected_delta = 100 if cell[0].startswith("scalar") and cell[1]=="owned" and cell[2]=="borrowed" else 0
+              assert base_alloc - cand_alloc == expected_delta, (cell,base_alloc,cand_alloc,expected_delta)
+              ns = {side:statistics.median(s["wall_ns"]/s["iterations"] for s in data) for side,data in selected.items()}
+              summary.append({"cell":cell,"base_ns":ns["base"],"candidate_ns":ns["candidate"],"ratio":ns["candidate"]/ns["base"],
+                              "base_allocations_per_parse":base_alloc/100,"candidate_allocations_per_parse":cand_alloc/100})
+          (root / "summary.json").write_text(json.dumps({"classification":"shared-host diagnostic, not qualification","cpu":cpu,"rows":summary},indent=2)+"\n")
+          print(json.dumps(summary, indent=2))
+          PY
+      - name: Retain child consumer diagnostics
+        if: always()
+        run: |
+          if [[ -n "${CAND_TREE:-}" && -d "$CAND_TREE/target" ]]; then
+            find "$CAND_TREE/target" -name "*.stderr" -o -name "*-metadata.stderr" | while IFS= read -r path; do
+              printf "%s\\n" "$path"
+              cat "$path"
+            done > "$ARTIFACTS/child-consumer-stderr.txt"
+          fi
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owned-scalar-map-evidence
+          path: ${{ runner.temp }}/owned-map-evidence/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove scratch ref with exact lease
+        if: always()
+        run: git push --force-with-lease="refs/heads/codex/owned-scalar-map-final-20261117:$GITHUB_SHA" origin ":refs/heads/codex/owned-scalar-map-final-20261117"

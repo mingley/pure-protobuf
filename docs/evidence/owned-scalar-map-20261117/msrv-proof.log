@@ -1,0 +1,63 @@
+[1m[32m   Compiling[0m proc-macro2 v1.0.107
+[1m[32m   Compiling[0m serde_core v1.0.229
+[1m[32m   Compiling[0m unicode-ident v1.0.27
+[1m[32m   Compiling[0m quote v1.0.47
+[1m[32m   Compiling[0m zmij v1.0.23
+[1m[32m   Compiling[0m anyhow v1.0.104
+[1m[32m   Compiling[0m either v1.19.0
+[1m[32m   Compiling[0m syn v2.0.119
+[1m[32m   Compiling[0m serde_json v1.0.154
+[1m[32m   Compiling[0m serde v1.0.229
+[1m[32m   Compiling[0m itertools v0.14.0
+[1m[32m   Compiling[0m rustix v1.1.6
+[1m[32m   Compiling[0m paste v1.0.15
+[1m[32m   Compiling[0m pbrs v0.2.1 (/home/runner/work/_temp/owned-map-candidate)
+[1m[32m   Compiling[0m bytes v1.12.1
+[1m[32m   Compiling[0m prost-derive v0.14.4
+[1m[32m   Compiling[0m foldhash v0.1.5
+[1m[32m   Compiling[0m bitflags v2.13.2
+[1m[32m   Compiling[0m hashbrown v0.17.1
+[1m[32m   Compiling[0m equivalent v1.0.3
+[1m[32m   Compiling[0m prettyplease v0.2.37
+[1m[32m   Compiling[0m linux-raw-sys v0.12.1
+[1m[32m   Compiling[0m regex-syntax v0.8.11
+[1m[32m   Compiling[0m regex-automata v0.4.18
+[1m[32m   Compiling[0m prost v0.14.4
+[1m[32m   Compiling[0m indexmap v2.14.2
+[1m[32m   Compiling[0m hashbrown v0.15.5
+[1m[32m   Compiling[0m itoa v1.0.18
+[1m[32m   Compiling[0m once_cell v1.21.4
+[1m[32m   Compiling[0m fixedbitset v0.5.7
+[1m[32m   Compiling[0m fastrand v2.5.0
+[1m[32m   Compiling[0m memchr v2.8.3
+[1m[32m   Compiling[0m tempfile v3.27.0
+[1m[32m   Compiling[0m petgraph v0.8.3
+[1m[32m   Compiling[0m regex v1.13.1
+[1m[32m   Compiling[0m prost-types v0.14.4
+[1m[32m   Compiling[0m simdutf8 v0.1.5
+[1m[32m   Compiling[0m log v0.4.34
+[1m[32m   Compiling[0m heck v0.5.0
+[1m[32m   Compiling[0m multimap v0.10.1
+[1m[32m   Compiling[0m prost-build v0.14.4
+[1m[32m   Compiling[0m pbrs-owned-messages-proof v0.0.0 (/home/runner/work/_temp/owned-map-candidate/tests/proof/owned_messages)
+[1m[32m    Finished[0m `release` profile [optimized] target(s) in 1m 18s
+[1m[32m     Running[0m `/home/runner/work/_temp/owned-map-msrv-target/release/pbrs-owned-messages-proof`
+PASS scalar map messages: two container allocations, merge, unknowns, shared lifetime and bounds
+PASS scalar required map values: final-tree checks after fragment merging and key replacement
+PASS short map strings: two container allocations, no wire copy; last wins
+PASS map strings: parent-relative offsets and owned-buffer lifetime
+PASS map strings: UTF-8 and entry bounds reject malformed input
+PASS owned map messages: multiple parent offsets, copied and shared input
+PASS lazy map messages: multiple parent offsets, copied and shared input
+PASS defaulted map messages: multiple parent offsets, copied and shared input
+PASS owned generated defaults and binary/JSON string/bytes states (64-bit)
+PASS owned large-byte sharing: singular=true repeated=true map=true
+PASS owned semantics against Prost, later getter allocations=0
+PASS lazy generated defaults and binary/JSON string/bytes states (64-bit)
+PASS lazy large-byte sharing: singular=true repeated=false map=false
+PASS lazy semantics against Prost, later getter allocations=61
+PASS defaulted generated defaults and binary/JSON string/bytes states (64-bit)
+PASS defaulted large-byte sharing: singular=true repeated=false map=false
+PASS defaulted semantics against Prost, later getter allocations=61
+PASS compact node layout: owned=24 lazy=32
+PASS profile work distinction: owned parse 63 allocations, lazy/default 2/2

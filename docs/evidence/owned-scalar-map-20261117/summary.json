@@ -1,0 +1,448 @@
+{
+  "classification": "shared-host diagnostic, not qualification",
+  "cpu": 0,
+  "rows": [
+    {
+      "cell": [
+        "scalar1",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 90.39277666666666,
+      "candidate_ns": 53.611585,
+      "ratio": 0.5930958974487379,
+      "base_allocations_per_parse": 3.0,
+      "candidate_allocations_per_parse": 2.0
+    },
+    {
+      "cell": [
+        "scalar1",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 91.61068666666667,
+      "candidate_ns": 56.44303333333333,
+      "ratio": 0.6161184397482593,
+      "base_allocations_per_parse": 3.0,
+      "candidate_allocations_per_parse": 2.0
+    },
+    {
+      "cell": [
+        "scalar1",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 105.83902166666667,
+      "candidate_ns": 106.02159499999999,
+      "ratio": 1.001725009646332,
+      "base_allocations_per_parse": 2.0,
+      "candidate_allocations_per_parse": 2.0
+    },
+    {
+      "cell": [
+        "scalar1",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 107.69620666666667,
+      "candidate_ns": 108.71166833333334,
+      "ratio": 1.009428945532034,
+      "base_allocations_per_parse": 2.0,
+      "candidate_allocations_per_parse": 2.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 1529.2278999999999,
+      "candidate_ns": 1104.5231333333334,
+      "ratio": 0.7222750339130835,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 1603.4312333333332,
+      "candidate_ns": 1206.52295,
+      "ratio": 0.752463170803895,
+      "base_allocations_per_parse": 7.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 1555.0971666666667,
+      "candidate_ns": 1546.3204166666667,
+      "ratio": 0.9943561404469582,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 1642.5373,
+      "candidate_ns": 1651.4023166666666,
+      "ratio": 1.005397147855739,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "scalar512",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 23850.5,
+      "candidate_ns": 17276.1695,
+      "ratio": 0.7243525083331587,
+      "base_allocations_per_parse": 10.0,
+      "candidate_allocations_per_parse": 9.0
+    },
+    {
+      "cell": [
+        "scalar512",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 25003.762,
+      "candidate_ns": 18603.83,
+      "ratio": 0.7440412366747053,
+      "base_allocations_per_parse": 12.0,
+      "candidate_allocations_per_parse": 11.0
+    },
+    {
+      "cell": [
+        "scalar512",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 24028.509,
+      "candidate_ns": 23947.4165,
+      "ratio": 0.9966251547276612,
+      "base_allocations_per_parse": 9.0,
+      "candidate_allocations_per_parse": 9.0
+    },
+    {
+      "cell": [
+        "scalar512",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 25086.355,
+      "candidate_ns": 24877.1465,
+      "ratio": 0.9916604664169028,
+      "base_allocations_per_parse": 11.0,
+      "candidate_allocations_per_parse": 11.0
+    },
+    {
+      "cell": [
+        "scalar32u",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 4446.964,
+      "candidate_ns": 3599.5924999999997,
+      "ratio": 0.8094494356149499,
+      "base_allocations_per_parse": 102.0,
+      "candidate_allocations_per_parse": 101.0
+    },
+    {
+      "cell": [
+        "scalar32u",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 4592.7904,
+      "candidate_ns": 3724.0187,
+      "ratio": 0.8108401158476556,
+      "base_allocations_per_parse": 103.0,
+      "candidate_allocations_per_parse": 102.0
+    },
+    {
+      "cell": [
+        "scalar32u",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 4076.4142,
+      "candidate_ns": 4056.7428,
+      "ratio": 0.9951743372888848,
+      "base_allocations_per_parse": 101.0,
+      "candidate_allocations_per_parse": 101.0
+    },
+    {
+      "cell": [
+        "scalar32u",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 4222.325699999999,
+      "candidate_ns": 4268.020399999999,
+      "ratio": 1.0108221637189192,
+      "base_allocations_per_parse": 102.0,
+      "candidate_allocations_per_parse": 102.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "default",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 1097.5458333333333,
+      "candidate_ns": 1101.0351500000002,
+      "ratio": 1.0031791990463574,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "default",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 1186.3706833333333,
+      "candidate_ns": 1227.0614500000001,
+      "ratio": 1.0342985267912541,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "default",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 1163.6893,
+      "candidate_ns": 1144.3943,
+      "ratio": 0.9834191136757895,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "default",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 1225.3043833333334,
+      "candidate_ns": 1258.5664666666667,
+      "ratio": 1.027145975959742,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "prost",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 1387.0134,
+      "candidate_ns": 1389.3419666666666,
+      "ratio": 1.0016788350182244,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "scalar32",
+        "prost",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 1436.3818500000002,
+      "candidate_ns": 1434.2562,
+      "ratio": 0.9985201358538468,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "blob32",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 2323.07535,
+      "candidate_ns": 2307.9173499999997,
+      "ratio": 0.9934750286941831,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "blob32",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 2423.9493,
+      "candidate_ns": 2535.09395,
+      "ratio": 1.0458527123483976,
+      "base_allocations_per_parse": 7.0,
+      "candidate_allocations_per_parse": 7.0
+    },
+    {
+      "cell": [
+        "blob32",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 2176.90315,
+      "candidate_ns": 2201.45525,
+      "ratio": 1.0112784530630128,
+      "base_allocations_per_parse": 37.0,
+      "candidate_allocations_per_parse": 37.0
+    },
+    {
+      "cell": [
+        "blob32",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 2329.01755,
+      "candidate_ns": 2381.7826,
+      "ratio": 1.022655496949776,
+      "base_allocations_per_parse": 38.0,
+      "candidate_allocations_per_parse": 38.0
+    },
+    {
+      "cell": [
+        "blob8192",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 7469.389,
+      "candidate_ns": 7508.4325,
+      "ratio": 1.0052271343747126,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "blob8192",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 7642.4515,
+      "candidate_ns": 7670.295,
+      "ratio": 1.00364326813196,
+      "base_allocations_per_parse": 7.0,
+      "candidate_allocations_per_parse": 7.0
+    },
+    {
+      "cell": [
+        "blob8192",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 2388.4495,
+      "candidate_ns": 2375.9080000000004,
+      "ratio": 0.9947491039689138,
+      "base_allocations_per_parse": 5.0,
+      "candidate_allocations_per_parse": 5.0
+    },
+    {
+      "cell": [
+        "blob8192",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 2497.8045,
+      "candidate_ns": 2542.381,
+      "ratio": 1.0178462725965942,
+      "base_allocations_per_parse": 6.0,
+      "candidate_allocations_per_parse": 6.0
+    },
+    {
+      "cell": [
+        "node64",
+        "owned",
+        "borrowed",
+        "owned_decode"
+      ],
+      "base_ns": 1214.190425,
+      "candidate_ns": 1212.815975,
+      "ratio": 0.9988680111688412,
+      "base_allocations_per_parse": 63.0,
+      "candidate_allocations_per_parse": 63.0
+    },
+    {
+      "cell": [
+        "node64",
+        "owned",
+        "borrowed",
+        "parse_touch"
+      ],
+      "base_ns": 1292.467825,
+      "candidate_ns": 1299.82035,
+      "ratio": 1.0056887489636348,
+      "base_allocations_per_parse": 63.0,
+      "candidate_allocations_per_parse": 63.0
+    },
+    {
+      "cell": [
+        "node64",
+        "owned",
+        "shared",
+        "owned_decode"
+      ],
+      "base_ns": 2165.5879,
+      "candidate_ns": 2163.779,
+      "ratio": 0.9991647071910589,
+      "base_allocations_per_parse": 63.0,
+      "candidate_allocations_per_parse": 63.0
+    },
+    {
+      "cell": [
+        "node64",
+        "owned",
+        "shared",
+        "parse_touch"
+      ],
+      "base_ns": 2247.370075,
+      "candidate_ns": 2246.64925,
+      "ratio": 0.9996792584327706,
+      "base_allocations_per_parse": 63.0,
+      "candidate_allocations_per_parse": 63.0
+    }
+  ]
+}

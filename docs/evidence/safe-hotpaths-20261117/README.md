@@ -140,4 +140,4 @@ The current published versions remain `pbrs 0.2.1`, `pbrs-grpc 0.1.0` and
 `protobuf-tonic 0.1.0`. A main-branch push does not publish crates.
 The next release still needs final-source required CI, package rehearsals and
 the applicable qualification in the [release checklist](../../release-readiness.md).
-Full parity and a world-leading performance ranking remain unproven.
+Remaining parity work is tracked in the [current queue](../../../TODO.md).

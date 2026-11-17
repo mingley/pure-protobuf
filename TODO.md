@@ -7,7 +7,7 @@ followed by measured improvements to client and server efficiency. The
 comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
 acceptance criteria and dependencies.
 
-The [latest runtime and codegen record](docs/evidence/runtime-and-codegen-20261029/README.md)
+The [October 29 runtime and codegen record](docs/evidence/runtime-and-codegen-20261029/README.md)
 records smaller descriptor output and measured repeated-field and varint
 changes. Prioritize lazy nested reads, sparse and non-LTO packed parsing, map
 construction and warm access, and remaining transport losses. Measure large

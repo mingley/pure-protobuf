@@ -1,0 +1,17 @@
+diff --git a/tests/proof/owned_messages/src/main.rs b/tests/proof/owned_messages/src/main.rs
+index 4d0ae44e..26bdcc24 100644
+--- a/tests/proof/owned_messages/src/main.rs
++++ b/tests/proof/owned_messages/src/main.rs
+@@ -1,3 +1,4 @@
++mod map_bench;
+ mod map_spans;
+ 
+ use pbrs::{ClearAndParse, Parse, Serialize};
+@@ -384,6 +385,7 @@ fn reference_compact(wire: &[u8]) -> strict_reference::CompactNode {
+ }
+ 
+ fn main() {
++    if std::env::args().nth(1).as_deref() == Some("--map-bench") { map_bench::run(); return; }
+     map_spans::verify();
+     verify_profile!(owned, true);
+     verify_profile!(lazy, false);

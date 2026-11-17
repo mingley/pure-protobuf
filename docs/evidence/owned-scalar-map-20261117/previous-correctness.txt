@@ -1,0 +1,2 @@
+Parser correctness: run44034605442 sourcec7ca94d0; this candidate differs only in rustfmt proof layouts.
+Production parser/generator blobs are unchanged.

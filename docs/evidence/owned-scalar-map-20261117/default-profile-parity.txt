@@ -1,0 +1,1 @@
+default/lazy proof+strict outputs are byte-identical across base and candidate

@@ -1,0 +1,60 @@
+[1m[92m   Compiling[0m pbrs v0.2.1 (/home/runner/work/_temp/owned-map-candidate)
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 19.01s
+[1m[92m     Running[0m tests/differential_binary.rs (target/debug/deps/differential_binary-00b4de7fac7d8c1e)
+
+running 11 tests
+test test_oneof_field_setting_and_overwriting ... ok
+test test_extensions_proto2_dynamic ... ok
+test test_map_entries_last_wins ... ok
+test test_merge_semantics_differential ... ok
+test test_open_vs_closed_enums ... ok
+test test_packed_vs_unpacked_repeated ... ok
+test test_presence_proto2_differential ... ok
+test test_presence_proto3_differential ... ok
+test test_truncated_payload_boundaries ... ok
+test test_unknown_fields_roundtrip ... ok
+test test_recursion_depth_limit ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/generated_map_value_depth.rs (target/debug/deps/generated_map_value_depth-b81f8f3cd7654586)
+
+running 1 test
+test fresh_generated_map_value_depth_consumer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.51s
+
+[1m[92m     Running[0m tests/required_merge.rs (target/debug/deps/required_merge-afcf3c1da68c44fe)
+
+running 2 tests
+test parallel_targets_preserve_imported_required_initialization ... ok
+test generated_required_fields_validate_after_singular_merge ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.86s
+
+[1m[92m     Running[0m tests/unknown_group_depth.rs (target/debug/deps/unknown_group_depth-df5708f6102c2eb6)
+
+running 20 tests
+test capture_retains_matching_end_validation_and_malformed_errors ... ok
+test checked_bundled_merge_composes_its_supplied_depth_with_unknown_groups ... ok
+test checked_bundled_validation_composes_its_supplied_depth_with_unknown_groups ... ok
+test depth_aware_group_helpers_compose_at_99_and_keep_sibling_depth ... ok
+test depth_aware_non_groups_match_old_helpers_at_arbitrary_depth ... ok
+test depth_aware_group_helpers_reject_before_reading_or_incrementing ... ok
+test depth_aware_helpers_retain_legacy_end_tag_difference ... ok
+test dynamic_message_set_inner_unknown_groups_use_item_depth ... ok
+test dynamic_unknown_group_boundary_accepts_100 ... ok
+test dynamic_unknown_group_boundary_rejects_101 ... ok
+test dynamic_known_and_unknown_share_the_100_depth_budget ... ok
+test group_consumption_stops_before_a_following_sibling ... ok
+test legacy_skip_end_tag_and_truncation_behavior_is_explicit ... ok
+test dynamic_map_entry_unknown_groups_use_entry_depth ... ok
+test non_group_paths_and_public_function_types_remain_compatible ... ok
+test public_capture_rejects_101_unknown_groups ... ok
+test public_capture_accepts_100_unknown_groups_and_preserves_wire ... ok
+test public_skip_accepts_100_unknown_groups ... ok
+test public_skip_rejects_101_unknown_groups ... ok
+test fresh_generated_unknown_group_depth_consumer ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.91s
+

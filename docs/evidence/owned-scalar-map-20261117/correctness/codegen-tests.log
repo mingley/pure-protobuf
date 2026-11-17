@@ -1,0 +1,20 @@
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m zmij v1.0.23
+[1m[92m   Compiling[0m paste v1.0.15
+[1m[92m   Compiling[0m serde_json v1.0.151
+[1m[92m   Compiling[0m serde v1.0.229
+[1m[92m   Compiling[0m itoa v1.0.18
+[1m[92m   Compiling[0m pbrs v0.2.1 (/home/runner/work/_temp/owned-map-candidate)
+[1m[92m   Compiling[0m memchr v2.8.3
+[1m[92m   Compiling[0m bytes v1.12.1
+[1m[92m   Compiling[0m simdutf8 v0.1.5
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 17.94s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/pbrs-611c311901987c35)
+
+running 3 tests
+test codegen::parse::tests::required_free_recursive_graph_needs_no_initialization_walk ... ok
+test codegen::parse::tests::self_validation_selects_only_safe_recursive_descriptors ... ok
+test codegen::parse::tests::required_graph_follows_imported_types_cycles_and_map_values ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+
