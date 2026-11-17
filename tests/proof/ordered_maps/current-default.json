@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "generator_commit": "e0d6d09230c4e53934be6aa8aa928612bb40733d",
+  "historical_manifest_sha256": "cda3ffe24ebd3441f2f10c7b2877836b3e6bdfc1cd1e7ad5f6a038ae09d1a74a",
+  "input_sha256": {
+    "build.rs": "7827535180c24d698b6787c0ac047cd5da69ff03a58046a3fc2e0a8098086a23",
+    "proto/ordered.proto": "70330151798b2d8438225adb12d3a6b863014dfd9af26433c772bf3fbf16171b",
+    "proto/required.proto": "49c336017b18d3d4971c6514fb9ee0f066c381c1f7d5470758ae66b351736b77"
+  },
+  "generated_sha256": {
+    "mod.rs": "dba4bed3cf74468883760ed426a51ad83a44fd7976965f4fe2e9e9a26f14e712",
+    "ordered.rs": "8410c55adc3bff6b498d3c88d32d0b77f1deea91b1845f82bef4c9b7b820a383",
+    "required.rs": "de41ba3e19d9caa529d6e82a223056fbfe234af2f37af0bef036248cde8f610f"
+  },
+  "source_review": {
+    "historical_generator_commit": "05a3cca50e7708f5be1facce6d27a7ed6b87006b",
+    "historical_outputs_reproduced": true,
+    "change": "Adds shared-byte length methods and typed-message hooks; schemas, parsers, and writers are unchanged.",
+    "workflow_run": "https://github.com/mingley/pure-protobuf/actions/runs/44036734479",
+    "artifact_id": 14308180130,
+    "artifact_sha256": "8f669e12158f52b9b585489928e9912d48b713a6816b3d2d4d031df82cbd4901",
+    "tools": {
+      "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+      "protoc": "libprotoc 35.1",
+      "protoc_sha256": "4b4f6f26e826013355f5f0ded2e7ca06370547c13478fa2acb38b9e7970753eb"
+    }
+  }
+}

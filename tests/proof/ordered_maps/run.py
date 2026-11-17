@@ -58,9 +58,29 @@ def main():
         and any(name.endswith("/ordered.rs") and value == baseline["generated_sha256"]["ordered.rs"]
                 for name, value in baseline_red["inputs"].items())
     )
-    golden = bool(default_roots) and all(
+    historical_output_matches = bool(default_roots) and all(
         sha(default_roots[-1] / filename) == expected
         for filename, expected in baseline["generated_sha256"].items()
+    )
+    # The historical hashes identify the preserved 05a3 reproduction. Current
+    # generation has its own reviewed output control, including its inputs.
+    current = json.loads((HERE / "current-default.json").read_text())
+    expected_inputs = {"build.rs", "proto/ordered.proto", "proto/required.proto"}
+    historical_manifest_preserved = (
+        sha(HERE / "baseline-default.json") == current["historical_manifest_sha256"]
+    )
+    current_inputs_valid = (
+        current["schema_version"] == 1
+        and set(current["input_sha256"]) == expected_inputs
+        and all(sha(HERE / name) == expected
+                for name, expected in current["input_sha256"].items())
+    )
+    current_outputs_valid = (
+        set(current["generated_sha256"]) == set(baseline["generated_sha256"])
+    )
+    current_output_matches = bool(default_roots) and current_outputs_valid and all(
+        sha(default_roots[-1] / filename) == expected
+        for filename, expected in current["generated_sha256"].items()
     )
     frozen = json.loads((HERE / "old_parent/manifest.json").read_text())
     frozen_valid = all(sha(HERE / name) == expected
@@ -82,7 +102,11 @@ def main():
         "legacy_cache_controls": output.count("PASS ordered-legacy "),
         "parent_json_controls": output.count("PASS ordered-parent-json "),
         "baseline_parent_json_red_preserved": baseline_red_valid,
-        "default_output_matches_frozen_05a3": golden,
+        "default_output_matches_frozen_05a3": historical_output_matches,
+        "historical_default_manifest_preserved": historical_manifest_preserved,
+        "current_default_inputs_valid": current_inputs_valid,
+        "default_output_matches_current_control": current_output_matches,
+        "current_default_generator_commit": current["generator_commit"],
         "frozen_old_parent_valid": frozen_valid,
         "compiled_artifacts": artifacts,
         "limits": [
@@ -96,7 +120,8 @@ def main():
     report["harness_passed"] = (
         result.returncode == 0 and before == after and report["runtime_groups"] == 24
         and report["selector_controls"] == 18 and report["legacy_cache_controls"] == 1
-        and report["parent_json_controls"] == 4 and baseline_red_valid and golden and frozen_valid
+        and report["parent_json_controls"] == 4 and baseline_red_valid and frozen_valid
+        and historical_manifest_preserved and current_inputs_valid and current_output_matches
     )
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({key: value for key, value in report.items() if key != "source_sha256"}, indent=2))
