@@ -140,6 +140,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A39 | xDS HTTP filters | planned | Filter chain: RBAC, fault injection. |
 | A46 | xDS NACK semantics improvement | planned | With the ADS client. |
 | A47 | xDS federation | planned | With the xDS client. |
+| A93 | xDS external processing (`ext_proc`) filter | planned | With xDS HTTP filters (A39/A103; `A93-xds-ext-proc.md`). |
 | A102 | xDS gRPC service | planned | With the xDS client. |
 | A103 | xDS composite filter | planned | With xDS HTTP filters. |
 | A110 | Child-channel plugins | planned | With the LB plugin registry. |

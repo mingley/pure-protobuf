@@ -37,6 +37,92 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+### Handoff snapshot & remaining TODO queue
+
+Two transport/framing optimization tracks just landed on `main` (dev-loop
+measurements on macOS arm64 against `7caa502e` and `tonic 0.14.6`, not
+dedicated-host leadership claims):
+
+- **Track 1 — gRPC server & client hot-path trims (`pbrs-grpc`):** zero-alloc
+  `Arc<[SubchannelRef]>` LB picker path (`lb/mod.rs`), lazy `ConnectInfo`
+  request extensions (`lazy_ext.rs`, `request.rs`, `metadata.rs`), inline
+  `HoldCancel` via `pin_project_lite`, elided unused `Instant::now()` calls,
+  and per-RPC dispatch/drain trims (`server/{connection,drain,rpc}.rs`,
+  `tonic_server.rs`, `tower_client.rs`, `client/{config_glue,streaming}.rs`).
+- **Track 2 — Single-buffer gRPC framing, H2 chunk coalescing & pooled `flate2`
+  compression (`pbrs` + `pbrs-grpc`):** `shared_bytes_len`,
+  `prefers_slice_decode`, and `decode_payload_slice` across `src/{lazy,wire,rt,message,gen_support}.rs`
+  and `src/codegen/{encode,messages,parse}.rs` (with regenerated
+  `src/generated/*.rs`); single-buffer 5-byte gRPC frame + message encode,
+  `OutBatch` stream coalescing, 1–8 MiB `FrameReader` staging, and H2 chunk
+  coalescing (`pbrs-grpc/src/wire/*`, `pbrs-grpc/src/h2_backend/*`); and
+  thread-local pooled `flate2::Compress`/`Decompress` engines in
+  `pbrs-grpc/src/compression/{gzip,deflate}.rs` (`1.00` alloc per 1 KiB
+  gzip/deflate round-trip).
+- **Measured dev-loop deltas (`bench/devloop`):**
+  - `tonic_transport.native_native.query.d4.v6.unary`: `139.02 µs -> 89.68 µs`
+    (`-35.5%`; `1.50x` faster than `tonic` at `134.25 µs`).
+  - `tonic_transport.native_native.query.d4.v6.server_stream`:
+    `153.93 µs -> 113.82 µs` (`-26.1%`; `1.40x` faster than `tonic` at
+    `159.67 µs`).
+  - `rpc.pbrs.unary`: `141.56 µs -> 129.78 µs` (`-8.3%`), allocs `29.9 -> 20.9`
+    (`-30.1%`) vs `rpc.tonic.unary` `158.98 µs` / `72.0` allocs.
+  - `rpc.pbrs.server_stream`: `111.42 µs -> 102.85 µs` (`-7.7%`), allocs
+    `47.9 -> 35.0` (`-27.0%`) vs `rpc.tonic.server_stream` `164.83 µs` / `84.0`
+    allocs.
+  - `rpc.pbrs.server_stream_compressed`: `871.78 µs -> 746.45 µs` (`-14.4%`),
+    allocs `759.7 -> 241.9` (`-68.2%`), allocated bytes `21.2 MB -> 416 KB`
+    (`-98.04%`, `51x` reduction).
+
+#### Remaining TODOs (ordered execution plan)
+
+1. **Track 3 — `pbrs` codec hot-path elimination (`PK-31`, `PK-32`, `PK-14`,
+   `PK-27`, `PK-29`):**
+   - **Owned `Map` O(N^2) insert (`src/map.rs`, `PK-31`):** `Map::insert` and
+     `MapMut::insert_owned` linearly scan `entries.iter().rposition(...)` on
+     every insert unless an index was already built by a read (`maps.n512.fresh_encode`
+     is `1,064 µs` vs `prost` `75.8 µs`). Build `LastWinsIndex` lazily at
+     `INDEX_THRESHOLD` (`16`), add an O(1) ascending-key append fast path on
+     `LastWinsIndex::upsert`, and track `all_unique` for O(1) `len`/`iter`.
+   - **Thin-pointer `Repeated<T>` & unboxed hot `optional` string/bytes
+     (`src/repeated.rs`, `src/codegen/messages.rs`, `PK-32`):** replace
+     double-allocated `Repeated<T>(Option<Box<Vec<T>>>)` (`2` heap allocs per
+     non-empty repeated field) with a single-allocation thin-pointer header
+     (`null == empty`, preserving `zeroed_message`, ZST/over-aligned safety,
+     and `docs/unsafe-invariants.md` documentation + Miri coverage); replace
+     `Option<Box<LazyStr>>` / `Option<Box<LazyBytes>>` on hot (`Dense`)
+     `optional`/`oneof` fields with niche/sentinel `OptLazyStr`/`OptLazyBytes`
+     while keeping boxed `ColdPlacement` on wide (`Sparse`) messages.
+   - **Inline `Packed<T, C>` wire cache & zero-copy LE borrow (`src/packed.rs`,
+     `PK-14`):** switch `PackedInner.encoded` from `OnceLock<Vec<u8>>` to
+     `OnceLock<ProtoBytes>` (inline SSO `<= 23B`) and borrow `decoded` slices
+     directly on little-endian `C::MEMCPY_SAFE` fixed-width types instead of
+     populating a duplicate byte cache.
+   - **Eager/inline submessage decode (`src/lazy.rs`, `src/codegen/parse.rs`,
+     `PK-27`, `PK-29`):** bypass `LazyMsg<T>` `Wire::window` `Arc` clones and
+     `MemoCell` double-buffering on `owned_decode` / `read_all` paths for
+     recursive query trees and `Any`-bearing records.
+2. **Track 4 — Non-xDS gRFC completion (`docs/grfc.md`, `GF-11`, `GF-12`,
+   `CH-12`):**
+   - Transport & security: `GF-11` RFC 9113 TLS 1.2 cipher blocklist
+     (`GOAWAY(INADEQUATE_SECURITY)`), `A18` `ChannelConfig` TCP user timeout
+     builder, `A105` `max_concurrent_streams` subchannel pool scaling, and
+     `A97` JWT/Bearer call credentials (`XD-06c`).
+   - Extensibility, fault & observability: `CH-12` (`A52`/`A110`) public
+     `ResolverFactory` / `LbPolicyFactory` registries preserving zero-alloc
+     built-in picks, `A33` fault injection filter, `A38` admin service bundle
+     (channelz + CSDS), `GF-12` Tower layer parity, and remaining OTel/retry
+     instruments (`A45`, `A72`, `A78`, `A79`, `A94`, `A96`, `A108`).
+3. **Track 5 — xDS control plane & full 92/92 gRFC reconciliation (`XD-01`
+   through `XD-12`, `GF-09`):**
+   - Implement modular xDS bootstrap/ADS/LDS/RDS/CDS/EDS/LRS/CSDS plus HTTP
+     filters including newly tracked `A93` (`ext_proc`, `A93-xds-ext-proc.md`),
+     `A41` RBAC, `A33` fault injection, `A55`/`A60` session affinity, and
+     reconcile all `92` `A`/`G` rows in [gRFC coverage](docs/grfc.md).
+4. **Dedicated-host qualification (`SB-21`, `SB-24`, `SB-27`, `RX-09`, `SV-09`,
+   `CL-08`):** re-run separate-process Linux CPU/p99/allocation/headroom
+   campaigns before making any general or claim-grade superiority statement.
+
 The [October 28 follow-up](docs/evidence/optimizations-20261028/README.md)
 rejects the lazy enum, map iteration variants, generated-output move/shrink
 and both borrowed-wire variants after measured regressions. Keep their raw
