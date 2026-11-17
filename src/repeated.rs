@@ -116,7 +116,10 @@ impl<T> Repeated<T> {
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.ensure().as_mut_slice()
+        match self.0.as_deref_mut() {
+            Some(values) => values.as_mut_slice(),
+            None => &mut [],
+        }
     }
 
     pub fn into_vec(self) -> Vec<T> {
