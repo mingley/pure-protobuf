@@ -1,10 +1,13 @@
 # Implementation status
 
-`pbrs` (`0.2.1`) provides Protocol Buffers messages, code generation,
-reflection, ProtoJSON (including `FieldMask` and `Any`), and text format.
-`pbrs-grpc` (`0.1.0`) provides the native HTTP/2 gRPC client
-and server; `protobuf-tonic` (`0.1.0`) integrates `pbrs`
-messages with tonic 0.14+. Start with the [documentation index](README.md) for
+The source patch candidates are `pbrs 0.2.2`, `pbrs-grpc 0.1.1`, and
+`protobuf-tonic 0.1.1`. The last published versions are `pbrs 0.2.1` and
+adapters `0.1.0`; the candidates keep the same qualification boundaries.
+
+`pbrs` provides Protocol Buffers messages, code generation, reflection,
+ProtoJSON (including `FieldMask` and `Any`), and text format. `pbrs-grpc`
+provides the native HTTP/2 gRPC client and server; `protobuf-tonic` integrates
+`pbrs` messages with tonic 0.14+. Start with the [documentation index](README.md) for
 working examples and task guides.
 
 ## Current source and release-rehearsal records

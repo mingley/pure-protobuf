@@ -17,10 +17,10 @@ bare-metal runtime dependency:
 resolver = "2"
 
 [dependencies]
-pbrs = { version = "0.2.1", default-features = false, features = ["alloc-only"] }
+pbrs = { version = "0.2", default-features = false, features = ["alloc-only"] }
 
 [build-dependencies]
-pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
+pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
 ```
 
 Resolver 2 keeps the host generator's std features separate from the target

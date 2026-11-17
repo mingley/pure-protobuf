@@ -53,9 +53,12 @@ the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
 [qualified subset](edition-2024.md); full conformance must not be inferred
 from the Cargo manifests.
 
-Current manifest versions (check `Cargo.toml` before tagging): `pbrs` `0.2.1`;
-adapters `0.1.0` (updating from the older published `0.1.0-alpha.3` and
-`0.1.0-alpha.2` adapter previews and `pbrs` `0.2.0`). See [the changelog](../CHANGELOG.md).
+Source patch candidates (check `Cargo.toml` before tagging): `pbrs` `0.2.2`;
+`pbrs-grpc` and `protobuf-tonic` `0.1.1`. The last published versions are
+`pbrs` `0.2.1` and adapters `0.1.0`. Candidate versions are not published
+until the verified release workflow completes. This patch keeps the existing
+qualification boundaries; it does not promote a production profile.
+See [the changelog](../CHANGELOG.md).
 A `v1.0.0` tag does not promote the adapters. From the older `0.1.0-alpha.2`
 release on, both adapters build from checked
 descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still
@@ -158,11 +161,11 @@ development push; the publisher still requires every job on its exact SHA.
 2. Land that change on `main`. Successful CI starts an automatic package and
    provenance rehearsal for that exact commit. Neither action publishes.
 3. Sign an annotated tag on the SHA with `v` plus a version that **matches at least one** crate
-   manifest (for example `v0.2.1` for `pbrs` `0.2.1`, or
-   `v0.1.0` for an adapter). Push the tag only after qualification:
+   manifest (for example `v0.2.2` for `pbrs` `0.2.2`, or
+   `v0.1.1` for an adapter). Push the tag only after qualification:
    ```bash
-   git tag -s v0.1.0 -m 'Release v0.1.0'
-   git push origin v0.1.0
+   git tag -s v0.1.1 -m 'Release v0.1.1'
+   git push origin v0.1.1
    ```
    The workflow rejects lightweight tags, unsigned tags, and signatures that
    GitHub does not mark verified. The signed tag object's name must match
@@ -292,4 +295,4 @@ call so adapters resolve the unpublished core without rewriting `Cargo.lock`.
 A core change that adapters rely on (for example a new feature) therefore
 needs a new core version: an already-published version wins over the local
 copy. Expected tarball names follow
-`<name>-<version>.crate` from the manifests (for example `pbrs-0.2.1.crate`).
+`<name>-<version>.crate` from the manifests (for example `pbrs-0.2.2.crate`).

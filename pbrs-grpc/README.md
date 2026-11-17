@@ -9,7 +9,9 @@ four RPC shapes, generated [`pbrs`](https://crates.io/crates/pbrs) messages,
 TLS/mTLS, gRPC-Web over HTTP/2, and optional Prost, Tower, and Tonic
 integration. The transport uses an embedded `h2` backend and Tokio.
 
-Version `0.1.0` (paired with `pbrs` `0.2.1`) starts the initial `0.1.x` series.
+The last published version is `0.1.0`, paired with `pbrs 0.2.1`.
+This checkout prepares patch candidate `0.1.1` with `pbrs 0.2.2`, retaining
+the same qualification boundaries.
 See [implementation status](https://github.com/mingley/pure-protobuf/blob/main/docs/status.md)
 for tested features, the [scoreboard](https://github.com/mingley/pure-protobuf/blob/main/docs/scoreboard.md)
 for measurements, and the [support policy](https://github.com/mingley/pure-protobuf/blob/main/docs/support-policy.md)
@@ -58,12 +60,12 @@ Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
 
 ```toml
 [dependencies]
-pbrs = "0.2.1"
-pbrs-grpc = "0.1.0"
+pbrs = "0.2"
+pbrs-grpc = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.2.1"
+pbrs = "0.2"
 ```
 
 Since the older `0.1.0-alpha.2` release (including `0.1.0`), `pbrs-grpc` builds
@@ -158,7 +160,7 @@ Default features keep the crate MSRV at **Rust 1.85** with native gzip/deflate
 compression and TLS. Enable optional features in `Cargo.toml` as needed:
 
 ```toml
-pbrs-grpc = { version = "0.1.0", features = ["grpc-web", "tower"] }
+pbrs-grpc = { version = "0.1", features = ["grpc-web", "tower"] }
 ```
 
 | Feature | MSRV | Use it for |

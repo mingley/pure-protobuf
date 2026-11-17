@@ -29,11 +29,11 @@ dependency and add the runtime crates your generated code will use:
 
 ```toml
 [dependencies]
-pbrs = "0.2.1"
-pbrs-grpc = "0.1.0"
+pbrs = "0.2"
+pbrs-grpc = "0.1"
 
 [build-dependencies]
-pbrs = "0.2.1"
+pbrs = "0.2"
 ```
 
 ### Cargo features
@@ -48,15 +48,15 @@ trim the runtime dependency:
 
 ```toml
 [dependencies]
-pbrs = { version = "0.2.1", default-features = false, features = ["json", "text"] }
+pbrs = { version = "0.2", default-features = false, features = ["json", "text"] }
 
 [build-dependencies]
-pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
+pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
 ```
 
 `json` and `text` imply `reflect`, which current generated files need for
 descriptor-backed format helpers. A runtime crate that only uses the core
-binary wire API can depend on `pbrs = { version = "0.2.1", default-features =
+binary wire API can depend on `pbrs = { version = "0.2", default-features =
 false }`; that profile does not compile the generator, descriptor pool, JSON,
 text, or bundled conformance gencode. It still uses std. For explicit
 `alloc-only` runtime dependencies and `Config::alloc_only(true)` output, see
@@ -377,8 +377,8 @@ with `tonic` and `protobuf-tonic`:
 
 ```toml
 [dependencies]
-pbrs = "0.2.1"
-protobuf-tonic = "0.1.0"
+pbrs = "0.2"
+protobuf-tonic = "0.1"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 http = "1"
 tokio-stream = "0.1"

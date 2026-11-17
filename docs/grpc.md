@@ -27,12 +27,12 @@ Add `pbrs` and `pbrs-grpc` from crates.io to `Cargo.toml`:
 
 ```toml
 [dependencies]
-pbrs = "0.2.1"
-pbrs-grpc = "0.1.0"
+pbrs = "0.2"
+pbrs-grpc = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.2.1"
+pbrs = "0.2"
 ```
 
 ### Protocol definition (`proto/hello.proto`)
@@ -177,7 +177,7 @@ The optional `tower` feature adds integration points without changing the
 default dependency graph (older `0.1.0-alpha.2` releases did not include it):
 
 ```toml
-pbrs-grpc = { version = "0.1.0", features = ["tower"] }
+pbrs-grpc = { version = "0.1", features = ["tower"] }
 ```
 
 - `Router::into_tower_service()` exposes a native router as
@@ -240,7 +240,7 @@ the native listener (for older `0.1.0-alpha.2` releases, use an external proxy
 to translate gRPC-Web and handle CORS):
 
 ```toml
-pbrs-grpc = { version = "0.1.0", features = ["grpc-web"] }
+pbrs-grpc = { version = "0.1", features = ["grpc-web"] }
 ```
 
 With the feature enabled, the server accepts `application/grpc-web`,

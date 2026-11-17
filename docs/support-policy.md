@@ -11,12 +11,13 @@ promised.
 
 | Crate | Source manifest version | MSRV | MSRV CI job |
 |---|---|---|---|
-| `pbrs` | `0.2.1` | 1.85 (`rust-version`) | `msrv-core` |
-| `pbrs-grpc` | `0.1.0` | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
-| `protobuf-tonic` | `0.1.0` | 1.88 (`rust-version`) | `msrv-tonic` |
+| `pbrs` | `0.2.2` | 1.85 (`rust-version`) | `msrv-core` |
+| `pbrs-grpc` | `0.1.1` | 1.85 (`rust-version`) | `msrv-core`, `grpc-i686` |
+| `protobuf-tonic` | `0.1.1` | 1.88 (`rust-version`) | `msrv-tonic` |
 
-The table records source versions; check the registry and release evidence
-before treating them as published versions. The proposed support policy is
+The table records source patch candidates, not publication or profile promotion.
+The last published versions are `pbrs 0.2.1` and adapters `0.1.0`; check
+the registry and release evidence before treating a candidate as published. The proposed support policy is
 to support only the latest published version of each crate.
 Pre-release versions are supported only as the newest alpha of that
 crate. MSRV floors are enforced by the CI jobs above; raising a floor

@@ -2,24 +2,35 @@
 
 ## Unreleased
 
-- Restore Rust 1.85 compatibility in shared-string parsing, compression,
-  receive accounting and frame reuse.
-- Restore the documented copy policy for unselected shared byte fields smaller
-  than 4096 bytes. Explicitly selected `ProtoBytes` fields keep sharing input.
+Coordinated patch candidates: `pbrs 0.2.2`, `pbrs-grpc 0.1.1`, and
+`protobuf-tonic 0.1.1`. The last published versions are `pbrs 0.2.1` and
+adapters `0.1.0`. Both candidate adapters require the new core at runtime and
+build time. Public API compatibility and qualification boundaries remain unchanged.
+
+- Reduce client and server per-call work with shared load-balancer snapshots,
+  lazy request context, inline cancellation guards, fewer clock reads, and
+  simpler Tonic/Tower dispatch.
+- Add direct slice decoding and shared-byte encoding paths for messages.
+  Encode the gRPC prefix and payload into one buffer where supported.
+- Batch stream output and improve large-message framing and HTTP/2 staging.
+- Pool gzip and deflate engines and remove redundant decoder resets while
+  retaining reset-on-return, later gzip-member resets, and bounded pools.
 - Avoid allocating storage for an empty repeated field's mutable slice while
   preserving existing buffers and reserved capacity.
-- Avoid parent-wire allocation for owned scalar-only map values. Payload-bearing
-  values retain their existing backing strategy; shared input, unknown fields
-  and required-value validation remain covered.
-- Publish derived connection metadata after the transport scheme is known, so
-  TLS requests with existing context do not acquire derived cleartext TCP info.
-  Preserve application overrides and borrow peer identity during lazy lookups.
-- Remove redundant pooled gzip/zlib decoder resets while keeping reset-on-return,
-  later gzip-member resets and bounded pools.
+- Avoid parent-wire allocation for owned scalar-only map values.
+  Payload-bearing values retain their existing backing strategy.
+- Preserve Rust 1.85 compatibility, the documented copy policy for unselected
+  shared byte fields smaller than 4096 bytes, and TLS connection metadata
+  across the new paths. Explicitly selected `ProtoBytes` fields keep sharing
+  input, and application metadata overrides remain authoritative.
+- Align `protobuf-tonic` with the new core dependency; its public adapter API
+  is unchanged.
 
 See the [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
-for source-specific checks, measured component costs and held experiments.
-These changes do not alter the published version numbers.
+and [benchmark results](docs/benchmarks.md) for
+source-specific checks, measured costs, and remaining losses. These candidates
+are not yet published and do not promote a production profile or claim overall
+performance leadership.
 
 ## pbrs-grpc 0.1.0 / protobuf-tonic 0.1.0
 

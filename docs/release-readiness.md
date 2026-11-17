@@ -10,14 +10,18 @@ promotion gates.
 
 | Crate | Version | Scope |
 |---|---|---|
-| `pbrs` | `0.2.1` | Core protobuf runtime and generator |
-| `pbrs-grpc` | `0.1.0` | Native gRPC client and server (`0.1.x` line) |
-| `protobuf-tonic` | `0.1.0` | Tonic 0.14+ adapter (`0.1.x` line) |
+| `pbrs` | `0.2.2` | Core protobuf runtime and generator |
+| `pbrs-grpc` | `0.1.1` | Native gRPC client and server (`0.1.x` line) |
+| `protobuf-tonic` | `0.1.1` | Tonic 0.14+ adapter (`0.1.x` line) |
 
-Both adapters require `pbrs 0.2.1` at runtime and build time (updating from the
-older published `0.1.0-alpha.3` preview releases). Keep profile-specific
-qualification boundaries documented until sustained soak and promotion evidence
-support promoting additional profiles.
+These are coordinated patch candidates, not published versions. The last
+published versions are `pbrs 0.2.1`, `pbrs-grpc 0.1.0`, and
+`protobuf-tonic 0.1.0`. Both candidate adapters require `pbrs 0.2.2` at
+runtime and build time. This release keeps the existing profiles and known gaps;
+it does not promote production support or make a performance ranking claim.
+Compatible patch publication still requires the final-source CI, package,
+provenance, and signed-tag checks. The sustained campaigns below apply to
+profile promotion.
 
 At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
 the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)

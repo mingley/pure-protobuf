@@ -67,8 +67,8 @@ Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter:
 
 ```toml
 [dependencies]
-pbrs = "0.2.1"
-protobuf-tonic = "0.1.0"
+pbrs = "0.2"
+protobuf-tonic = "0.1"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 
@@ -165,7 +165,7 @@ preview and retained in `0.1.0`; not present in the older `0.1.0-alpha.2`
 release):
 
 ```toml
-pbrs-grpc = { version = "0.1.0", features = ["tonic"] }
+pbrs-grpc = { version = "0.1", features = ["tonic"] }
 ```
 
 This feature requires Rust 1.88. Use it when an existing framework requires
@@ -319,7 +319,7 @@ native transport (added in the older `0.1.0-alpha.3` preview and retained in
 `0.1.0`; not present in the older `0.1.0-alpha.2` release):
 
 ```toml
-pbrs-grpc = { version = "0.1.0", features = ["tower"] }
+pbrs-grpc = { version = "0.1", features = ["tower"] }
 ```
 
 | Tonic middleware | Native migration path | Delta |

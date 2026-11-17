@@ -61,10 +61,10 @@ descriptors instead.
 
    ```toml
    [dependencies]
-   pbrs = "0.2.1"
+   pbrs = "0.2"
 
    [build-dependencies]
-   pbrs = "0.2.1"
+   pbrs = "0.2"
    ```
 
    To keep code generation out of your runtime dependency graph, disable
@@ -73,10 +73,10 @@ descriptors instead.
 
    ```toml
    [dependencies]
-   pbrs = { version = "0.2.1", default-features = false, features = ["json", "text"] }
+   pbrs = { version = "0.2", default-features = false, features = ["json", "text"] }
 
    [build-dependencies]
-   pbrs = { version = "0.2.1", default-features = false, features = ["codegen"] }
+   pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
    ```
 
 2. Add a proto file at `proto/person.proto`:
@@ -144,19 +144,23 @@ stubs by default. tonic users must opt in with
 | `alloc-only` | No | Bare-metal (`target_os = "none"`) binary-wire runtime profile; see the [alloc-only guide](docs/guides/alloc-only.md). |
 
 A binary-only runtime consumer can use
-`pbrs = { version = "0.2.1", default-features = false }` to skip compiling code
+`pbrs = { version = "0.2", default-features = false }` to skip compiling code
 generation, reflection, JSON, text format, and bundled WKT bindings.
 
 ## Which crate do I need?
 
 <a id="workspace-crates"></a>
 
-| Need | Use | Version | Status |
+| Need | Use | Patch candidate | Status |
 |---|---|---|---|
-| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.1` | Core runtime and generator |
-| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.0` | Supported `0.1.x` line |
-| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.0` | Supported `0.1.x` line |
+| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.2` | Core runtime and generator |
+| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.1` | Supported `0.1.x` line |
+| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.1` | Supported `0.1.x` line |
 | Runnable service with health and reflection | [`examples/greeter`](examples/greeter/README.md) | — | Workspace example (`publish = false`) |
+
+The last published versions are `pbrs 0.2.1` and adapters `0.1.0`.
+The candidates keep the existing qualification boundaries. Dependency examples
+use compatible minor requirements, so they work before and after the patch.
 
 ## Code generation options
 
