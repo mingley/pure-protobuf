@@ -5149,6 +5149,42 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(s) = &self.required_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if self.required_nested_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.required_nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.required_foreign_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.required_foreign_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.recursive_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.optional_recursive_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_recursive_message.as_deref()
+                {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if let ::core::option::Option::Some(m) = self.data.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(s) = &self.default_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(v) = self.required_int32 {
                 ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
@@ -5394,12 +5430,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllRequiredTypesProto2,
-        TestAllRequiredTypesProto2View,
-        TestAllRequiredTypesProto2Mut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllRequiredTypesProto2, TestAllRequiredTypesProto2View, TestAllRequiredTypesProto2Mut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     /// groups
     ///
     /// The `protobuf_test_messages.proto2.TestAllRequiredTypesProto2.Data` protobuf message.
@@ -7594,6 +7625,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if self.corecursive.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.optional_corecursive.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_corecursive.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(v) = self.a {
                 ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
@@ -7700,7 +7747,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
+    ::pbrs::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut; __pbrs_shared_bytes_len);
     #[derive(::core::clone::Clone, ::core::fmt::Debug, ::core::cmp::PartialEq)]
     struct TestAllTypesProto2Cold {
         repeated_int32: ::pbrs::Repeated<i32>,
@@ -17789,6 +17836,84 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(s) = &self.optional_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if self.optional_nested_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.optional_foreign_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_foreign_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.recursive_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            for t in self.repeated_bytes.iter() {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(t));
+            }
+            for t in self.repeated_nested_message.iter() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+            }
+            if !self.map_string_nested_message.is_empty() {
+                for (_, v) in self.map_string_nested_message.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if !self.map_string_foreign_message.is_empty() {
+                for (_, v) in self.map_string_foreign_message.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if !self.map_int32_nested_message.is_empty() {
+                for (_, v) in self.map_int32_nested_message.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if self.oneof_nested_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if let ::core::option::Option::Some(s) = &self.oneof_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if let ::core::option::Option::Some(m) = self.groupfield.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(s) = &self.extension_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if let ::core::option::Option::Some(m) = self.data.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(m) = self.multiwordgroupfield.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(s) = &self.default_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if self.message_set_correct.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.message_set_correct.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                for t in c.repeated_foreign_message.iter() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 if let ::core::option::Option::Some(v) = self.optional_int32 {
@@ -19391,12 +19516,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllTypesProto2,
-        TestAllTypesProto2View,
-        TestAllTypesProto2Mut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllTypesProto2, TestAllTypesProto2View, TestAllTypesProto2Mut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     fn decode_map_entry_TestAllTypesProto2_map_int32_int32_56(
         parent_data: &[u8],
         wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
@@ -22582,6 +22702,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if self.sub_msg.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.sub_msg.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(v) = self.i {
                 ::pbrs::rt::encode_tag(out, 9, ::pbrs::rt::WIRE_VARINT);
@@ -22681,12 +22812,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllTypesProto2MessageSetCorrectExtension2,
-        TestAllTypesProto2MessageSetCorrectExtension2View,
-        TestAllTypesProto2MessageSetCorrectExtension2Mut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllTypesProto2MessageSetCorrectExtension2, TestAllTypesProto2MessageSetCorrectExtension2View, TestAllTypesProto2MessageSetCorrectExtension2Mut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     /// The `protobuf_test_messages.proto2.TestAllTypesProto2.MultiWordGroupField` protobuf message.
     #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct MultiWordGroupField {
@@ -23508,6 +23634,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if self.corecursive.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(v) = self.a {
                 ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
@@ -23597,12 +23734,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllTypesProto2NestedMessage,
-        TestAllTypesProto2NestedMessageView,
-        TestAllTypesProto2NestedMessageMut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllTypesProto2NestedMessage, TestAllTypesProto2NestedMessageView, TestAllTypesProto2NestedMessageMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     /// The `protobuf_test_messages.proto2.TestLargeOneof` protobuf message.
     #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct TestLargeOneof {
@@ -24321,6 +24453,37 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if self.a1.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.a1.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.a2.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.a2.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.a3.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.a3.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.a4.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.a4.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.a5.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.a5.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(p) = self.a1.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 1, p.len() as u64);
@@ -24722,12 +24885,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             ::core::result::Result::Ok(msg)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestLargeOneof,
-        TestLargeOneofView,
-        TestLargeOneofMut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestLargeOneof, TestLargeOneofView, TestLargeOneofMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     /// The `protobuf_test_messages.proto2.TestLargeOneof.A1` protobuf message.
     #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct A1 {
@@ -26835,6 +26993,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                if c.nested_message.wire_bytes().is_none() {
+                    if let ::core::option::Option::Some(m) = c.nested_message.as_deref() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                    }
+                }
+                if let ::core::option::Option::Some(m) = c.optionalgroup.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 if let ::core::option::Option::Some(v) = self.optional_int32 {
@@ -26951,12 +27125,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        UnknownToTestAllTypes,
-        UnknownToTestAllTypesView,
-        UnknownToTestAllTypesMut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(UnknownToTestAllTypes, UnknownToTestAllTypesView, UnknownToTestAllTypesMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     /// The `protobuf_test_messages.proto2.UnknownToTestAllTypes.OptionalGroup` protobuf message.
     #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct OptionalGroup {

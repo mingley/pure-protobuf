@@ -2419,6 +2419,38 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                if c.optional_foreign_message.wire_bytes().is_none() {
+                    if let ::core::option::Option::Some(m) = c.optional_foreign_message.as_deref() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                    }
+                }
+                if c.recursive_message.wire_bytes().is_none() {
+                    if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                    }
+                }
+                for t in c.repeated_foreign_message.iter() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+                }
+                if !c.map_string_foreign_message.is_empty() {
+                    for (_, v) in c.map_string_foreign_message.pairs() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                    }
+                }
+                if let ::core::option::Option::Some(s) = &c.optional_bytes {
+                    n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+                }
+                for t in c.repeated_bytes.iter() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_lazy(t));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 if let ::core::option::Option::Some(v) = self.optional_int32 {
@@ -2647,12 +2679,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllTypesEditionUnstable,
-        TestAllTypesEditionUnstableView,
-        TestAllTypesEditionUnstableMut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllTypesEditionUnstable, TestAllTypesEditionUnstableView, TestAllTypesEditionUnstableMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     fn decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
         parent_data: &[u8],
         wire: &mut ::core::option::Option<::pbrs::rt::Wire>,

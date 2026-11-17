@@ -413,61 +413,95 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
+    let mut interactive = false;
     loop {
+        if watch_cancel && cancel_rx.is_cancelled() {
+            send.send_reset(Reason::CANCEL);
+            return PumpEnd::Reset;
+        }
         items.clear();
-        let taken = tokio::select! {
-            cancelled = async {
-                cancel_rx.wait().await;
-                cancel_rx.is_cancelled()
-            }, if watch_cancel => {
-                if cancelled {
-                    send.send_reset(Reason::CANCEL);
+        let initial_taken = rx.try_recv_many(&mut items, OutBatch::BURST);
+        let initial_taken = if initial_taken > 0 {
+            initial_taken
+        } else {
+            let taken = tokio::select! {
+                cancelled = async {
+                    cancel_rx.wait().await;
+                    cancel_rx.is_cancelled()
+                }, if watch_cancel => {
+                    if cancelled {
+                        send.send_reset(Reason::CANCEL);
+                        return PumpEnd::Reset;
+                    }
+                    // The Call finished and dropped its sender, and no received
+                    // stream is holding a clone. Stop watching.
+                    watch_cancel = false;
+                    continue;
+                }
+                taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
+            };
+            if taken == 0 {
+                // Half-close, carrying whatever is still batched.
+                if batch.flush(send).await.is_err() {
+                    send.send_reset(Reason::INTERNAL_ERROR);
                     return PumpEnd::Reset;
                 }
-                // The Call finished and dropped its sender, and no received
-                // stream is holding a clone. Stop watching.
-                watch_cancel = false;
+                send.send_data(Bytes::new(), true).ok();
+                return PumpEnd::HalfClosed;
+            }
+            taken
+        };
+        if initial_taken > 1 {
+            interactive = false;
+        }
+        let mut seen_in_batch = initial_taken;
+        let mut yielded = false;
+        loop {
+            let mut ready = items.drain(..);
+            while let Some(item) = ready.next() {
+                let ready_messages = ready.len() + 1;
+                let item = match item {
+                    Ok(item) => item,
+                    Err(status) => {
+                        // Do not RST here: the caller delivers this status first
+                        // (in-task on client-streaming, oneshot on bidi) so the
+                        // Call does not lose it to h2 UNAVAILABLE from the reset.
+                        return PumpEnd::Failed((*status).into_status());
+                    }
+                };
+                if let Err(status) = batch.encode_ready(item, ready_messages) {
+                    return PumpEnd::Failed(status);
+                }
+                if batch.is_full() && batch.flush(send).await.is_err() {
+                    send.send_reset(Reason::INTERNAL_ERROR);
+                    return PumpEnd::Reset;
+                }
+            }
+            drop(ready);
+            if batch.is_full() || rx.producer_finished() {
+                break;
+            }
+            let newly_drained = rx.try_recv_many(&mut items, OutBatch::BURST);
+            if newly_drained > 0 {
+                seen_in_batch += newly_drained;
+                interactive = false;
                 continue;
             }
-            taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
-        };
-        if taken == 0 {
-            // Half-close, carrying whatever is still batched.
-            if batch.flush(send).await.is_err() {
-                send.send_reset(Reason::INTERNAL_ERROR);
-                return PumpEnd::Reset;
-            }
-            send.send_data(Bytes::new(), true).ok();
-            return PumpEnd::HalfClosed;
-        }
-        // See the note in the server's drain loop: yield only when the caller
-        // is demonstrably ahead of the network.
-        let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 && !rx.producer_finished() {
-            let_producer_catch_up().await;
-            rx.try_recv_many(&mut items, room);
-        }
-        let mut ready = items.drain(..);
-        while let Some(item) = ready.next() {
-            let ready_messages = ready.len() + 1;
-            let item = match item {
-                Ok(item) => item,
-                Err(status) => {
-                    // Do not RST here: the caller delivers this status first
-                    // (in-task on client-streaming, oneshot on bidi) so the
-                    // Call does not lose it to h2 UNAVAILABLE from the reset.
-                    return PumpEnd::Failed((*status).into_status());
+            if !yielded && (seen_in_batch > 1 || !interactive) {
+                yielded = true;
+                let_producer_catch_up().await;
+                let caught_up = rx.try_recv_many(&mut items, OutBatch::BURST);
+                if caught_up > 0 {
+                    seen_in_batch += caught_up;
+                    interactive = false;
+                    continue;
                 }
-            };
-            if let Err(status) = batch.encode_ready(item, ready_messages) {
-                return PumpEnd::Failed(status);
+                if seen_in_batch == 1 {
+                    interactive = true;
+                }
             }
-            if batch.is_full() && batch.flush(send).await.is_err() {
-                send.send_reset(Reason::INTERNAL_ERROR);
-                return PumpEnd::Reset;
-            }
+            break;
         }
-        drop(ready);
         if !batch.is_full() && batch.flush(send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
             return PumpEnd::Reset;

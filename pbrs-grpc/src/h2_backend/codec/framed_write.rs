@@ -69,15 +69,17 @@ enum Next<B> {
 /// frame that big.
 const DEFAULT_BUFFER_CAPACITY: usize = 16 * 1_024;
 
-/// Chain payloads bigger than this when vectored I/O is enabled. The remote
-/// will never advertise a max frame size less than this (well, the spec says
-/// the max frame size can't be less than 16kb, so not even close).
-const CHAIN_THRESHOLD: usize = 256;
+/// Chain payloads bigger than this when vectored I/O is enabled.
+///
+/// Payloads up to 4 KiB are copied into the 16 KiB frame buffer so bursts of
+/// small gRPC DATA frames coalesce into a single write syscall while payloads
+/// at or above 4 KiB stay zero-copy via `writev`.
+const CHAIN_THRESHOLD: usize = 4096;
 
 /// Chain payloads bigger than this when vectored I/O is **not** enabled.
 /// A larger value in this scenario will reduce the number of small and
 /// fragmented data being sent, and hereby improve the throughput.
-const CHAIN_THRESHOLD_WITHOUT_VECTORED_IO: usize = 1024;
+const CHAIN_THRESHOLD_WITHOUT_VECTORED_IO: usize = 4096;
 
 // TODO: Make generic
 impl<T, B> FramedWrite<T, B>

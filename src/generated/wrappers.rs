@@ -672,6 +672,15 @@ mod __gen_google_protobuf_wrappers_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if !self.value.is_empty() {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(&self.value));
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if !self.value.is_empty() {
                 ::pbrs::rt::encode_len_field_shared(out, 1, &self.value);
@@ -775,7 +784,7 @@ mod __gen_google_protobuf_wrappers_proto {
             ::core::result::Result::Ok(msg)
         }
     }
-    ::pbrs::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
+    ::pbrs::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut; __pbrs_shared_bytes_len);
     /// Wrapper message for `double`.
     ///
     /// The JSON representation for `DoubleValue` is JSON number.

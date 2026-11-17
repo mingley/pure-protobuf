@@ -451,6 +451,19 @@ impl RecvStream {
         self.inner.inner.poll_data_released(cx).map_err(Into::into)
     }
 
+    /// Poll for the next data frame plus queued follow-on chunks and release
+    /// their combined window in one lock.
+    pub fn poll_data_batch_released(
+        &mut self,
+        cx: &mut Context<'_>,
+        rest: &mut std::collections::VecDeque<Bytes>,
+    ) -> Poll<Option<Result<Bytes, crate::h2_backend::Error>>> {
+        self.inner
+            .inner
+            .poll_data_batch_released(cx, rest)
+            .map_err(Into::into)
+    }
+
     #[doc(hidden)]
     pub fn poll_trailers(
         &mut self,

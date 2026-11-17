@@ -337,16 +337,13 @@ pub(crate) fn incoming_rpc(
         Metadata::from_owned_headers(std::mem::take(request.headers_mut()))
     };
     // TCP and TLS connect info are written when the handler reads the map.
-    // The addresses already live on the request.
+    // The addresses already live on the request. Plain TCP leaves the map
+    // empty so `LazyExt` only allocates when connect info or user extensions
+    // are actually inspected.
     let mut extensions = http::Extensions::new();
     #[cfg(feature = "tonic")]
     if let Some(tls_info) = peer.tonic_tls {
         extensions.insert(tls_info);
-    } else if peer.scheme != Some("https") && (peer.remote.is_some() || peer.local.is_some()) {
-        extensions.insert(tonic::transport::server::TcpConnectInfo {
-            local_addr: peer.local,
-            remote_addr: peer.remote,
-        });
     }
     #[cfg(unix)]
     if peer.uds_peer_addr.is_some() || peer.cred.is_some() {
@@ -359,6 +356,16 @@ pub(crate) fn incoming_rpc(
     if let Some(uds_info) = peer.tonic_uds {
         extensions.insert(uds_info);
     }
+    if !extensions.is_empty() {
+        crate::request::insert_connect_info(
+            &mut extensions,
+            peer.scheme,
+            peer.remote,
+            peer.local,
+            peer.identity.as_ref(),
+        );
+    }
+    let extensions = crate::lazy_ext::LazyExt::from_extensions(extensions);
     let accepted_peer_timeout = if stock_facts.classified {
         None
     } else {

@@ -460,6 +460,41 @@ pub(crate) fn emit_codec(
     let _ = writeln!(src, "        n");
     let _ = writeln!(src, "    }}");
 
+    if encode::message_can_share_bytes(desc) {
+        let _ = writeln!(src, "    #[doc(hidden)]");
+        let _ = writeln!(src, "    #[inline]");
+        let _ = writeln!(src, "    pub fn __pbrs_shared_bytes_len(&self) -> usize {{");
+        let _ = writeln!(src, "        let mut n = 0usize;");
+        for f in desc
+            .fields
+            .values()
+            .filter(|f| cold.stored_hot(f) && encode::field_can_share_bytes(f))
+        {
+            encode::emit_shared_size(src, f, "self");
+        }
+        if cold.uses_cold_storage()
+            && desc
+                .fields
+                .values()
+                .any(|f| cold.stored_cold(f) && encode::field_can_share_bytes(f))
+        {
+            let _ = writeln!(
+                src,
+                "        if let ::core::option::Option::Some(c) = self.cold.as_deref() {{"
+            );
+            for f in desc
+                .fields
+                .values()
+                .filter(|f| cold.stored_cold(f) && encode::field_can_share_bytes(f))
+            {
+                encode::emit_shared_size(src, f, "c");
+            }
+            let _ = writeln!(src, "        }}");
+        }
+        let _ = writeln!(src, "        n");
+        let _ = writeln!(src, "    }}");
+    }
+
     let _ = writeln!(
         src,
         "    pub fn write_to(&self, out: &mut impl {runtime}::rt::WireOut) {{"

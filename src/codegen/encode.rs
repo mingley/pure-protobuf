@@ -1,7 +1,7 @@
 //! MX-01 split of `super`: encode (mechanical move, no behavior change).
 
 use super::*;
-use crate::dynamic::{Cardinality, FieldDescriptor, FieldType};
+use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
 use std::borrow::Cow;
 
 pub(crate) fn wire_const(ty: FieldType) -> Cow<'static, str> {
@@ -510,6 +510,106 @@ pub(crate) fn emit_map_scalar_write(src: &mut String, n: u32, var: &str, ty: Fie
             let _ = writeln!(
                 src,
                 "            {runtime}::rt::encode_tag(out, {n}, {runtime}::rt::WIRE_VARINT); {runtime}::rt::encode_varint(out, *{var} as u64);"
+            );
+        }
+    }
+}
+
+pub(crate) fn field_can_share_bytes(f: &FieldDescriptor) -> bool {
+    if f.is_map {
+        let vty = map_val_ty(f);
+        (vty == FieldType::Bytes && is_selected_bytes(f))
+            || vty == FieldType::Message
+            || vty == FieldType::Group
+    } else {
+        matches!(
+            f.field_type,
+            FieldType::Bytes | FieldType::Message | FieldType::Group
+        ) || f.delimited
+    }
+}
+
+pub(crate) fn message_can_share_bytes(desc: &MessageDescriptor) -> bool {
+    !desc.message_set_wire_format && desc.fields.values().any(field_can_share_bytes)
+}
+
+pub(crate) fn emit_shared_size(src: &mut String, f: &FieldDescriptor, p: &str) {
+    if !field_can_share_bytes(f) {
+        return;
+    }
+    let runtime = runtime_crate_path();
+    let id = field_id(f);
+    let fld = format!("{p}.{id}");
+    if f.is_map {
+        let vty = map_val_ty(f);
+        if vty == FieldType::Bytes && is_selected_bytes(f) {
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ for (_, v) in {fld}.pairs() {{ n = n.saturating_add({runtime}::rt::shared_len_proto(v)); }} }}"
+            );
+        } else if vty == FieldType::Message || vty == FieldType::Group {
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ for (_, v) in {fld}.pairs() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(v)); }} }}"
+            );
+        }
+        return;
+    }
+    if f.cardinality == Cardinality::Repeated {
+        if f.field_type == FieldType::Bytes {
+            let helper = if is_selected_bytes(f) {
+                "shared_len_proto"
+            } else {
+                "shared_len_lazy"
+            };
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ n = n.saturating_add({runtime}::rt::{helper}(t)); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(t)); }}"
+            );
+        }
+        return;
+    }
+    if f.field_type == FieldType::Group || f.delimited {
+        let _ = writeln!(
+            src,
+            "        if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(m)); }}"
+        );
+        return;
+    }
+    if f.field_type == FieldType::Message {
+        if is_lazy_msg(f) {
+            let _ = writeln!(
+                src,
+                "        if {fld}.wire_bytes().is_none() {{ if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(m)); }} }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "        if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(m)); }}"
+            );
+        }
+        return;
+    }
+    if f.field_type == FieldType::Bytes {
+        let helper = if is_selected_bytes(f) {
+            "shared_len_proto"
+        } else {
+            "shared_len_lazy"
+        };
+        if is_option(f) {
+            let _ = writeln!(
+                src,
+                "        if let ::core::option::Option::Some(s) = &{fld} {{ n = n.saturating_add({runtime}::rt::{helper}(s)); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ n = n.saturating_add({runtime}::rt::{helper}(&{fld})); }}"
             );
         }
     }

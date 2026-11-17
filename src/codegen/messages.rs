@@ -683,15 +683,20 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         emit_json_text(src, desc);
     }
     let _ = writeln!(src, "}}");
+    let shared_tail = if encode::message_can_share_bytes(desc) {
+        "; __pbrs_shared_bytes_len"
+    } else {
+        ""
+    };
     if parse::uses_prevalidated_merge(desc) {
         let _ = writeln!(
             src,
-            "{runtime}::impl_typed_message!({name}, {view}, {mut_}, __pbrs_merge_prevalidated);"
+            "{runtime}::impl_typed_message!({name}, {view}, {mut_}, __pbrs_merge_prevalidated{shared_tail});"
         );
     } else {
         let _ = writeln!(
             src,
-            "{runtime}::impl_typed_message!({name}, {view}, {mut_});"
+            "{runtime}::impl_typed_message!({name}, {view}, {mut_}{shared_tail});"
         );
     }
     if ENABLE_TYPE_NAMES.with(|enabled| enabled.get()) {

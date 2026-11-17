@@ -263,17 +263,28 @@ impl Drop for CancelOnDrop {
     }
 }
 
+const MAX_SPARE_CANCEL: usize = 64;
+
 thread_local! {
-    static SPARE_CANCEL: std::cell::Cell<Option<Arc<CancelFlag>>> = const { std::cell::Cell::new(None) };
+    static SPARE_CANCEL: std::cell::RefCell<Vec<Arc<CancelFlag>>> =
+        const { std::cell::RefCell::new(Vec::new()) };
 }
 
 fn take_spare_cancel() -> Option<Arc<CancelFlag>> {
-    SPARE_CANCEL.try_with(std::cell::Cell::take).ok().flatten()
+    SPARE_CANCEL
+        .try_with(|pool| pool.borrow_mut().pop())
+        .ok()
+        .flatten()
 }
 
 fn stash_spare_cancel(flag: Arc<CancelFlag>) {
-    // Thread shutdown drops the slot; the flag is freed with the closure.
-    let _thread_shutdown = SPARE_CANCEL.try_with(|cell| cell.set(Some(flag)));
+    // Thread shutdown drops the pool; any remaining flags are freed with the closure.
+    let _thread_shutdown = SPARE_CANCEL.try_with(|pool| {
+        let mut pool = pool.borrow_mut();
+        if pool.len() < MAX_SPARE_CANCEL {
+            pool.push(flag);
+        }
+    });
 }
 
 /// Keep [`CancelOnDrop`] alive across `write`.
@@ -283,24 +294,28 @@ fn stash_spare_cancel(flag: Arc<CancelFlag>) {
 /// completes — `write.await; drop(cancel)` is not enough.
 pub(crate) fn hold_cancel<F: Future<Output = ()>>(cancel: CancelOnDrop, write: F) -> HoldCancel<F> {
     HoldCancel {
-        write: Box::pin(write),
+        write,
         cancel: Some(cancel),
     }
 }
 
-/// [`hold_cancel`]'s state: poll `write`, drop the guard only when it finishes.
-pub(crate) struct HoldCancel<F> {
-    cancel: Option<CancelOnDrop>,
-    write: Pin<Box<F>>,
+pin_project_lite::pin_project! {
+    /// [`hold_cancel`]'s state: poll `write`, drop the guard only when it finishes.
+    pub(crate) struct HoldCancel<F> {
+        cancel: Option<CancelOnDrop>,
+        #[pin]
+        write: F,
+    }
 }
 
 impl<F: Future<Output = ()>> Future for HoldCancel<F> {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        match self.write.as_mut().poll(cx) {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = self.project();
+        match this.write.poll(cx) {
             Poll::Ready(()) => {
-                self.cancel.take();
+                this.cancel.take();
                 Poll::Ready(())
             }
             Poll::Pending => Poll::Pending,
@@ -959,13 +974,13 @@ fn consume_item_error(error: Box<crate::stream::ItemError>) -> Status {
 async fn flush_queued_before_error(
     batch: &mut OutBatch,
     send: &mut backend::SendStream,
-    permits: &mut Vec<crate::limits::BytePermit>,
+    batch_permit: &mut crate::limits::BytePermit,
     status: Status,
     call: &CancelFlag,
     web: bool,
 ) -> Result<(), DrainError> {
     flush_batch(batch, send, call, web).await?;
-    permits.clear();
+    *batch_permit = crate::limits::BytePermit::empty();
     Err(DrainError::Producer(status))
 }
 
@@ -1010,117 +1025,142 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     // touches the entry's atomics.
     let channelz_entry = channelz_socket.and_then(crate::channelz::socket_entry);
     let mut items = Vec::with_capacity(OutBatch::BURST);
-    let mut permits = Vec::with_capacity(OutBatch::BURST);
+    let mut batch_permit = crate::limits::BytePermit::empty();
+    let mut interactive = false;
     loop {
         super::deadline::before_commit(call).await;
         items.clear();
-        // A client RST while we wait for the next message must abort: a
-        // producer that is itself waiting (Health Watch, a timer) will not
-        // send, so the write path would never see the reset.
-        let n = tokio::select! {
-            biased;
-            reset = poll_fn(|cx| send.poll_reset(cx)) => {
-                drop(reset);
-                return Err(DrainError::Transport);
+        let initial_taken = stream.try_recv_many(&mut items, OutBatch::BURST);
+        let initial_taken = if initial_taken > 0 {
+            initial_taken
+        } else {
+            // A client RST while we wait for the next message must abort: a
+            // producer that is itself waiting (Health Watch, a timer) will not
+            // send, so the write path would never see the reset.
+            let n = tokio::select! {
+                biased;
+                reset = poll_fn(|cx| send.poll_reset(cx)) => {
+                    drop(reset);
+                    return Err(DrainError::Transport);
+                }
+                n = stream.recv_many(&mut items, OutBatch::BURST) => n,
+            };
+            if n == 0 {
+                break;
             }
-            n = stream.recv_many(&mut items, OutBatch::BURST) => n,
+            n
         };
-        if n == 0 {
+        if initial_taken > 1 {
+            interactive = false;
+        }
+        let mut seen_in_batch = initial_taken;
+        let mut yielded = false;
+        loop {
+            let mut ready = items.drain(..);
+            while let Some(item) = ready.next() {
+                let ready_messages = ready.len() + 1;
+                let mut item = match item {
+                    Ok(item) => item,
+                    Err(status) => {
+                        let status = consume_item_error(status);
+                        return flush_queued_before_error(
+                            &mut batch,
+                            send,
+                            &mut batch_permit,
+                            status,
+                            call,
+                            web,
+                        )
+                        .await;
+                    }
+                };
+                item.compressed =
+                    select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated)
+                        .is_some();
+                let encoded_len = item.message.encoded_len();
+                let frame_len = match checked_budget_frame_len(encoded_len, wire.limits) {
+                    Ok(len) => len,
+                    Err(status) => {
+                        return flush_queued_before_error(
+                            &mut batch,
+                            send,
+                            &mut batch_permit,
+                            status,
+                            call,
+                            web,
+                        )
+                        .await;
+                    }
+                };
+                if batch.needs_reclaim_flush() {
+                    wait_reclaim_drain(&mut batch, send, call).await?;
+                }
+                if let Err(status) = budget.acquire_into(&mut batch_permit, frame_len) {
+                    return flush_queued_before_error(
+                        &mut batch,
+                        send,
+                        &mut batch_permit,
+                        status,
+                        call,
+                        web,
+                    )
+                    .await;
+                }
+                if let Err(status) = batch.encode_ready_with_len(item, encoded_len, ready_messages)
+                {
+                    return flush_queued_before_error(
+                        &mut batch,
+                        send,
+                        &mut batch_permit,
+                        status,
+                        call,
+                        web,
+                    )
+                    .await;
+                }
+                if let Some(obs) = observer {
+                    obs.on_bytes_sent(call_labels, frame_len);
+                }
+                if let Some(entry) = &channelz_entry {
+                    entry.add_messages(true, 1);
+                }
+                if batch.is_full() {
+                    flush_batch(&mut batch, send, call, web).await?;
+                    batch_permit = crate::limits::BytePermit::empty();
+                }
+            }
+            drop(ready);
+            if batch.is_full() || stream.producer_finished() {
+                break;
+            }
+            let newly_drained = stream.try_recv_many(&mut items, OutBatch::BURST);
+            if newly_drained > 0 {
+                seen_in_batch += newly_drained;
+                interactive = false;
+                continue;
+            }
+            if !yielded && (seen_in_batch > 1 || !interactive) {
+                yielded = true;
+                let_producer_catch_up().await;
+                let caught_up = stream.try_recv_many(&mut items, OutBatch::BURST);
+                if caught_up > 0 {
+                    seen_in_batch += caught_up;
+                    interactive = false;
+                    continue;
+                }
+                if seen_in_batch == 1 {
+                    interactive = true;
+                }
+            }
             break;
         }
-        // More than one message queued means the producer is running ahead of
-        // the network and is bounded by its channel depth, so one scheduling
-        // turn lets it top the queue up and doubles the write size. Exactly one
-        // means it is not ahead — a request/response stream, say — and must not
-        // pay a turn of latency for nothing.
-        let room = OutBatch::BURST - items.len();
-        // The sender is already dropped, so every message it produced is queued.
-        // Yielding cannot enlarge this batch.
-        if items.len() > 1 && room > 0 && !stream.producer_finished() {
-            let_producer_catch_up().await;
-            stream.try_recv_many(&mut items, room);
-        }
-        let mut ready = items.drain(..);
-        while let Some(item) = ready.next() {
-            let ready_messages = ready.len() + 1;
-            let mut item = match item {
-                Ok(item) => item,
-                Err(status) => {
-                    let status = consume_item_error(status);
-                    return flush_queued_before_error(
-                        &mut batch,
-                        send,
-                        &mut permits,
-                        status,
-                        call,
-                        web,
-                    )
-                    .await;
-                }
-            };
-            item.compressed =
-                select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated).is_some();
-            let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
-            {
-                Ok(len) => len,
-                Err(status) => {
-                    return flush_queued_before_error(
-                        &mut batch,
-                        send,
-                        &mut permits,
-                        status,
-                        call,
-                        web,
-                    )
-                    .await;
-                }
-            };
-            wait_reclaim_drain(&mut batch, send, call).await?;
-            let permit = match budget.acquire(frame_len) {
-                Ok(permit) => permit,
-                Err(status) => {
-                    return flush_queued_before_error(
-                        &mut batch,
-                        send,
-                        &mut permits,
-                        status,
-                        call,
-                        web,
-                    )
-                    .await;
-                }
-            };
-            permits.push(permit);
-            if let Err(status) = batch.encode_ready(item, ready_messages) {
-                return flush_queued_before_error(
-                    &mut batch,
-                    send,
-                    &mut permits,
-                    status,
-                    call,
-                    web,
-                )
-                .await;
-            }
-            if let Some(obs) = observer {
-                obs.on_bytes_sent(call_labels, frame_len);
-            }
-            if let Some(entry) = &channelz_entry {
-                entry.add_messages(true, 1);
-            }
-            if batch.is_full() {
-                flush_batch(&mut batch, send, call, web).await?;
-                permits.clear();
-            }
-        }
-        drop(ready);
         if !batch.is_full() {
             flush_batch(&mut batch, send, call, web).await?;
-            permits.clear();
+            batch_permit = crate::limits::BytePermit::empty();
         }
     }
     flush_batch(&mut batch, send, call, web).await?;
-    permits.clear();
+    drop(batch_permit);
     Ok(())
 }
 

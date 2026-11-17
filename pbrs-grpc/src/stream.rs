@@ -711,12 +711,22 @@ impl<T> Streaming<T> {
 
     /// Take up to `limit` already-queued messages without waiting.
     ///
-    /// Used to top up a batch after yielding to the producer. A wire-backed
-    /// stream has nothing available for free, so it yields nothing.
+    /// Used to top up a batch without blocking. A wire-backed stream has
+    /// nothing available for free, so it yields nothing.
     pub(crate) fn try_recv_many(&mut self, out: &mut Vec<Item<T>>, limit: usize) -> usize {
+        if limit == 0 {
+            return 0;
+        }
         let Source::Channel(rx) = &mut self.source else {
             return 0;
         };
+        if rx.is_empty() {
+            return 0;
+        }
+        let mut noop_cx = Context::from_waker(std::task::Waker::noop());
+        if let Poll::Ready(n) = std::pin::pin!(rx.recv_many(out, limit)).poll(&mut noop_cx) {
+            return n;
+        }
         let mut taken = 0;
         while taken < limit {
             match rx.try_recv() {

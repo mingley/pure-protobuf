@@ -1,8 +1,8 @@
 //! Batched stream output: OutBatch.
 
 use super::encode::{
-    CLOSED_UPLOAD_SLAB_BYTES, EncodeScratch, STREAM_BATCH_BYTES, SegSink, SinkCheckpoint,
-    append_frame_closed_upload, append_frame_with_ready,
+    CLOSED_UPLOAD_SLAB_BYTES, EncodeScratch, FrameBatchHint, STREAM_BATCH_BYTES, SegSink,
+    SinkCheckpoint, append_frame_closed_upload, append_frame_with_ready,
 };
 use super::send::{ImmediateSend, send_frame, send_frame_if_ready};
 use crate::binlog::CallLogger;
@@ -74,6 +74,24 @@ impl OutBatch {
         item: Framed<T>,
         ready_messages: usize,
     ) -> Result<(), Status> {
+        self.encode_ready_inner(item, None, ready_messages)
+    }
+
+    pub(crate) fn encode_ready_with_len<T: CodecMessage>(
+        &mut self,
+        item: Framed<T>,
+        encoded_len: usize,
+        ready_messages: usize,
+    ) -> Result<(), Status> {
+        self.encode_ready_inner(item, Some(encoded_len), ready_messages)
+    }
+
+    fn encode_ready_inner<T: CodecMessage>(
+        &mut self,
+        item: Framed<T>,
+        encoded_len: Option<usize>,
+        ready_messages: usize,
+    ) -> Result<(), Status> {
         // A failed identity encoder can replace the backing while preserving
         // checkpoint bytes. Invalidation therefore precedes all user code and
         // deliberately survives rollback.
@@ -83,6 +101,10 @@ impl OutBatch {
         let mut guard = SinkEncodeGuard::new(&mut self.sink, &mut self.scratch);
         guard.sink.prepare_encode();
         let codec = item.compressed.then_some(self.wire.send_codec);
+        let hint = FrameBatchHint {
+            encoded_len,
+            ready_messages,
+        };
         if self.closed_upload {
             append_frame_closed_upload(
                 &mut guard.sink,
@@ -91,7 +113,7 @@ impl OutBatch {
                 codec,
                 self.wire.limits,
                 self.wire.gzip_level,
-                ready_messages,
+                hint,
             )?;
         } else {
             append_frame_with_ready(
@@ -101,7 +123,7 @@ impl OutBatch {
                 codec,
                 self.wire.limits,
                 self.wire.gzip_level,
-                ready_messages,
+                hint,
             )?;
         }
         if let Some(tap) = &self.tap {

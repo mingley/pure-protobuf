@@ -8,30 +8,362 @@
 
 use crate::limits::MessageLimits;
 use crate::status::Status;
-use flate2::Compression;
-use flate2::bufread::{GzDecoder, GzEncoder};
+use flate2::{
+    Compress, Compression, Crc, Decompress, FlushCompress, FlushDecompress, Status as FlateStatus,
+};
+use std::cell::RefCell;
 use std::io::{self, BufRead, Read, Write};
+
+const FHCRC: u8 = 1 << 1;
+const FEXTRA: u8 = 1 << 2;
+const FNAME: u8 = 1 << 3;
+const FCOMMENT: u8 = 1 << 4;
+const FRESERVED: u8 = 0b1110_0000;
+const MAX_HEADER_FIELD_BYTES: usize = 65_535;
+const COMPRESS_SCRATCH_CAP: usize = 16 * 1024;
+const MAX_POOLED_DECODERS: usize = 8;
+
+struct CachedRawCompressor {
+    level: u32,
+    comp: Compress,
+    buf: Vec<u8>,
+}
+
+impl CachedRawCompressor {
+    fn new(level: u32) -> Self {
+        Self {
+            level,
+            comp: Compress::new(Compression::new(level), false),
+            buf: Vec::with_capacity(COMPRESS_SCRATCH_CAP),
+        }
+    }
+}
+
+thread_local! {
+    static RAW_COMPRESSORS: RefCell<[Option<CachedRawCompressor>; 2]> =
+        const { RefCell::new([None, None]) };
+    static RAW_DECOMPRESSORS: RefCell<Vec<Decompress>> = const { RefCell::new(Vec::new()) };
+}
+
+struct RawCompressorLease {
+    inner: Option<CachedRawCompressor>,
+}
+
+impl RawCompressorLease {
+    fn acquire(level: u32) -> Self {
+        let cached = RAW_COMPRESSORS
+            .try_with(|cell| {
+                let Ok(mut slots) = cell.try_borrow_mut() else {
+                    return None;
+                };
+                for slot in slots.iter_mut() {
+                    if slot.as_ref().is_some_and(|entry| entry.level == level) {
+                        return slot.take();
+                    }
+                }
+                None
+            })
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| CachedRawCompressor::new(level));
+        Self {
+            inner: Some(cached),
+        }
+    }
+}
+
+impl Drop for RawCompressorLease {
+    fn drop(&mut self) {
+        let Some(mut cached) = self.inner.take() else {
+            return;
+        };
+        cached.comp.reset();
+        cached.buf.clear();
+        if cached.buf.capacity() > COMPRESS_SCRATCH_CAP * 4 {
+            cached.buf.shrink_to(COMPRESS_SCRATCH_CAP);
+        }
+        RAW_COMPRESSORS
+            .try_with(|cell| {
+                let Ok(mut slots) = cell.try_borrow_mut() else {
+                    return;
+                };
+                let [slot0, slot1] = &mut *slots;
+                if slot0.is_none() {
+                    *slot0 = Some(cached);
+                } else if slot1.is_none() {
+                    *slot1 = Some(cached);
+                } else {
+                    *slot1 = slot0.take();
+                    *slot0 = Some(cached);
+                }
+            })
+            .ok();
+    }
+}
+
+fn acquire_raw_decompressor() -> Decompress {
+    RAW_DECOMPRESSORS
+        .try_with(|cell| cell.try_borrow_mut().ok().and_then(|mut pool| pool.pop()))
+        .ok()
+        .flatten()
+        .map(|mut decomp| {
+            decomp.reset(false);
+            decomp
+        })
+        .unwrap_or_else(|| Decompress::new(false))
+}
+
+fn release_raw_decompressor(mut decomp: Decompress) {
+    RAW_DECOMPRESSORS
+        .try_with(|cell| {
+            if let Ok(mut pool) = cell.try_borrow_mut()
+                && pool.len() < MAX_POOLED_DECODERS
+            {
+                decomp.reset(false);
+                pool.push(decomp);
+            }
+        })
+        .ok();
+}
+
+enum HeaderStep {
+    Fixed { pos: usize, buf: [u8; 10] },
+    Xlen { pos: usize, buf: [u8; 2] },
+    Extra { rem: usize },
+    Name { seen: usize },
+    Comment { seen: usize },
+    Hcrc { pos: usize, buf: [u8; 2] },
+    Done,
+}
+
+struct HeaderParser {
+    flg: u8,
+    hcrc: Option<Crc>,
+    step: HeaderStep,
+}
+
+impl HeaderParser {
+    fn new() -> Self {
+        Self {
+            flg: 0,
+            hcrc: None,
+            step: HeaderStep::Fixed {
+                pos: 0,
+                buf: [0; 10],
+            },
+        }
+    }
+
+    fn step_after_fixed(flg: u8) -> HeaderStep {
+        if (flg & FEXTRA) != 0 {
+            HeaderStep::Xlen {
+                pos: 0,
+                buf: [0; 2],
+            }
+        } else {
+            Self::step_after_extra(flg)
+        }
+    }
+
+    fn step_after_extra(flg: u8) -> HeaderStep {
+        if (flg & FNAME) != 0 {
+            HeaderStep::Name { seen: 0 }
+        } else {
+            Self::step_after_name(flg)
+        }
+    }
+
+    fn step_after_name(flg: u8) -> HeaderStep {
+        if (flg & FCOMMENT) != 0 {
+            HeaderStep::Comment { seen: 0 }
+        } else {
+            Self::step_after_comment(flg)
+        }
+    }
+
+    fn step_after_comment(flg: u8) -> HeaderStep {
+        if (flg & FHCRC) != 0 {
+            HeaderStep::Hcrc {
+                pos: 0,
+                buf: [0; 2],
+            }
+        } else {
+            HeaderStep::Done
+        }
+    }
+
+    fn advance<R: BufRead>(&mut self, reader: &mut R) -> io::Result<()> {
+        loop {
+            match &mut self.step {
+                HeaderStep::Fixed { pos, buf } => {
+                    fill_exact(reader, buf, pos)?;
+                    let [id1, id2, cm, flg, ..] = *buf;
+                    if id1 != 0x1f || id2 != 0x8b || cm != 8 || (flg & FRESERVED) != 0 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "corrupt gzip header",
+                        ));
+                    }
+                    self.flg = flg;
+                    if (flg & FHCRC) != 0 {
+                        let mut crc = Crc::new();
+                        crc.update(&*buf);
+                        self.hcrc = Some(crc);
+                    }
+                    self.step = Self::step_after_fixed(flg);
+                }
+                HeaderStep::Xlen { pos, buf } => {
+                    fill_exact(reader, buf, pos)?;
+                    let bytes = *buf;
+                    if let Some(crc) = &mut self.hcrc {
+                        crc.update(&bytes);
+                    }
+                    let rem = usize::from(u16::from_le_bytes(bytes));
+                    self.step = HeaderStep::Extra { rem };
+                }
+                HeaderStep::Extra { rem } => {
+                    while *rem > 0 {
+                        let avail = reader.fill_buf()?;
+                        if avail.is_empty() {
+                            return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+                        }
+                        let take = (*rem).min(avail.len());
+                        if let (Some(crc), Some(prefix)) = (&mut self.hcrc, avail.get(..take)) {
+                            crc.update(prefix);
+                        }
+                        reader.consume(take);
+                        *rem -= take;
+                    }
+                    self.step = Self::step_after_extra(self.flg);
+                }
+                HeaderStep::Name { seen } => {
+                    consume_cstring(reader, seen, &mut self.hcrc)?;
+                    self.step = Self::step_after_name(self.flg);
+                }
+                HeaderStep::Comment { seen } => {
+                    consume_cstring(reader, seen, &mut self.hcrc)?;
+                    self.step = Self::step_after_comment(self.flg);
+                }
+                HeaderStep::Hcrc { pos, buf } => {
+                    fill_exact(reader, buf, pos)?;
+                    let expected = u16::from_le_bytes(*buf);
+                    let actual = self.hcrc.as_ref().map_or(0, |crc| {
+                        let [low, high, _, _] = crc.sum().to_le_bytes();
+                        u16::from_le_bytes([low, high])
+                    });
+                    if expected != actual {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "corrupt gzip header checksum",
+                        ));
+                    }
+                    self.step = HeaderStep::Done;
+                }
+                HeaderStep::Done => return Ok(()),
+            }
+        }
+    }
+}
+
+fn fill_exact<R: BufRead>(reader: &mut R, buf: &mut [u8], pos: &mut usize) -> io::Result<()> {
+    while *pos < buf.len() {
+        let avail = reader.fill_buf()?;
+        if avail.is_empty() {
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+        }
+        let Some(dst) = buf.get_mut(*pos..) else {
+            break;
+        };
+        let take = dst.len().min(avail.len());
+        if let (Some(dst_prefix), Some(src_prefix)) = (dst.get_mut(..take), avail.get(..take)) {
+            dst_prefix.copy_from_slice(src_prefix);
+        }
+        reader.consume(take);
+        *pos += take;
+    }
+    Ok(())
+}
+
+fn consume_cstring<R: BufRead>(
+    reader: &mut R,
+    seen: &mut usize,
+    hcrc: &mut Option<Crc>,
+) -> io::Result<()> {
+    loop {
+        let avail = reader.fill_buf()?;
+        if avail.is_empty() {
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+        }
+        match avail.iter().position(|&byte| byte == 0) {
+            Some(nul_idx) => {
+                if seen.saturating_add(nul_idx) > MAX_HEADER_FIELD_BYTES {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "gzip header field too long",
+                    ));
+                }
+                let take = nul_idx + 1;
+                if let (Some(crc), Some(prefix)) = (hcrc.as_mut(), avail.get(..take)) {
+                    crc.update(prefix);
+                }
+                reader.consume(take);
+                return Ok(());
+            }
+            None => {
+                let take = avail.len();
+                *seen = seen.saturating_add(take);
+                if *seen > MAX_HEADER_FIELD_BYTES {
+                    reader.consume(take);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "gzip header field too long",
+                    ));
+                }
+                if let Some(crc) = hcrc.as_mut() {
+                    crc.update(avail);
+                }
+                reader.consume(take);
+            }
+        }
+    }
+}
+
+enum MemberPhase {
+    First,
+    Header(HeaderParser),
+    Body,
+    Footer { pos: usize, buf: [u8; 8] },
+    BetweenMembers,
+    Done,
+}
 
 /// Message-local member decoder shared by native and tonic inbound paths.
 /// Admission precedes each reset, whose DEFLATE history clear has fixed cost.
 pub(crate) struct GzipMembers<R> {
-    state: MemberState<R>,
-    at_member_end: bool,
+    reader: R,
+    decomp: Option<Decompress>,
+    body_crc: Crc,
+    phase: MemberPhase,
     frames: usize,
     max_frames: Option<usize>,
     failure: Option<Status>,
 }
 
-enum MemberState<R> {
-    First(R),
-    Active(GzDecoder<R>),
+impl<R> Drop for GzipMembers<R> {
+    fn drop(&mut self) {
+        if let Some(decomp) = self.decomp.take() {
+            release_raw_decompressor(decomp);
+        }
+    }
 }
 
-impl<R: BufRead + Default> GzipMembers<R> {
+impl<R: BufRead> GzipMembers<R> {
     pub(crate) fn new(reader: R, max_frames: Option<usize>) -> Self {
         Self {
-            state: MemberState::First(reader),
-            at_member_end: false,
+            reader,
+            decomp: None,
+            body_crc: Crc::new(),
+            phase: MemberPhase::First,
             frames: 0,
             max_frames,
             failure: None,
@@ -40,17 +372,12 @@ impl<R: BufRead + Default> GzipMembers<R> {
 
     #[cfg(any(feature = "tonic", test))]
     pub(crate) fn get_ref(&self) -> &R {
-        match &self.state {
-            MemberState::First(reader) => reader,
-            MemberState::Active(decoder) => decoder.get_ref(),
-        }
+        &self.reader
     }
 
+    #[cfg(feature = "tonic")]
     pub(crate) fn get_mut(&mut self) -> &mut R {
-        match &mut self.state {
-            MemberState::First(reader) => reader,
-            MemberState::Active(decoder) => decoder.get_mut(),
-        }
+        &mut self.reader
     }
 
     pub(crate) fn take_failure(&mut self) -> Option<Status> {
@@ -73,38 +400,114 @@ impl<R: BufRead + Default> GzipMembers<R> {
         })?;
         Ok(())
     }
+
+    fn ensure_decompressor(&mut self) -> &mut Decompress {
+        self.decomp.get_or_insert_with(acquire_raw_decompressor)
+    }
 }
 
-impl<R: BufRead + Default> Read for GzipMembers<R> {
+impl<R: BufRead> Read for GzipMembers<R> {
     fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
         if output.is_empty() {
             return Ok(0);
         }
         loop {
-            if matches!(self.state, MemberState::First(_)) {
-                self.admit_member()?;
-                let reader = std::mem::take(self.get_mut());
-                self.state = MemberState::Active(GzDecoder::new(reader));
-            }
-            if self.at_member_end {
-                // Preserve this state on WouldBlock/Interrupted: retrying must
-                // inspect the next member instead of reading the completed one.
-                if self.get_mut().fill_buf()?.is_empty() {
-                    return Ok(0);
+            match &mut self.phase {
+                MemberPhase::First => {
+                    self.admit_member()?;
+                    self.ensure_decompressor().reset(false);
+                    self.body_crc = Crc::new();
+                    self.phase = MemberPhase::Header(HeaderParser::new());
                 }
-                self.admit_member()?;
-                if let MemberState::Active(decoder) = &mut self.state {
-                    let reader = std::mem::take(decoder.get_mut());
-                    let _ = decoder.reset(reader);
+                MemberPhase::BetweenMembers => {
+                    // Preserve this state on WouldBlock/Interrupted: retrying must
+                    // inspect the next member instead of reading the completed one.
+                    if self.reader.fill_buf()?.is_empty() {
+                        self.phase = MemberPhase::Done;
+                        return Ok(0);
+                    }
+                    self.admit_member()?;
+                    self.ensure_decompressor().reset(false);
+                    self.body_crc = Crc::new();
+                    self.phase = MemberPhase::Header(HeaderParser::new());
                 }
-                self.at_member_end = false;
-            }
-            if let MemberState::Active(decoder) = &mut self.state {
-                let n = decoder.read(output)?;
-                if n != 0 {
-                    return Ok(n);
+                MemberPhase::Header(parser) => {
+                    parser.advance(&mut self.reader)?;
+                    self.phase = MemberPhase::Body;
                 }
-                self.at_member_end = true;
+                MemberPhase::Body => {
+                    let input = self.reader.fill_buf()?;
+                    let eof = input.is_empty();
+                    let decomp = self.decomp.get_or_insert_with(acquire_raw_decompressor);
+                    let before_in = decomp.total_in();
+                    let before_out = decomp.total_out();
+                    let flush = if eof {
+                        FlushDecompress::Finish
+                    } else {
+                        FlushDecompress::None
+                    };
+                    let res = decomp.decompress(input, output, flush);
+                    let consumed =
+                        usize::try_from(decomp.total_in() - before_in).unwrap_or(input.len());
+                    let written =
+                        usize::try_from(decomp.total_out() - before_out).unwrap_or(output.len());
+                    self.reader.consume(consumed);
+                    if let Some(decoded) = output.get(..written)
+                        && !decoded.is_empty()
+                    {
+                        self.body_crc.update(decoded);
+                    }
+                    match res {
+                        Ok(FlateStatus::StreamEnd) => {
+                            self.phase = MemberPhase::Footer {
+                                pos: 0,
+                                buf: [0; 8],
+                            };
+                            if written > 0 {
+                                return Ok(written);
+                            }
+                        }
+                        Ok(FlateStatus::Ok | FlateStatus::BufError) => {
+                            if written > 0 {
+                                return Ok(written);
+                            }
+                            if eof {
+                                self.phase = MemberPhase::Done;
+                                return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+                            }
+                            if consumed == 0 {
+                                self.phase = MemberPhase::Done;
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidInput,
+                                    "corrupt deflate stream",
+                                ));
+                            }
+                        }
+                        Err(_) => {
+                            self.phase = MemberPhase::Done;
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                "corrupt deflate stream",
+                            ));
+                        }
+                    }
+                }
+                MemberPhase::Footer { pos, buf } => {
+                    fill_exact(&mut self.reader, buf, pos)?;
+                    let [c0, c1, c2, c3, l0, l1, l2, l3] = *buf;
+                    let expected_crc = u32::from_le_bytes([c0, c1, c2, c3]);
+                    let expected_len = u32::from_le_bytes([l0, l1, l2, l3]);
+                    if expected_crc != self.body_crc.sum() || expected_len != self.body_crc.amount()
+                    {
+                        self.phase = MemberPhase::Done;
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "corrupt gzip stream does not have a matching checksum",
+                        ));
+                    }
+                    self.phase = MemberPhase::BetweenMembers;
+                }
+                MemberPhase::Done => return Ok(0),
             }
         }
     }
@@ -125,29 +528,101 @@ pub fn encode_level(payload: &[u8], level: u32) -> Result<Vec<u8>, Status> {
     Ok(out)
 }
 
+pub(super) fn write_chunk(out: &mut impl Write, bytes: &[u8], coding: &str) -> Result<(), Status> {
+    let mut rest = bytes;
+    while !rest.is_empty() {
+        match out.write(rest) {
+            Ok(0) => {
+                return Err(Status::internal(format!(
+                    "{coding} encode: {}",
+                    io::Error::from(io::ErrorKind::WriteZero)
+                )));
+            }
+            Ok(n) => {
+                rest = rest
+                    .get(n..)
+                    .ok_or_else(|| Status::internal(format!("{coding} encode: invalid write")))?;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(Status::internal(format!("{coding} encode: {error}"))),
+        }
+    }
+    Ok(())
+}
+
 /// gzip `payload` at `level`, appending to `out`.
 ///
 /// The framing layer compresses straight into the frame buffer through
 /// this, saving the intermediate `Vec` and its copy.
 pub(super) fn encode_into(payload: &[u8], level: u32, out: &mut impl Write) -> Result<(), Status> {
-    let mut enc = GzEncoder::new(payload, Compression::new(level.min(9)));
-    // The read interface compresses into initialized storage. Its writer
-    // counterpart repeatedly initializes spare output capacity on write/finish.
-    // Keep one bounded chunk for this message, without retaining codec history.
-    let mut chunk = [0; 8192];
+    let clamped = level.min(9);
+    let xfl = if clamped >= 9 {
+        2
+    } else if clamped <= 1 {
+        4
+    } else {
+        0
+    };
+    let header = [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, xfl, 255];
+
+    let mut lease = RawCompressorLease::acquire(clamped);
+    let Some(cached) = lease.inner.as_mut() else {
+        return Err(Status::internal("gzip encode: missing compressor"));
+    };
+    cached.buf.clear();
+    cached.buf.extend_from_slice(&header);
+
+    let mut rem = payload;
     loop {
-        let n = match enc.read(&mut chunk) {
-            Ok(0) => return Ok(()),
-            Ok(n) => n,
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(error) => return Err(Status::internal(format!("gzip encode: {error}"))),
-        };
-        let bytes = chunk
-            .get(..n)
-            .ok_or_else(|| Status::internal("gzip encode: invalid read length"))?;
-        out.write_all(bytes)
+        if cached.buf.capacity().saturating_sub(cached.buf.len()) < 4096 {
+            write_chunk(out, &cached.buf, "gzip")?;
+            cached.buf.clear();
+            if cached.buf.capacity() < COMPRESS_SCRATCH_CAP {
+                cached.buf.reserve(COMPRESS_SCRATCH_CAP);
+            }
+        }
+        let before_in = cached.comp.total_in();
+        let before_len = cached.buf.len();
+        let status = cached
+            .comp
+            .compress_vec(rem, &mut cached.buf, FlushCompress::Finish)
             .map_err(|error| Status::internal(format!("gzip encode: {error}")))?;
+        let consumed = usize::try_from(cached.comp.total_in() - before_in).unwrap_or(rem.len());
+        let produced = cached.buf.len().saturating_sub(before_len);
+        rem = rem
+            .get(consumed..)
+            .ok_or_else(|| Status::internal("gzip encode: invalid input progress"))?;
+        match status {
+            FlateStatus::StreamEnd => break,
+            FlateStatus::Ok | FlateStatus::BufError => {
+                if consumed == 0 && produced == 0 && cached.buf.is_empty() {
+                    return Err(Status::internal("gzip encode: compressor stalled"));
+                }
+                if !cached.buf.is_empty() {
+                    write_chunk(out, &cached.buf, "gzip")?;
+                    cached.buf.clear();
+                }
+            }
+        }
     }
+
+    let mut crc = Crc::new();
+    crc.update(payload);
+    let [c0, c1, c2, c3] = crc.sum().to_le_bytes();
+    let [l0, l1, l2, l3] = crc.amount().to_le_bytes();
+    let footer = [c0, c1, c2, c3, l0, l1, l2, l3];
+
+    if cached.buf.capacity().saturating_sub(cached.buf.len()) >= footer.len() {
+        cached.buf.extend_from_slice(&footer);
+        write_chunk(out, &cached.buf, "gzip")?;
+    } else {
+        if !cached.buf.is_empty() {
+            write_chunk(out, &cached.buf, "gzip")?;
+        }
+        write_chunk(out, &footer, "gzip")?;
+    }
+    cached.buf.clear();
+    Ok(())
 }
 
 /// Inflate `payload` with no cap.
@@ -643,5 +1118,54 @@ mod tests {
         let gz = encode(&vec![3u8; 4096]).expect("encode");
         let err = decode(&gz[..gz.len() / 2]).expect_err("truncated");
         assert_eq!(err.code(), Code::Internal);
+    }
+
+    #[test]
+    fn optional_rfc1952_header_fields_and_hcrc_are_supported() {
+        let payload = b"optional header fields payload";
+        let mut base = Vec::new();
+        {
+            let mut enc = flate2::GzBuilder::new()
+                .extra(b"kv=12345")
+                .filename("hello.proto")
+                .comment("test comment")
+                .write(&mut base, flate2::Compression::fast());
+            enc.write_all(payload).expect("write");
+            enc.finish().expect("finish");
+        }
+        assert_eq!(decode(&base).expect("decode rfc1952 fields"), payload);
+
+        // Add FHCRC (0x02) over the full header (10 fixed + 2+8 extra + 12 fname + 13 fcomment = 45 bytes).
+        let hdr_len =
+            10 + 2 + b"kv=12345".len() + (b"hello.proto".len() + 1) + (b"test comment".len() + 1);
+        let mut with_hcrc = base.get(..hdr_len).expect("hdr").to_vec();
+        *with_hcrc.get_mut(3).expect("flg") |= super::FHCRC;
+        let mut hcrc = super::Crc::new();
+        hcrc.update(&with_hcrc);
+        let crc32 = hcrc.sum().to_le_bytes();
+        with_hcrc.extend_from_slice(&[crc32[0], crc32[1]]);
+        with_hcrc.extend_from_slice(base.get(hdr_len..).expect("body+footer"));
+        assert_eq!(
+            decode(&with_hcrc).expect("decode full rfc1952 + hcrc"),
+            payload
+        );
+
+        // Flip a byte inside the header and ensure FHCRC catches it.
+        let mut corrupted_hcrc = with_hcrc.clone();
+        *corrupted_hcrc.get_mut(12).expect("extra byte") ^= 0x01;
+        assert_eq!(
+            decode(&corrupted_hcrc)
+                .expect_err("corrupt header crc")
+                .code(),
+            Code::Internal
+        );
+
+        // Set a reserved flag bit (bit 5 = 0x20) and ensure header validation rejects it.
+        let mut reserved_flag = encode(payload).expect("encode");
+        *reserved_flag.get_mut(3).expect("flg") |= 0x20;
+        assert_eq!(
+            decode(&reserved_flag).expect_err("reserved flag").code(),
+            Code::Internal
+        );
     }
 }

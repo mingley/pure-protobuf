@@ -155,18 +155,8 @@ where
 {
     const NAME: &'static str = N::NAME;
 
-    async fn call(&self, mut rpc: Rpc) {
-        // Native typed requests materialize these fields lazily. This opaque
-        // adapter forwards HTTP extensions directly, so stamp them here too.
-        let scheme = (rpc.scheme() == Some("https")).then_some("https");
-        crate::request::insert_connect_info(
-            &mut rpc.extensions,
-            scheme,
-            rpc.remote_addr,
-            rpc.local_addr,
-            rpc.peer_identity.as_ref(),
-        );
-        if rpc.limits() != ServerConfig::default().limits()
+    async fn call(&self, rpc: Rpc) {
+        if rpc.limits() != default_server_limits()
             || !rpc.config.accepts_compressed()
             || outbound::requested(rpc.config.as_ref())
             || crate::wire::grpc_encoding(rpc.metadata.all_headers()).is_some_and(|token| {
@@ -185,6 +175,7 @@ where
             return;
         }
         let deadline = rpc.deadline();
+        let scheme = (rpc.scheme() == Some("https")).then_some("https");
         let mut accounting = Accounting::new(
             rpc.channelz_server,
             rpc.channelz_socket,
@@ -197,24 +188,46 @@ where
             config,
             metadata,
             extensions,
+            remote_addr,
+            local_addr,
+            peer_identity,
             ..
         } = rpc;
         let (mut parts, recv) = request.into_parts();
-        // The connection moved the header block onto metadata.
-        if parts.headers.is_empty() {
-            parts.headers = metadata.all_headers().clone();
+        // When no interceptor mutated metadata, move the accepted header map
+        // directly instead of cloning and re-filtering every entry.
+        if parts.headers.is_empty() && !metadata.is_mutated() {
+            parts.headers = metadata.into_owned_headers();
+        } else {
+            if parts.headers.is_empty() {
+                parts.headers = metadata.all_headers().clone();
+            }
+            // Remove original user headers first. Otherwise an interceptor's
+            // removal or replacement (especially authorization) could be undone.
+            let original = Metadata::from_headers(&parts.headers);
+            for name in original.keys() {
+                parts.headers.remove(name);
+            }
+            if let Err(status) = metadata.write_to(&mut parts.headers) {
+                crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
+                return;
+            }
         }
-        // Remove original user headers first. Otherwise an interceptor's
-        // removal or replacement (especially authorization) could be undone.
-        let original = Metadata::from_headers(&parts.headers);
-        for name in original.keys() {
-            parts.headers.remove(name);
+        let extensions = extensions.into_inner();
+        if !extensions.is_empty() {
+            if parts.extensions.is_empty() {
+                parts.extensions = extensions;
+            } else {
+                parts.extensions.extend(extensions);
+            }
         }
-        if let Err(status) = metadata.write_to(&mut parts.headers) {
-            crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
-            return;
-        }
-        parts.extensions.extend(extensions);
+        crate::request::insert_connect_info(
+            &mut parts.extensions,
+            scheme,
+            remote_addr,
+            local_addr,
+            peer_identity.as_ref(),
+        );
         let cancel = call_cancel;
         let request = http::Request::from_parts(
             parts,
@@ -320,7 +333,7 @@ where
     }
     let compression_disabled = !rpc.config.accepts_compressed();
     let limits = rpc.limits();
-    let defaults = ServerConfig::default().limits();
+    let defaults = default_server_limits();
     let cap_input = limits.max_decoding() != defaults.max_decoding();
     let cap_output = limits.max_encoding() != defaults.max_encoding();
     // Capture real peer negotiation before forcing tonic identity encoding.
@@ -345,6 +358,7 @@ where
         _ => None,
     };
     let deadline = rpc.deadline();
+    let scheme = (rpc.scheme() == Some("https")).then_some("https");
     let mut accounting = Accounting::new(
         rpc.channelz_server,
         rpc.channelz_socket,
@@ -357,19 +371,26 @@ where
         config,
         metadata,
         extensions,
+        local_addr,
+        remote_addr,
+        peer_identity,
         ..
     } = rpc;
     let (mut parts, recv) = request.into_parts();
-    if parts.headers.is_empty() {
-        parts.headers = metadata.all_headers().clone();
-    }
-    let original = Metadata::from_headers(&parts.headers);
-    for name in original.keys() {
-        parts.headers.remove(name);
-    }
-    if let Err(status) = metadata.write_to(&mut parts.headers) {
-        send_configured_error(&mut respond, status, compression_disabled);
-        return;
+    if parts.headers.is_empty() && !metadata.is_mutated() {
+        parts.headers = metadata.into_owned_headers();
+    } else {
+        if parts.headers.is_empty() {
+            parts.headers = metadata.all_headers().clone();
+        }
+        let original = Metadata::from_headers(&parts.headers);
+        for name in original.keys() {
+            parts.headers.remove(name);
+        }
+        if let Err(status) = metadata.write_to(&mut parts.headers) {
+            send_configured_error(&mut respond, status, compression_disabled);
+            return;
+        }
     }
     if compression_disabled && parts.headers.contains_key("grpc-encoding") {
         // Native validation already admitted exactly its identity aliases.
@@ -387,7 +408,21 @@ where
     if outbound.is_some() {
         parts.headers.remove("grpc-accept-encoding");
     }
-    parts.extensions.extend(extensions);
+    let extensions = extensions.into_inner();
+    if !extensions.is_empty() {
+        if parts.extensions.is_empty() {
+            parts.extensions = extensions;
+        } else {
+            parts.extensions.extend(extensions);
+        }
+    }
+    crate::request::insert_connect_info(
+        &mut parts.extensions,
+        scheme,
+        remote_addr,
+        local_addr,
+        peer_identity.as_ref(),
+    );
     let cancel = call_cancel;
     let incoming = IncomingBody::new(recv, Arc::clone(&cancel));
     let body = if let Some(max) = input_gzip {
@@ -591,10 +626,15 @@ async fn wait_deadline(deadline: Option<Instant>) {
     }
 }
 
+fn default_server_limits() -> crate::MessageLimits {
+    static DEFAULTS: std::sync::OnceLock<crate::MessageLimits> = std::sync::OnceLock::new();
+    *DEFAULTS.get_or_init(|| ServerConfig::default().limits())
+}
+
 struct IncomingBody {
     recv: Option<backend::RecvStream>,
     data_done: bool,
-    cancelled: Pin<Box<dyn Future<Output = ()> + Send>>,
+    cancelled: crate::server::drain::WaitCancel,
 }
 
 impl IncomingBody {
@@ -602,7 +642,7 @@ impl IncomingBody {
         Self {
             recv: Some(recv),
             data_done: false,
-            cancelled: Box::pin(crate::server::drain::wait_cancel(Some(cancel))),
+            cancelled: crate::server::drain::wait_cancel(Some(cancel)),
         }
     }
 }
@@ -618,7 +658,7 @@ impl Body for IncomingBody {
         if self.recv.is_none() {
             return Poll::Ready(None);
         }
-        if self.cancelled.as_mut().poll(cx).is_ready() {
+        if Pin::new(&mut self.cancelled).poll(cx).is_ready() {
             self.recv.take();
             return Poll::Ready(Some(Err(tonic::Status::cancelled("RPC cancelled"))));
         }

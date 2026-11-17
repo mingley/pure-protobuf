@@ -404,6 +404,21 @@ impl LbPolicy {
         }
     }
 
+    /// Returns `true` when this policy or a wrapped child might inspect
+    /// request metadata for hashing. Avoids cloning header maps for policies
+    /// (`pick_first`, `round_robin`, `weighted_round_robin`, `least_request`)
+    /// that never hash headers.
+    #[inline]
+    pub const fn uses_request_hash(&self) -> bool {
+        matches!(
+            self,
+            Self::RingHash(_)
+                | Self::RandomSubsetting(_)
+                | Self::Priority(_)
+                | Self::OutlierDetection(_)
+        )
+    }
+
     /// Request hash for ring picks (through subset, priority, and
     /// outlier children). `None` when no hashing policy applies.
     pub fn request_hash(&self, md: &crate::Metadata) -> Option<u64> {

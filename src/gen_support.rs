@@ -604,6 +604,9 @@ mod dynamic_support {
                 fn serialized_len(&self) -> usize {
                     $crate::Serialize::serialized_len(&self.inner)
                 }
+                fn shared_bytes_len(&self) -> usize {
+                    $crate::Serialize::shared_bytes_len(&self.inner)
+                }
                 fn encode(
                     &self,
                     out: &mut impl $crate::rt::WireOut,
@@ -621,6 +624,9 @@ mod dynamic_support {
                 fn serialized_len(&self) -> usize {
                     $crate::Serialize::serialized_len(self.0)
                 }
+                fn shared_bytes_len(&self) -> usize {
+                    $crate::Serialize::shared_bytes_len(self.0)
+                }
                 fn encode(
                     &self,
                     out: &mut impl $crate::rt::WireOut,
@@ -637,6 +643,9 @@ mod dynamic_support {
                 }
                 fn serialized_len(&self) -> usize {
                     $crate::Serialize::serialized_len(self.0)
+                }
+                fn shared_bytes_len(&self) -> usize {
+                    $crate::Serialize::shared_bytes_len(self.0)
                 }
                 fn encode(
                     &self,
@@ -795,7 +804,7 @@ pub use dynamic_support::*;
 /// Trait impls for field-wise generated messages (`merge_bytes` / `write_to` / `compute_size`).
 #[macro_export]
 macro_rules! impl_typed_message {
-    ($Owned:ident, $View:ident, $Mut:ident $(, $prevalidated:ident)?) => {
+    ($Owned:ident, $View:ident, $Mut:ident $(, $prevalidated:ident)? $(; $shared_len:ident)?) => {
         #[derive(::core::clone::Clone, ::core::marker::Copy, ::core::fmt::Debug)]
         pub struct $View<'msg>(pub &'msg $Owned);
         pub struct $Mut<'msg>(pub &'msg mut $Owned);
@@ -840,6 +849,7 @@ macro_rules! impl_typed_message {
             }
         }
         impl $crate::rt::MergeBytes for $Owned {
+            #[inline]
             fn merge_inner(
                 &mut self,
                 wire: &$crate::rt::Wire,
@@ -930,6 +940,12 @@ macro_rules! impl_typed_message {
             fn serialized_len(&self) -> usize {
                 self.compute_size() as usize
             }
+            $(
+                #[inline]
+                fn shared_bytes_len(&self) -> usize {
+                    $Owned::$shared_len(self)
+                }
+            )?
             #[inline]
             fn encode(
                 &self,
@@ -949,6 +965,10 @@ macro_rules! impl_typed_message {
             fn serialized_len(&self) -> usize {
                 $crate::Serialize::serialized_len(self.0)
             }
+            #[inline]
+            fn shared_bytes_len(&self) -> usize {
+                $crate::Serialize::shared_bytes_len(self.0)
+            }
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
@@ -964,6 +984,10 @@ macro_rules! impl_typed_message {
             }
             fn serialized_len(&self) -> usize {
                 $crate::Serialize::serialized_len(self.0)
+            }
+            #[inline]
+            fn shared_bytes_len(&self) -> usize {
+                $crate::Serialize::shared_bytes_len(self.0)
             }
             fn encode(
                 &self,
@@ -1002,6 +1026,7 @@ macro_rules! impl_typed_message {
                 }
                 self.merge_bytes(data, 0)
             }
+            #[inline]
             fn merge_from_bytes_shared(
                 &mut self,
                 data: $crate::rt::Bytes,

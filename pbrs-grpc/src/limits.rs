@@ -260,6 +260,75 @@ impl ByteBudgetTracker {
         self.try_acquire(bytes)
     }
 
+    /// Charge `bytes` into an existing [`BytePermit`] when it already belongs
+    /// to `self`, avoiding per-message `Arc` clones and permit-token atomics
+    /// across a streaming burst.
+    #[inline]
+    pub(crate) fn acquire_into(&self, permit: &mut BytePermit, bytes: usize) -> Result<(), Status> {
+        if let Some(existing) = &permit.tracker
+            && Arc::ptr_eq(&existing.inner, &self.inner)
+        {
+            if bytes == 0 {
+                return Ok(());
+            }
+            let Some(next_permit_bytes) = permit.bytes.checked_add(bytes) else {
+                return Err(Self::budget_counter_overflow(bytes, permit.bytes));
+            };
+            match self.inner.limit {
+                None => self.charge_additional_unlimited(bytes)?,
+                Some(limit) => self.charge_additional_limited(bytes, limit)?,
+            }
+            permit.bytes = next_permit_bytes;
+            return Ok(());
+        }
+        let acquired = self.try_acquire(bytes)?;
+        if permit.tracker.is_none() {
+            *permit = acquired;
+        } else {
+            permit.merge(acquired);
+        }
+        Ok(())
+    }
+
+    #[inline]
+    fn charge_additional_unlimited(&self, bytes: usize) -> Result<(), Status> {
+        let current = checked_atomic_add(&self.inner.allocated, bytes)
+            .map_err(|current| Self::budget_counter_overflow(bytes, current))?;
+        let next = current + bytes;
+        if next > self.inner.peak_allocated.load(Ordering::Relaxed) {
+            self.inner.peak_allocated.fetch_max(next, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn charge_additional_limited(&self, bytes: usize, limit: usize) -> Result<(), Status> {
+        let mut current = self.inner.allocated.load(Ordering::SeqCst);
+        loop {
+            let Some(next) = current.checked_add(bytes) else {
+                return Err(Self::budget_counter_overflow(bytes, current));
+            };
+            if next > limit {
+                return Err(Self::budget_limit_exceeded(bytes, current, limit));
+            }
+            match self.inner.allocated.compare_exchange_weak(
+                current,
+                next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => {
+                    if next > self.inner.peak_allocated.load(Ordering::Relaxed) {
+                        self.inner.peak_allocated.fetch_max(next, Ordering::SeqCst);
+                    }
+                    return Ok(());
+                }
+                Err(actual) => current = actual,
+            }
+        }
+    }
+
     /// Overflow text stays out of the acquire loop. The hot path never formats.
     #[cold]
     #[inline(never)]

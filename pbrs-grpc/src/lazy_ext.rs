@@ -61,6 +61,12 @@ impl LazyExt {
     }
 }
 
+impl Default for LazyExt {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl std::ops::Deref for LazyExt {
     type Target = http::Extensions;
 

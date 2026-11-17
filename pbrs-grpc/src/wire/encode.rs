@@ -453,9 +453,17 @@ fn frame_length_overflow(len: usize, limits: MessageLimits) -> Status {
 
 /// Validate identity framing and its contiguous reservation before allocating.
 #[inline]
-fn identity_frame_size(len: usize, existing_head: usize) -> Result<(u32, usize), Status> {
+fn identity_frame_size(
+    len: usize,
+    shared_len: usize,
+    existing_head: usize,
+) -> Result<(u32, usize), Status> {
     let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
+    let _ = len
+        .checked_add(codec::HEADER_LEN)
+        .ok_or_else(|| Status::internal("message too large"))?;
     let need = len
+        .saturating_sub(shared_len)
         .checked_add(codec::HEADER_LEN)
         .ok_or_else(|| Status::internal("message too large"))?;
     // BytesMut's contiguous allocation must fit in isize::MAX, including
@@ -472,7 +480,7 @@ fn identity_frame_size(len: usize, existing_head: usize) -> Result<(u32, usize),
 /// Large shared bytes fields are retained as extra segments instead of
 /// being copied (PK-11); the concatenated bytes are identical.
 pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<SegFrame, Status> {
-    let (prefix, need) = identity_frame_size(len, 0)?;
+    let (prefix, need) = identity_frame_size(len, msg.shared_bytes_len(), 0)?;
     let mut sink = SegSink::new();
     sink.reserve_new(need);
     write_uncompressed_prefix(&mut sink, prefix);
@@ -481,6 +489,51 @@ pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<Seg
     let frame = sink.finish();
     crate::copy_counts::note_encode(len.saturating_sub(shared));
     Ok(frame)
+}
+
+const MAX_UNARY_PLAIN_SCRATCH_BYTES: usize = 64 * 1024;
+
+thread_local! {
+    static UNARY_PLAIN_SCRATCH: std::cell::Cell<BytesMut> =
+        std::cell::Cell::new(BytesMut::new());
+}
+
+struct UnaryPlainScratch(BytesMut);
+
+impl pbrs::WireOut for UnaryPlainScratch {
+    #[inline]
+    fn put_u8(&mut self, byte: u8) {
+        BufMut::put_u8(&mut self.0, byte);
+    }
+
+    #[inline]
+    fn put_slice(&mut self, bytes: &[u8]) {
+        self.0.extend_from_slice(bytes);
+    }
+
+    #[inline]
+    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+        write(&mut self.0)
+    }
+}
+
+struct UnaryPlainLease(BytesMut);
+
+impl Drop for UnaryPlainLease {
+    fn drop(&mut self) {
+        let mut buf = std::mem::take(&mut self.0);
+        if buf.capacity() > 0 && buf.capacity() <= MAX_UNARY_PLAIN_SCRATCH_BYTES {
+            buf.clear();
+            UNARY_PLAIN_SCRATCH.with(|slot| {
+                let existing = slot.take();
+                if buf.capacity() >= existing.capacity() {
+                    slot.set(buf);
+                } else {
+                    slot.set(existing);
+                }
+            });
+        }
+    }
 }
 
 pub(crate) fn encode_msg<T: CodecMessage>(
@@ -499,6 +552,19 @@ pub(crate) fn encode_msg<T: CodecMessage>(
     // representable on the host before asking the codec to create it.
     if len > usize::MAX >> 1 {
         return Err(Status::internal("message too large"));
+    }
+    if len <= MAX_UNARY_PLAIN_SCRATCH_BYTES {
+        let mut scratch = UnaryPlainLease(UNARY_PLAIN_SCRATCH.with(|slot| slot.take()));
+        scratch.0.clear();
+        scratch.0.reserve(len);
+        let mut out = UnaryPlainScratch(std::mem::take(&mut scratch.0));
+        let encode_res = msg.encode_payload(&mut out);
+        scratch.0 = out.0;
+        encode_res?;
+        crate::copy_counts::note_serialize(scratch.0.len());
+        let mut buf = BytesMut::new();
+        append_compressed(&mut buf, &scratch.0, codec, gzip_level)?;
+        return Ok(SegFrame::single(buf.freeze()));
     }
     let body = msg.encode_to_vec()?;
     crate::copy_counts::note_serialize(body.len());
@@ -608,6 +674,22 @@ const MAX_CLOSED_UPLOAD_HEAD_BYTES: usize = 4 * 1024 * 1024;
 
 /// Append one length-prefixed message to `sink`.
 ///
+#[derive(Clone, Copy)]
+pub(crate) struct FrameBatchHint {
+    pub(crate) encoded_len: Option<usize>,
+    pub(crate) ready_messages: usize,
+}
+
+#[cfg(test)]
+impl FrameBatchHint {
+    pub(crate) const fn ready(ready_messages: usize) -> Self {
+        Self {
+            encoded_len: None,
+            ready_messages,
+        }
+    }
+}
+
 /// The uncompressed path serializes straight into `sink`, so a batch of `n`
 /// messages costs one head buffer rather than `n`; large shared fields
 /// become segments of their own.
@@ -618,18 +700,9 @@ pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
-    ready_messages: usize,
+    hint: FrameBatchHint,
 ) -> Result<(), Status> {
-    append_frame_in_mode(
-        sink,
-        scratch,
-        msg,
-        codec,
-        limits,
-        gzip_level,
-        ready_messages,
-        false,
-    )
+    append_frame_in_mode(sink, scratch, msg, codec, limits, gzip_level, hint, false)
 }
 
 pub(crate) fn append_frame_closed_upload<T: CodecMessage>(
@@ -639,18 +712,9 @@ pub(crate) fn append_frame_closed_upload<T: CodecMessage>(
     codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
-    ready_messages: usize,
+    hint: FrameBatchHint,
 ) -> Result<(), Status> {
-    append_frame_in_mode(
-        sink,
-        scratch,
-        msg,
-        codec,
-        limits,
-        gzip_level,
-        ready_messages,
-        true,
-    )
+    append_frame_in_mode(sink, scratch, msg, codec, limits, gzip_level, hint, true)
 }
 
 #[allow(
@@ -664,10 +728,11 @@ fn append_frame_in_mode<T: CodecMessage>(
     codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
-    ready_messages: usize,
+    hint: FrameBatchHint,
     closed_upload: bool,
 ) -> Result<(), Status> {
-    let len = msg.encoded_len();
+    let len = hint.encoded_len.unwrap_or_else(|| msg.encoded_len());
+    let ready_messages = hint.ready_messages;
     limits.check_encode(len)?;
     if let Some(codec) = codec {
         if len > usize::MAX >> 1 {
@@ -703,8 +768,9 @@ fn append_frame_in_mode<T: CodecMessage>(
             Ok(())
         });
     }
+    let shared = msg.shared_bytes_len();
     if closed_upload {
-        let need_est = len.saturating_add(codec::HEADER_LEN);
+        let need_est = len.saturating_sub(shared).saturating_add(codec::HEADER_LEN);
         if !sink.head.is_empty()
             && ((sink.head.len() >= CLOSED_UPLOAD_SLAB_BYTES / 2
                 && sink.head.capacity().saturating_sub(sink.head.len()) < need_est)
@@ -712,7 +778,7 @@ fn append_frame_in_mode<T: CodecMessage>(
         {
             sink.freeze_head();
         }
-        let (prefix, need) = identity_frame_size(len, sink.head.len())?;
+        let (prefix, need) = identity_frame_size(len, shared, sink.head.len())?;
         if sink.head.capacity() == 0 && ready_messages > 1 && need < CLOSED_UPLOAD_SLAB_BYTES {
             sink.reserve_new(
                 need.saturating_mul(ready_messages)
@@ -727,7 +793,7 @@ fn append_frame_in_mode<T: CodecMessage>(
         msg.encode_payload(sink)?;
         return Ok(());
     }
-    let (prefix, need) = identity_frame_size(len, sink.head.len())?;
+    let (prefix, need) = identity_frame_size(len, shared, sink.head.len())?;
     // A single already-ready message is flushed before polling for more.
     // Reserve only its frame. Multiple ready messages keep the existing
     // four-frame prefetch, including mixed-size bursts. No second length
@@ -752,7 +818,15 @@ fn append_frame<T: CodecMessage>(
     limits: MessageLimits,
     gzip_level: u32,
 ) -> Result<(), Status> {
-    append_frame_with_ready(sink, scratch, msg, codec, limits, gzip_level, 4)
+    append_frame_with_ready(
+        sink,
+        scratch,
+        msg,
+        codec,
+        limits,
+        gzip_level,
+        FrameBatchHint::ready(4),
+    )
 }
 
 /// Compression flag plus the 4-byte length, written into the reserved head.
@@ -954,8 +1028,8 @@ mod tests {
         // A reservation must also fit in the platform's contiguous allocation
         // limit after any already-buffered bytes, including on 32-bit hosts.
         let max_alloc = usize::MAX >> 1;
-        assert!(identity_frame_size(0, max_alloc - codec::HEADER_LEN).is_ok());
-        assert!(identity_frame_size(0, max_alloc - codec::HEADER_LEN + 1).is_err());
+        assert!(identity_frame_size(0, 0, max_alloc - codec::HEADER_LEN).is_ok());
+        assert!(identity_frame_size(0, 0, max_alloc - codec::HEADER_LEN + 1).is_err());
     }
 
     struct ContiguousMessage(usize);
@@ -1126,7 +1200,7 @@ mod tests {
                     None,
                     MessageLimits::unlimited(),
                     0,
-                    1,
+                    FrameBatchHint::ready(1),
                 )
                 .expect("single ready frame");
                 assert_eq!(sink.head.capacity(), codec::HEADER_LEN + size);
@@ -1173,7 +1247,7 @@ mod tests {
                         None,
                         MessageLimits::unlimited(),
                         0,
-                        count - index,
+                        FrameBatchHint::ready(count - index),
                     )
                     .expect("ready burst frame");
                     assert_eq!(after.head.len(), before.head.len());
@@ -1209,7 +1283,7 @@ mod tests {
                         compression,
                         MessageLimits::unlimited(),
                         6,
-                        ready,
+                        FrameBatchHint::ready(ready),
                     )
                     .expect("ready shared or compressed frame");
                     let before = before.finish();

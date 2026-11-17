@@ -466,6 +466,15 @@ mod __gen_google_protobuf_any_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if !self.value.is_empty() {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(&self.value));
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             {
                 let bytes = self.type_url.as_bytes();
@@ -553,7 +562,7 @@ mod __gen_google_protobuf_any_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(Any, AnyView, AnyMut);
+    ::pbrs::impl_typed_message!(Any, AnyView, AnyMut; __pbrs_shared_bytes_len);
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]
 pub use __gen_google_protobuf_any_proto::*;

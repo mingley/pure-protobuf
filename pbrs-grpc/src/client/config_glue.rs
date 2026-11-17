@@ -67,6 +67,18 @@ impl super::Channel {
         lb.request_hash(md)
     }
 
+    #[cfg(feature = "tonic")]
+    pub(crate) fn ring_request_hash_headers(&self, headers: &http::HeaderMap) -> Option<u64> {
+        let super::pool::Endpoint::Resolved { lb: Some(lb), .. } = &self.inner.endpoint else {
+            return None;
+        };
+        if !lb.uses_request_hash() {
+            return None;
+        }
+        let md = crate::metadata::Metadata::from_headers(headers);
+        lb.request_hash(&md)
+    }
+
     /// Record a finished unary call in the throttling bucket, if configured.
     ///
     /// Success refunds `tokenRatio`; any failure (including cancellation and

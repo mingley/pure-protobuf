@@ -13,10 +13,186 @@
 
 use crate::limits::MessageLimits;
 use crate::status::Status;
-use flate2::Compression;
-use flate2::bufread::ZlibDecoder;
-use flate2::write::ZlibEncoder;
-use std::io::Write;
+use flate2::{
+    Compress, Compression, Decompress, FlushCompress, FlushDecompress, Status as FlateStatus,
+};
+use std::cell::RefCell;
+use std::io::{self, Read, Write};
+
+const COMPRESS_SCRATCH_CAP: usize = 16 * 1024;
+const MAX_POOLED_DECODERS: usize = 8;
+
+struct CachedZlibCompressor {
+    level: u32,
+    comp: Compress,
+    buf: Vec<u8>,
+}
+
+impl CachedZlibCompressor {
+    fn new(level: u32) -> Self {
+        Self {
+            level,
+            comp: Compress::new(Compression::new(level), true),
+            buf: Vec::with_capacity(COMPRESS_SCRATCH_CAP),
+        }
+    }
+}
+
+thread_local! {
+    static ZLIB_COMPRESSORS: RefCell<[Option<CachedZlibCompressor>; 2]> =
+        const { RefCell::new([None, None]) };
+    static ZLIB_DECOMPRESSORS: RefCell<Vec<Decompress>> = const { RefCell::new(Vec::new()) };
+}
+
+struct ZlibCompressorLease {
+    inner: Option<CachedZlibCompressor>,
+}
+
+impl ZlibCompressorLease {
+    fn acquire(level: u32) -> Self {
+        let cached = ZLIB_COMPRESSORS
+            .try_with(|cell| {
+                let Ok(mut slots) = cell.try_borrow_mut() else {
+                    return None;
+                };
+                for slot in slots.iter_mut() {
+                    if slot.as_ref().is_some_and(|entry| entry.level == level) {
+                        return slot.take();
+                    }
+                }
+                None
+            })
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| CachedZlibCompressor::new(level));
+        Self {
+            inner: Some(cached),
+        }
+    }
+}
+
+impl Drop for ZlibCompressorLease {
+    fn drop(&mut self) {
+        let Some(mut cached) = self.inner.take() else {
+            return;
+        };
+        cached.comp.reset();
+        cached.buf.clear();
+        if cached.buf.capacity() > COMPRESS_SCRATCH_CAP * 4 {
+            cached.buf.shrink_to(COMPRESS_SCRATCH_CAP);
+        }
+        ZLIB_COMPRESSORS
+            .try_with(|cell| {
+                let Ok(mut slots) = cell.try_borrow_mut() else {
+                    return;
+                };
+                let [slot0, slot1] = &mut *slots;
+                if slot0.is_none() {
+                    *slot0 = Some(cached);
+                } else if slot1.is_none() {
+                    *slot1 = Some(cached);
+                } else {
+                    *slot1 = slot0.take();
+                    *slot0 = Some(cached);
+                }
+            })
+            .ok();
+    }
+}
+
+struct PooledZlibReader<'a> {
+    rem: &'a [u8],
+    decomp: Option<Decompress>,
+    done: bool,
+}
+
+impl<'a> PooledZlibReader<'a> {
+    fn new(payload: &'a [u8]) -> Self {
+        let decomp = ZLIB_DECOMPRESSORS
+            .try_with(|cell| cell.try_borrow_mut().ok().and_then(|mut pool| pool.pop()))
+            .ok()
+            .flatten()
+            .map(|mut d| {
+                d.reset(true);
+                d
+            })
+            .unwrap_or_else(|| Decompress::new(true));
+        Self {
+            rem: payload,
+            decomp: Some(decomp),
+            done: false,
+        }
+    }
+}
+
+impl Drop for PooledZlibReader<'_> {
+    fn drop(&mut self) {
+        let Some(mut decomp) = self.decomp.take() else {
+            return;
+        };
+        ZLIB_DECOMPRESSORS
+            .try_with(|cell| {
+                if let Ok(mut pool) = cell.try_borrow_mut()
+                    && pool.len() < MAX_POOLED_DECODERS
+                {
+                    decomp.reset(true);
+                    pool.push(decomp);
+                }
+            })
+            .ok();
+    }
+}
+
+impl Read for PooledZlibReader<'_> {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        if output.is_empty() || self.done {
+            return Ok(0);
+        }
+        let Some(decomp) = self.decomp.as_mut() else {
+            return Ok(0);
+        };
+        loop {
+            let eof = self.rem.is_empty();
+            let before_in = decomp.total_in();
+            let before_out = decomp.total_out();
+            let flush = if eof {
+                FlushDecompress::Finish
+            } else {
+                FlushDecompress::None
+            };
+            let res = decomp.decompress(self.rem, output, flush);
+            let consumed = usize::try_from(decomp.total_in() - before_in).unwrap_or(self.rem.len());
+            let written = usize::try_from(decomp.total_out() - before_out).unwrap_or(output.len());
+            self.rem = self.rem.get(consumed..).unwrap_or(&[]);
+            match res {
+                Ok(FlateStatus::StreamEnd) => {
+                    self.done = true;
+                    return Ok(written);
+                }
+                Ok(FlateStatus::Ok | FlateStatus::BufError) => {
+                    if written > 0 {
+                        return Ok(written);
+                    }
+                    if eof {
+                        return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+                    }
+                    if consumed == 0 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "corrupt zlib stream",
+                        ));
+                    }
+                }
+                Err(_) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "corrupt zlib stream",
+                    ));
+                }
+            }
+        }
+    }
+}
 
 /// Compress `payload` at the kernel default (deflate level 1,
 /// [`Compression::fast`]).
@@ -36,11 +212,51 @@ pub(super) fn encode_level(payload: &[u8], level: u32) -> Result<Vec<u8>, Status
 /// Compress `payload` at `level`, appending to `out`. See
 /// [`super::gzip::encode_into`] for why the framing layer prefers this.
 pub(super) fn encode_into(payload: &[u8], level: u32, out: &mut impl Write) -> Result<(), Status> {
-    let mut enc = ZlibEncoder::new(&mut *out, Compression::new(level.min(9)));
-    enc.write_all(payload)
-        .map_err(|e| Status::internal(format!("deflate encode: {e}")))?;
-    enc.finish()
-        .map_err(|e| Status::internal(format!("deflate encode: {e}")))?;
+    let clamped = level.min(9);
+    let mut lease = ZlibCompressorLease::acquire(clamped);
+    let Some(cached) = lease.inner.as_mut() else {
+        return Err(Status::internal("deflate encode: missing compressor"));
+    };
+    cached.buf.clear();
+
+    let mut rem = payload;
+    loop {
+        if cached.buf.capacity().saturating_sub(cached.buf.len()) < 4096 {
+            super::gzip::write_chunk(out, &cached.buf, "deflate")?;
+            cached.buf.clear();
+            if cached.buf.capacity() < COMPRESS_SCRATCH_CAP {
+                cached.buf.reserve(COMPRESS_SCRATCH_CAP);
+            }
+        }
+        let before_in = cached.comp.total_in();
+        let before_len = cached.buf.len();
+        let status = cached
+            .comp
+            .compress_vec(rem, &mut cached.buf, FlushCompress::Finish)
+            .map_err(|e| Status::internal(format!("deflate encode: {e}")))?;
+        let consumed = usize::try_from(cached.comp.total_in() - before_in).unwrap_or(rem.len());
+        let produced = cached.buf.len().saturating_sub(before_len);
+        rem = rem
+            .get(consumed..)
+            .ok_or_else(|| Status::internal("deflate encode: invalid input progress"))?;
+        match status {
+            FlateStatus::StreamEnd => break,
+            FlateStatus::Ok | FlateStatus::BufError => {
+                if consumed == 0 && produced == 0 && cached.buf.is_empty() {
+                    return Err(Status::internal("deflate encode: compressor stalled"));
+                }
+                if !cached.buf.is_empty() {
+                    super::gzip::write_chunk(out, &cached.buf, "deflate")?;
+                    cached.buf.clear();
+                }
+            }
+        }
+    }
+
+    if !cached.buf.is_empty() {
+        super::gzip::write_chunk(out, &cached.buf, "deflate")?;
+        cached.buf.clear();
+    }
     Ok(())
 }
 
@@ -71,7 +287,7 @@ pub(super) fn decode_limited_into(
             "deflate frame count exceeds limit 0",
         ));
     }
-    let mut decoder = ZlibDecoder::new(payload);
+    let mut decoder = PooledZlibReader::new(payload);
     let out = super::read_bounded_into(
         &mut decoder,
         limits.inflate_budget(),
@@ -79,7 +295,7 @@ pub(super) fn decode_limited_into(
         "deflate",
         out,
     )?;
-    if !decoder.get_ref().is_empty() {
+    if !decoder.done || !decoder.rem.is_empty() {
         return Err(Status::internal("trailing bytes after zlib stream"));
     }
     Ok(out)

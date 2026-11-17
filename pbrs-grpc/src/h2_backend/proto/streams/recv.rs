@@ -1595,6 +1595,21 @@ impl Recv {
         }
     }
 
+    #[inline(always)]
+    pub fn try_pop_data(&mut self, stream: &mut Stream) -> Option<DataEvent> {
+        if !matches!(stream.pending_recv.front(&self.buffer), Some(Event::Data(_))) {
+            return None;
+        }
+        match stream.pending_recv.pop_front(&mut self.buffer) {
+            Some(Event::Data(data)) => Some(data),
+            Some(event) => {
+                stream.pending_recv.push_front(&mut self.buffer, event);
+                None
+            }
+            None => None,
+        }
+    }
+
     pub fn poll_trailers(
         &mut self,
         cx: &Context,

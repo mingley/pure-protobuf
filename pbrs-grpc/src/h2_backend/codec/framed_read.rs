@@ -48,6 +48,8 @@ struct Partial {
     continuation_frames_count: usize,
 }
 
+const INITIAL_READ_BUFFER_CAPACITY: usize = 68 * 1024;
+
 #[derive(Debug)]
 enum Continuable {
     Headers(frame::Headers),
@@ -58,11 +60,17 @@ impl<T> FramedRead<T> {
     pub fn new(io: T) -> FramedRead<T> {
         // tokio-util's length-delimited builder starts at 8 MiB. The
         // connection then calls `set_max_frame_size` with the HTTP/2 limit.
+        // Start with 68 KiB so full 16–64 KiB HTTP/2 DATA frames read in a
+        // single syscall without an 8 KiB split-and-realloc cycle.
         let max_frame_len = 8 * 1024 * 1024;
         let max_header_list_size = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
         let max_continuation_frames =
             calc_max_continuation_frames(max_header_list_size, max_frame_len);
-        let inner = InnerFramedRead::new(io, H2FrameDecoder::new(max_frame_len));
+        let inner = InnerFramedRead::with_capacity(
+            io,
+            H2FrameDecoder::new(max_frame_len),
+            INITIAL_READ_BUFFER_CAPACITY,
+        );
         FramedRead {
             inner,
             hpack: hpack::Decoder::new(DEFAULT_SETTINGS_HEADER_TABLE_SIZE),
@@ -602,7 +610,9 @@ fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<(us
     // The caller does not compare the length again.
     let ready = src.len() >= total;
     if !ready {
-        src.reserve(total - src.len());
+        let needed = total - src.len();
+        let target = INITIAL_READ_BUFFER_CAPACITY.saturating_sub(src.len());
+        src.reserve(needed.max(target));
     }
     Ok(Some((total, ready)))
 }

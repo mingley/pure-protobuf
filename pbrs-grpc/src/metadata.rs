@@ -100,6 +100,7 @@ pub fn is_sensitive_key(key: &str) -> bool {
 pub struct Metadata {
     map: HeaderStore,
     sensitive_keys: Option<Arc<BTreeSet<String>>>,
+    mutated: bool,
 }
 
 /// Owned headers, or one shared stock request block.
@@ -140,6 +141,7 @@ impl Default for Metadata {
             // `Arc` decrement, not a `HeaderMap` drop.
             map: HeaderStore::Shared(empty_metadata_map()),
             sensitive_keys: None,
+            mutated: false,
         }
     }
 }
@@ -155,6 +157,7 @@ impl Clone for Metadata {
         Self {
             map: HeaderStore::Owned(Box::new(self.map.get().clone())),
             sensitive_keys: self.sensitive_keys.clone(),
+            mutated: self.mutated,
         }
     }
 }
@@ -246,6 +249,7 @@ impl Metadata {
 
     #[inline]
     fn headers_mut(&mut self) -> &mut HeaderMap {
+        self.mutated = true;
         self.map.get_mut()
     }
 
@@ -649,6 +653,7 @@ impl Metadata {
         Self {
             map: HeaderStore::Owned(Box::new(map)),
             sensitive_keys: None,
+            mutated: false,
         }
     }
 
@@ -657,6 +662,7 @@ impl Metadata {
         Self {
             map: HeaderStore::Shared(map),
             sensitive_keys: None,
+            mutated: false,
         }
     }
 
@@ -664,6 +670,21 @@ impl Metadata {
         Self {
             map: HeaderStore::Owned(Box::new(map.clone())),
             sensitive_keys: None,
+            mutated: false,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn is_mutated(&self) -> bool {
+        self.mutated
+    }
+
+    #[cfg(feature = "tonic")]
+    #[inline]
+    pub(crate) fn into_owned_headers(self) -> HeaderMap {
+        match self.map {
+            HeaderStore::Owned(map) => *map,
+            HeaderStore::Shared(map) => Arc::try_unwrap(map).unwrap_or_else(|map| (*map).clone()),
         }
     }
 

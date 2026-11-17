@@ -24,7 +24,6 @@ pub use crate::packed::{
     PackedSfx32, PackedSfx64, PackedU32, PackedU64, VarintI32, VarintI64, VarintU32, VarintU64,
     ZigZag32, ZigZag64,
 };
-pub use crate::wire::encode_proto_bytes_field_shared;
 pub use crate::wire::{
     SHARED_SEND_THRESHOLD, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN,
     WIRE_SGROUP, WIRE_VARINT, WireOut, capture_unknown, capture_unknown_with_depth, check_size,
@@ -33,6 +32,7 @@ pub use crate::wire::{
     encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, read_len_span,
     skip_field, skip_field_with_depth, skip_field_with_number_and_depth, tag_len, varint_len,
 };
+pub use crate::wire::{encode_proto_bytes_field_shared, shared_len_lazy, shared_len_proto};
 pub use bytes::Bytes;
 
 /// Encoded-size cache (C++ `cached_size_`). Ignored by `PartialEq`.

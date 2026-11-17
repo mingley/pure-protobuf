@@ -619,6 +619,26 @@ pub fn encode_proto_bytes_field_shared(
     }
 }
 
+/// Payload bytes emitted via `WireOut::put_shared` when encoding `field` onto a shared sink.
+#[doc(hidden)]
+#[inline(always)]
+pub fn shared_len_lazy(field: &crate::lazy::LazyBytes) -> usize {
+    let len = field.len();
+    if len >= SHARED_SEND_THRESHOLD && field.has_shared_bytes() {
+        len
+    } else {
+        0
+    }
+}
+
+/// Payload bytes emitted via `WireOut::put_shared` when encoding `field` onto a shared sink.
+#[doc(hidden)]
+#[inline(always)]
+pub fn shared_len_proto(field: &crate::ProtoBytes) -> usize {
+    let len = field.as_bytes().len();
+    if len >= SHARED_SEND_THRESHOLD { len } else { 0 }
+}
+
 pub fn encode_zigzag32(n: i32) -> u64 {
     ((n << 1) ^ (n >> 31)) as u32 as u64
 }

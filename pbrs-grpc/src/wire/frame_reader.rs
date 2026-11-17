@@ -140,6 +140,20 @@ pub(crate) fn poll_data_released(
     }
 }
 
+#[inline(always)]
+pub(crate) fn poll_data_batch_released(
+    recv: &mut backend::RecvStream,
+    cx: &mut Context<'_>,
+    rest: &mut VecDeque<Bytes>,
+) -> Poll<Result<Option<Bytes>, Status>> {
+    match recv.poll_data_batch_released(cx, rest) {
+        Poll::Pending => Poll::Pending,
+        Poll::Ready(None) => Poll::Ready(Ok(None)),
+        Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Ok(Some(bytes))),
+        Poll::Ready(Some(Err(e))) => Poll::Ready(Err(h2_error(e))),
+    }
+}
+
 #[allow(
     dead_code,
     reason = "delayed-release callers; the steady path uses next_data_released"
@@ -183,7 +197,7 @@ pub(crate) fn h2_error(e: TransportError) -> Status {
 /// while never pre-allocating unreceived header claims.
 const STAGE_MIN_FRAME_BYTES: usize = 64 * 1024;
 const STAGE_MIN_CHUNK_BYTES: usize = 4 * 1024;
-const MAX_STAGED_CHUNKS: usize = 64;
+const MAX_STAGED_CHUNKS: usize = 1024;
 const MAX_RETAINED_SMALL_CARRY_BYTES: usize = 1024 * 1024;
 
 pub(crate) struct FrameReader {
@@ -371,6 +385,46 @@ impl FrameReader {
         (frame_len - observed <= observed).then_some(frame_len)
     }
 
+    /// Decode an uncompressed whole frame directly from `self.chunk` without
+    /// cloning a `Bytes` slice when the codec does not retain sub-4 KiB slices.
+    #[inline]
+    pub(crate) fn try_decode_uncompressed_slice<T: CodecMessage>(
+        &mut self,
+    ) -> Option<Result<Framed<T>, Status>> {
+        if !self.staged.is_empty() || !self.carry.is_empty() {
+            return None;
+        }
+        let result = {
+            let [0, b0, b1, b2, b3, rest @ ..] = self.chunk.as_ref() else {
+                return None;
+            };
+            let payload_len = match usize::try_from(u32::from_be_bytes([*b0, *b1, *b2, *b3])) {
+                Ok(len) => len,
+                Err(_) => return Some(Err(Status::internal("message too large"))),
+            };
+            if !T::prefers_slice_decode(payload_len) {
+                return None;
+            }
+            if let Err(err) = self.limits.check_decode(payload_len) {
+                return Some(Err(err));
+            }
+            let payload = rest.get(..payload_len)?;
+            crate::copy_counts::note_chunk_slice(payload_len);
+            let frame_len = codec::HEADER_LEN + payload_len;
+            (T::decode_payload_slice(payload), frame_len)
+        };
+        let (decoded, frame_len) = result;
+        if self.chunk.len() == frame_len {
+            self.chunk = Bytes::new();
+        } else {
+            self.chunk.advance(frame_len);
+        }
+        Some(decoded.map(|message| Framed {
+            message,
+            compressed: false,
+        }))
+    }
+
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
         if !self.staged.is_empty() {
             if self.staged_len.saturating_add(self.chunk.len()) < self.staged_frame_len {
@@ -442,6 +496,13 @@ impl FrameReader {
     }
 }
 
+const MAX_UNARY_DECODE_SCRATCH_BYTES: usize = 64 * 1024;
+
+thread_local! {
+    static UNARY_DECODE_SCRATCH: std::cell::Cell<Vec<u8>> =
+        const { std::cell::Cell::new(Vec::new()) };
+}
+
 pub(crate) fn decode_frame<T: CodecMessage>(
     frame: Frame,
     limits: MessageLimits,
@@ -457,8 +518,27 @@ pub(crate) fn decode_frame<T: CodecMessage>(
         if !accept_gzip {
             return Err(encoding_not_supported(false));
         }
-        let raw = codec.decode_limited(&frame.payload, limits)?;
-        T::decode_payload(Bytes::from(raw))?
+        let scratch = UNARY_DECODE_SCRATCH.with(|slot| slot.take());
+        let raw = codec.decode_limited_into(&frame.payload, limits, scratch)?;
+        let mut payload = Bytes::from(raw);
+        let message = T::decode_payload_reusable(&mut payload)?;
+        if payload.is_empty()
+            && let Ok(reclaimed) = payload.try_into_mut()
+        {
+            let mut buf = Vec::from(reclaimed);
+            if buf.capacity() > 0 && buf.capacity() <= MAX_UNARY_DECODE_SCRATCH_BYTES {
+                buf.clear();
+                UNARY_DECODE_SCRATCH.with(|slot| {
+                    let existing = slot.take();
+                    if buf.capacity() >= existing.capacity() {
+                        slot.set(buf);
+                    } else {
+                        slot.set(existing);
+                    }
+                });
+            }
+        }
+        message
     } else {
         T::decode_payload(frame.payload)?
     };
@@ -568,6 +648,11 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     let mut found: Option<Framed<T>> = None;
     while let Some(chunk) = next_data_released(recv).await? {
         reader.push(chunk);
+        if tap.is_none() && found.is_none() {
+            if let Some(res) = reader.try_decode_uncompressed_slice::<T>() {
+                found = Some(res?);
+            }
+        }
         while let Some(frame) = reader.next_frame()? {
             if found.is_some() {
                 return Err(Status::internal("unary rpc received more than one message"));
@@ -611,6 +696,8 @@ type DecodeFrame<T> = fn(
     &mut Option<Box<DecodedWorkspace>>,
 ) -> Result<Framed<T>, Status>;
 
+type TryDecodeSlice<T> = fn(&mut FrameReader) -> Option<Result<Framed<T>, Status>>;
+
 /// Whether a stream must obtain status from trailers or already has an OK
 /// status in the initial response headers.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -630,10 +717,12 @@ enum StatusRequirement {
 pub(crate) struct WireStream<T> {
     recv: backend::RecvStream,
     reader: FrameReader,
+    ready_chunks: VecDeque<Bytes>,
     limits: MessageLimits,
     /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
     decode: DecodeFrame<T>,
+    try_decode_slice: TryDecodeSlice<T>,
     /// Allocated only after a codec actually relinquishes a reusable buffer.
     workspace: Option<Box<DecodedWorkspace>>,
     accept_gzip: bool,
@@ -664,8 +753,10 @@ impl<T: CodecMessage> WireStream<T> {
         Self {
             recv,
             reader: FrameReader::new(limits),
+            ready_chunks: VecDeque::new(),
             limits,
             decode: decode_stream_frame::<T>,
+            try_decode_slice: FrameReader::try_decode_uncompressed_slice::<T>,
             workspace: None,
             accept_gzip,
             codec,
@@ -707,6 +798,7 @@ impl<T> WireStream<T> {
     pub(crate) fn release_terminal(&mut self) {
         self.workspace = None;
         self.sleep = None;
+        self.ready_chunks = VecDeque::new();
         self.reader.release_buffers();
     }
 
@@ -772,6 +864,11 @@ impl<T> WireStream<T> {
 
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
         loop {
+            if self.tap.is_none() {
+                if let Some(res) = (self.try_decode_slice)(&mut self.reader) {
+                    return Poll::Ready(res.map(Some));
+                }
+            }
             match self.reader.next_frame() {
                 Err(e) => return Poll::Ready(Err(e)),
                 Ok(Some(frame)) => {
@@ -791,6 +888,10 @@ impl<T> WireStream<T> {
                 }
                 Ok(None) => {}
             }
+            if let Some(chunk) = self.ready_chunks.pop_front() {
+                self.reader.push(chunk);
+                continue;
+            }
             if self.ended {
                 if self.trailers_done {
                     return Poll::Ready(Ok(None));
@@ -807,7 +908,7 @@ impl<T> WireStream<T> {
                     }
                 };
             }
-            match poll_data_released(&mut self.recv, cx) {
+            match poll_data_batch_released(&mut self.recv, cx, &mut self.ready_chunks) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 Poll::Ready(Ok(Some(chunk))) => {

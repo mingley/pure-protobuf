@@ -147,6 +147,16 @@ pub(crate) fn insert_connect_info(
     if map.get::<TcpConnectInfo>().is_none() {
         map.insert(tcp);
     }
+    #[cfg(feature = "tonic")]
+    if map
+        .get::<tonic::transport::server::TcpConnectInfo>()
+        .is_none()
+    {
+        map.insert(tonic::transport::server::TcpConnectInfo {
+            local_addr,
+            remote_addr,
+        });
+    }
 }
 
 /// A message plus the metadata, deadline, and compression choice around it.
@@ -1014,8 +1024,9 @@ impl<T> Request<T> {
         self.encoding = encoding;
     }
 
-    pub(crate) fn set_extensions(&mut self, extensions: http::Extensions) {
-        self.extensions = crate::lazy_ext::LazyExt::from_extensions(extensions);
+    pub(crate) fn set_lazy_extensions(&mut self, extensions: crate::lazy_ext::LazyExt) {
+        self.extensions = extensions;
+        self.publish_existing_connect_info();
     }
 
     // Nonempty user context is moved into its final map. Add transport facts
@@ -3465,7 +3476,7 @@ mod tests {
         map.insert(Context(clones.clone()));
         let mut request = Request::new(());
         request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
-        request.set_extensions(map);
+        request.set_lazy_extensions(crate::lazy_ext::LazyExt::from_extensions(map));
         request.set_http(None, Some(super::HttpStr::from_static("http")), None);
         assert!(request.extensions().get::<Context>().is_some());
         assert!(request.extensions().get::<TcpConnectInfo>().is_some());

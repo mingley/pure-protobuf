@@ -334,8 +334,13 @@ mod tonic_transport {
         }
     }
 
+    fn default_channel_config() -> &'static crate::ChannelConfig {
+        static DEFAULTS: std::sync::OnceLock<crate::ChannelConfig> = std::sync::OnceLock::new();
+        DEFAULTS.get_or_init(crate::ChannelConfig::default)
+    }
+
     fn check_policies(channel: &Channel, path: &str) -> Result<(), Status> {
-        let defaults = crate::ChannelConfig::default();
+        let defaults = default_channel_config();
         if !channel.local.interceptors.is_empty()
             || !channel.local.response_interceptors.is_empty()
             || channel.local.binlog.is_some()
@@ -359,7 +364,7 @@ mod tonic_transport {
         request: Request<tonic::body::Body>,
         deadline: Option<Instant>,
     ) -> Result<Response<tonic::body::Body>, Status> {
-        let (mut parts, body) = request.into_parts();
+        let (mut parts, mut body) = request.into_parts();
         check_policies(&channel, parts.uri.path())?;
         let scheme = channel.local.request_scheme().map_err(status)?.clone();
         let rpc_permit = channel
@@ -372,8 +377,7 @@ mod tonic_transport {
                 })
             })
             .transpose()?;
-        let metadata = crate::Metadata::from_headers(&parts.headers);
-        let hash = channel.ring_request_hash(&metadata);
+        let hash = channel.ring_request_hash_headers(&parts.headers);
         let mut live = channel
             .inner
             .acquire(
@@ -387,13 +391,14 @@ mod tonic_transport {
         let load =
             track_least_request(&channel.inner.endpoint, live.route.resolved_address()).await;
         let routing = channel.local.for_attempt(live.route.authority());
-        parts.uri = Uri::builder()
-            .scheme(scheme)
-            .authority(routing.authority().clone())
-            .path_and_query(parts.uri.path_and_query().cloned().ok_or_else(|| {
+        let mut uri_parts = http::uri::Parts::default();
+        uri_parts.scheme = Some(scheme);
+        uri_parts.authority = Some(routing.authority().clone());
+        uri_parts.path_and_query =
+            Some(parts.uri.path_and_query().cloned().ok_or_else(|| {
                 Status::invalid_argument("gRPC request URI requires a method path")
-            })?)
-            .build()
+            })?);
+        parts.uri = Uri::from_parts(uri_parts)
             .map_err(|error| Status::invalid_argument(error.to_string()))?;
         parts.version = http::Version::HTTP_2;
         if !parts.headers.contains_key(http::header::USER_AGENT) {
@@ -427,7 +432,7 @@ mod tonic_transport {
         })
         .await?;
         drop(admission);
-        let (response, send) = match opened {
+        let (response, mut send) = match opened {
             Ok(stream) => stream,
             Err(error) => {
                 channel
@@ -437,16 +442,181 @@ mod tonic_transport {
                 return Err(status(crate::Status::from_h2_pre_headers(error)));
             }
         };
+        let send_buffer = channel.local.config.send_buffer_size();
+        let mut ended = end_stream;
+        let mut pending_chunk: Option<(Bytes, bool)> = None;
+        let mut buffered_frame: Option<Result<Frame<Bytes>, Status>> = None;
+        let mut early_upload_error: Option<UploadError> = None;
+
+        // Unary and server-streaming tonic bodies yield their single encoded
+        // message on the first poll and None on the second. Sending that frame
+        // inline with END_STREAM=true avoids spawning a forwarding task, two
+        // channels, and a separate empty DATA(END_STREAM) frame.
+        if !ended {
+            if send_buffer == 0 {
+                send.send_reset(Reason::CANCEL);
+                return Err(Status::invalid_argument(
+                    "HTTP/2 send buffer size must be nonzero",
+                ));
+            }
+            let first = poll_fn(|cx| Poll::Ready(Pin::new(&mut body).poll_frame(cx))).await;
+            match first {
+                Poll::Ready(Some(Ok(frame))) => match frame.into_data() {
+                    Ok(bytes) => {
+                        let tail = if body.is_end_stream() {
+                            Poll::Ready(None)
+                        } else {
+                            poll_fn(|cx| Poll::Ready(Pin::new(&mut body).poll_frame(cx))).await
+                        };
+                        match tail {
+                            Poll::Ready(None) => {
+                                if bytes.is_empty() {
+                                    match send.send_data(bytes, true) {
+                                        Ok(()) => ended = true,
+                                        Err(err) => {
+                                            ended = true;
+                                            early_upload_error = Some(UploadError::native(
+                                                crate::Status::from_h2_send(err),
+                                            ));
+                                        }
+                                    }
+                                } else if bytes.len() <= send_buffer {
+                                    match send.try_send_data(bytes, true) {
+                                        Ok(Ok(())) => ended = true,
+                                        Ok(Err(err)) => {
+                                            ended = true;
+                                            early_upload_error = Some(UploadError::native(
+                                                crate::Status::from_h2_send(err),
+                                            ));
+                                        }
+                                        Err(unsent) => pending_chunk = Some((unsent, true)),
+                                    }
+                                } else {
+                                    pending_chunk = Some((bytes, true));
+                                }
+                            }
+                            Poll::Ready(Some(second)) => {
+                                pending_chunk = Some((bytes, false));
+                                buffered_frame = Some(second);
+                            }
+                            Poll::Pending => {
+                                pending_chunk = Some((bytes, false));
+                            }
+                        }
+                    }
+                    Err(frame) => {
+                        if let Ok(trailers) = frame.into_trailers() {
+                            match send.send_trailers(trailers) {
+                                Ok(()) => ended = true,
+                                Err(err) => {
+                                    ended = true;
+                                    early_upload_error =
+                                        Some(UploadError::native(crate::Status::from_h2_send(err)));
+                                }
+                            }
+                        }
+                    }
+                },
+                Poll::Ready(Some(Err(err))) => {
+                    send.send_reset(Reason::CANCEL);
+                    return Err(err);
+                }
+                Poll::Ready(None) => match send.send_data(Bytes::new(), true) {
+                    Ok(()) => ended = true,
+                    Err(err) => {
+                        ended = true;
+                        early_upload_error =
+                            Some(UploadError::native(crate::Status::from_h2_send(err)));
+                    }
+                },
+                Poll::Pending => {}
+            }
+        }
+
+        if ended && early_upload_error.is_none() && deadline.is_none() {
+            let mut idle_send = SendResetOnDrop(Some(send));
+            let response = response
+                .await
+                .map_err(|error| status(crate::Status::from_h2_post_dispatch(error)))?;
+            let (parts, recv) = response.into_parts();
+            let idle_send = if recv.is_end_stream() {
+                idle_send.disarm();
+                None
+            } else {
+                Some(idle_send)
+            };
+            let initial_status = parts
+                .headers
+                .contains_key("grpc-status")
+                .then(|| crate::wire::status_from(&parts.headers, None));
+            return Ok(Response::from_parts(
+                parts,
+                tonic::body::Body::new(ResponseBody {
+                    recv,
+                    deadline: None,
+                    upload_error: None,
+                    transport_upload_error: None,
+                    data_done: false,
+                    done: false,
+                    guard: None,
+                    idle_send,
+                    channel,
+                    initial_status,
+                    reported: false,
+                    live: Some(live),
+                    rpc_permit,
+                    load: Some(load),
+                }),
+            ));
+        }
+
+        if let Some(error) = early_upload_error {
+            if !error.transport {
+                send.send_reset(Reason::CANCEL);
+                return Err(error.status);
+            }
+            let response = match response.await {
+                Ok(response) => response,
+                Err(_) => return Err(error.status),
+            };
+            let (parts, recv) = response.into_parts();
+            let initial_status = parts
+                .headers
+                .contains_key("grpc-status")
+                .then(|| crate::wire::status_from(&parts.headers, None));
+            return Ok(Response::from_parts(
+                parts,
+                tonic::body::Body::new(ResponseBody {
+                    recv,
+                    deadline: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
+                    upload_error: None,
+                    transport_upload_error: Some(error.status),
+                    data_done: false,
+                    done: false,
+                    guard: None,
+                    idle_send: Some(SendResetOnDrop(Some(send))),
+                    channel,
+                    initial_status,
+                    reported: false,
+                    live: Some(live),
+                    rpc_permit,
+                    load: Some(load),
+                }),
+            ));
+        }
+
         let (cancel, cancelled) = watch::channel(false);
         let guard = CancelOnDrop(cancel);
         let (upload_tx, mut upload_error) = oneshot::channel();
-        // One forwarding task per HTTP request, no extra message queue. It is
-        // cancelled even if the caller disappears before response headers.
+        // Multi-frame, flow-control-blocked, or deadline-watched calls keep one
+        // background pump so full-duplex streaming and unpolled deadlines work.
         drop(tokio::spawn(forward_body(
             body,
             send,
-            end_stream,
-            channel.local.config.send_buffer_size(),
+            ended,
+            pending_chunk,
+            buffered_frame,
+            send_buffer,
             deadline,
             cancelled,
             upload_tx,
@@ -503,6 +673,7 @@ mod tonic_transport {
                 data_done: false,
                 done: false,
                 guard: Some(guard),
+                idle_send: None,
                 channel,
                 initial_status,
                 reported: false,
@@ -525,6 +696,22 @@ mod tonic_transport {
     impl Drop for CancelOnDrop {
         fn drop(&mut self) {
             self.0.send_replace(true);
+        }
+    }
+
+    struct SendResetOnDrop(Option<h2::SendStream>);
+
+    impl SendResetOnDrop {
+        fn disarm(&mut self) {
+            self.0 = None;
+        }
+    }
+
+    impl Drop for SendResetOnDrop {
+        fn drop(&mut self) {
+            if let Some(mut send) = self.0.take() {
+                send.send_reset(Reason::CANCEL);
+            }
         }
     }
 
@@ -552,10 +739,16 @@ mod tonic_transport {
         }
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "internal body forwarder passes decomposed stream state directly"
+    )]
     async fn forward_body(
         mut body: tonic::body::Body,
         mut send: h2::SendStream,
         mut ended: bool,
+        pending_chunk: Option<(Bytes, bool)>,
+        mut buffered_frame: Option<Result<Frame<Bytes>, Status>>,
         send_buffer: usize,
         deadline: Option<Instant>,
         mut cancelled: watch::Receiver<bool>,
@@ -563,13 +756,33 @@ mod tonic_transport {
     ) {
         let forward = async {
             if !ended {
-                while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+                if let Some((bytes, end_after_chunk)) = pending_chunk {
+                    crate::wire::send::send_bytes(&mut send, bytes, end_after_chunk, send_buffer)
+                        .await
+                        .map_err(UploadError::native)?;
+                    if end_after_chunk {
+                        ended = true;
+                    }
+                }
+            }
+            if !ended {
+                loop {
+                    let next = match buffered_frame.take() {
+                        Some(frame) => Some(frame),
+                        None => poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await,
+                    };
+                    let Some(frame) = next else { break };
                     let frame = frame.map_err(UploadError::local)?;
                     match frame.into_data() {
                         Ok(bytes) => {
-                            crate::wire::send::send_bytes(&mut send, bytes, false, send_buffer)
+                            let end_now = body.is_end_stream();
+                            crate::wire::send::send_bytes(&mut send, bytes, end_now, send_buffer)
                                 .await
-                                .map_err(UploadError::native)?
+                                .map_err(UploadError::native)?;
+                            if end_now {
+                                ended = true;
+                                break;
+                            }
                         }
                         Err(frame) => {
                             if let Ok(trailers) = frame.into_trailers() {
@@ -632,6 +845,7 @@ mod tonic_transport {
         data_done: bool,
         done: bool,
         guard: Option<CancelOnDrop>,
+        idle_send: Option<SendResetOnDrop>,
         channel: Channel,
         initial_status: Option<crate::Status>,
         reported: bool,
@@ -657,9 +871,17 @@ mod tonic_transport {
         fn finish(&mut self) {
             self.done = true;
             self.guard.take();
+            self.idle_send.take();
             self.live.take();
             self.rpc_permit.take();
             self.load.take();
+        }
+
+        fn finish_complete(&mut self) {
+            if let Some(mut idle_send) = self.idle_send.take() {
+                idle_send.disarm();
+            }
+            self.finish();
         }
 
         fn upload_failure(&mut self) -> Poll<Option<Result<Frame<Bytes>, Status>>> {
@@ -756,7 +978,11 @@ mod tonic_transport {
                         return self.upload_failure();
                     }
                     self.report(&terminal_status);
-                    self.finish();
+                    if trailers.is_ok() {
+                        self.finish_complete();
+                    } else {
+                        self.finish();
+                    }
                     Poll::Ready(match trailers {
                         Ok(Some(trailers)) => Some(Ok(Frame::trailers(trailers))),
                         Ok(None) => None,

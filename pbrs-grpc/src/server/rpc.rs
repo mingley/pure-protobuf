@@ -62,7 +62,7 @@ pub struct Rpc {
     pub(crate) transport_scheme: Option<&'static str>,
     #[cfg(feature = "grpc-web")]
     pub(crate) web: Option<crate::web::WebContext>,
-    pub(crate) extensions: http::Extensions,
+    pub(crate) extensions: crate::lazy_ext::LazyExt,
     pub(crate) metadata: Metadata,
     pub(crate) diagnostic_config: Option<DiagnosticConfig>,
     pub(crate) timeout: Option<Duration>,
@@ -342,14 +342,19 @@ impl Rpc {
     /// Response interceptors see the same duration on [`crate::Response::timeout`].
     #[must_use]
     pub fn effective_timeout(&self) -> Option<Duration> {
-        crate::wire::soonest(
+        let base = if self.stock_facts.classified && !self.metadata.is_mutated() {
+            crate::wire::soonest(self.config.rpc_timeout(), self.accepted_peer_timeout)
+        } else {
             crate::wire::soonest(
                 crate::wire::effective_timeout(
                     self.metadata.all_headers(),
                     self.config.rpc_timeout(),
                 ),
                 self.accepted_peer_timeout,
-            ),
+            )
+        };
+        crate::wire::soonest(
+            base,
             crate::wire::soonest(
                 self.timeout,
                 self.call_cancel
@@ -491,6 +496,22 @@ impl Rpc {
         crate::wire::grpc_encoding(self.metadata.all_headers())
     }
 
+    fn publish_connect_info(&self) {
+        let scheme = (self.scheme() == Some("https")).then_some("https");
+        let remote_addr = self.remote_addr;
+        let local_addr = self.local_addr;
+        let peer_identity = self.peer_identity.as_ref();
+        self.extensions.publish(|map| {
+            crate::request::insert_connect_info(
+                map,
+                scheme,
+                remote_addr,
+                local_addr,
+                peer_identity,
+            );
+        });
+    }
+
     /// Typed values an interceptor may attach for the handler.
     ///
     /// Starts with tonic-style transport connect info when the server has it,
@@ -499,13 +520,15 @@ impl Rpc {
     /// [`Request`] the handler receives.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
-        &self.extensions
+        self.publish_connect_info();
+        self.extensions.get()
     }
 
     /// Insert typed values the handler will see on [`Request::extensions`].
     ///
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
-        &mut self.extensions
+        self.publish_connect_info();
+        self.extensions.get_mut()
     }
 
     /// Stack `hook` after any [`crate::Server::on_response`] already on this RPC.
@@ -1199,11 +1222,13 @@ impl Rpc {
             }
             let hook = self.response_interceptor.clone();
             let read = self.run_streaming_request(handler);
-            BidiDrive::Run(Box::pin(async move {
-                if let Some(prepared) = read.await {
-                    Self::write_bidi_response(prepared, hook).await;
-                }
-            }))
+            BidiDrive::Run {
+                fut: async move {
+                    if let Some(prepared) = read.await {
+                        Self::write_bidi_response(prepared, hook).await;
+                    }
+                },
+            }
         }
         #[cfg(not(feature = "grpc-web"))]
         {
@@ -1399,7 +1424,7 @@ struct InboundRpc {
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
     peer_cred: Option<super::accept::PeerCred>,
-    extensions: http::Extensions,
+    extensions: crate::lazy_ext::LazyExt,
     metadata: Metadata,
     diagnostic_config: Option<DiagnosticConfig>,
     byte_budget: ByteBudgetTracker,
@@ -1637,7 +1662,7 @@ impl InboundRpc {
             self.peer_identity.take(),
         );
         // Filling the target in place avoids moving the request twice.
-        req.set_extensions(std::mem::take(&mut self.extensions));
+        req.set_lazy_extensions(std::mem::take(&mut self.extensions));
         req.set_http(self.authority.take(), self.scheme.take(), path);
         if let Some(config) = self.diagnostic_config.take() {
             req.set_diagnostic_config(config);
@@ -1668,7 +1693,7 @@ impl InboundRpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
-        let framed = read_unary_frame_fut::<Req>(self).await?;
+        let framed = self.read_unary_frame::<Req>().await?;
         if let Some(socket) = self.channelz_socket {
             crate::channelz::Registry::global().note_messages(socket, false, 1);
         }
@@ -1686,7 +1711,8 @@ impl InboundRpc {
         if self.cancel_tx.flag().deadline.expired() {
             return Err(Status::deadline_exceeded());
         }
-        let result = run_handler_fut(self, on_reset, handler).await;
+        let tap = self.binlog.as_ref();
+        let result = run_handler(&mut self.respond, on_reset, handler, tap).await;
         if self.cancel_tx.flag().deadline.expired() {
             Err(Status::deadline_exceeded())
         } else {
@@ -1708,13 +1734,13 @@ impl InboundRpc {
             .ok_or_else(|| Status::internal("request body already consumed"))?;
         #[cfg(feature = "grpc-web")]
         if text {
-            return crate::web::read_one_text_message::<Req>(
+            return Box::pin(crate::web::read_one_text_message::<Req>(
                 recv,
                 limits,
                 accept,
                 codec,
                 self.binlog.as_ref(),
-            )
+            ))
             .await;
         }
         read_one_message::<Req>(recv, limits, accept, codec, self.binlog.as_ref(), false)
@@ -1751,7 +1777,8 @@ impl InboundRpc {
         if self.cancel_tx.flag().deadline.expired() {
             return Err(Status::deadline_exceeded());
         }
-        let result = run_handler_fut(self, on_reset, handler).await;
+        let tap = self.binlog.as_ref();
+        let result = run_handler(&mut self.respond, on_reset, handler, tap).await;
         if self.cancel_tx.flag().deadline.expired() {
             Err(Status::deadline_exceeded())
         } else {
@@ -1772,11 +1799,17 @@ where
     Box::pin(inbound.read_unary(handler))
 }
 
-/// Lets a gRPC-Web rejection and a real bidi call share one future type.
 #[cfg(feature = "grpc-web")]
-enum BidiDrive<F> {
-    Done,
-    Run(std::pin::Pin<Box<F>>),
+pin_project_lite::pin_project! {
+    /// Lets a gRPC-Web rejection and a real bidi call share one future type.
+    #[project = BidiDriveProj]
+    enum BidiDrive<F> {
+        Done,
+        Run {
+            #[pin]
+            fut: F,
+        },
+    }
 }
 
 #[cfg(feature = "grpc-web")]
@@ -1787,9 +1820,9 @@ impl<F: Future<Output = ()>> Future for BidiDrive<F> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<()> {
-        match self.get_mut() {
-            BidiDrive::Done => std::task::Poll::Ready(()),
-            BidiDrive::Run(fut) => fut.as_mut().poll(cx),
+        match self.project() {
+            BidiDriveProj::Done => std::task::Poll::Ready(()),
+            BidiDriveProj::Run { fut } => fut.poll(cx),
         }
     }
 }
@@ -1809,21 +1842,6 @@ where
     Fut: Future<Output = Result<T, Status>> + 'a,
 {
     Box::pin(inbound.read_streaming(handler))
-}
-
-fn read_unary_frame_fut<'a, Req: CodecMessage + 'a>(
-    inbound: &'a mut InboundRpc,
-) -> std::pin::Pin<Box<impl Future<Output = Result<crate::stream::Framed<Req>, Status>> + 'a>> {
-    Box::pin(inbound.read_unary_frame())
-}
-
-fn run_handler_fut<'a, T: 'a>(
-    inbound: &'a mut InboundRpc,
-    on_reset: Arc<super::drain::CancelFlag>,
-    handler: impl Future<Output = Result<T, Status>> + 'a,
-) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>> {
-    let tap = inbound.binlog.as_ref();
-    Box::pin(run_handler(&mut inbound.respond, on_reset, handler, tap))
 }
 
 /// `call_start` is only read when an observer records elapsed time.

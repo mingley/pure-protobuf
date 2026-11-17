@@ -93,29 +93,24 @@ fn checked_input_total(total: i32, body_len: usize) -> Result<i32, Status> {
         .ok_or_else(|| Status::resource_exhausted("TestService streaming input total exceeds i32"))
 }
 
-/// `(size, interval_us, compressed)` for each response the client asked for.
-type ResponsePlan = Vec<(i32, i32, bool)>;
-
-fn response_plan(req: &StreamingOutputCallRequest) -> ResponsePlan {
-    req.response_parameters()
-        .iter()
-        .map(|p| {
+/// Emit planned responses. `Ok(false)` means the peer went away; invalid sizes return a status.
+async fn emit_plan(
+    tx: &StreamSender<StreamingOutputCallResponse>,
+    req: &StreamingOutputCallRequest,
+    cap: usize,
+) -> Result<bool, Status> {
+    let n = req.response_parameters().len();
+    for idx in 0..n {
+        let (size, interval_us, compress) = {
+            let Some(p) = req.response_parameters().get(idx) else {
+                break;
+            };
             (
                 p.size(),
                 p.interval_us(),
                 p.has_compressed() && p.compressed().value(),
             )
-        })
-        .collect()
-}
-
-/// Emit planned responses. `Ok(false)` means the peer went away; invalid sizes return a status.
-async fn emit_plan(
-    tx: &StreamSender<StreamingOutputCallResponse>,
-    plan: ResponsePlan,
-    cap: usize,
-) -> Result<bool, Status> {
-    for (size, interval_us, compress) in plan {
+        };
         let payload = zeros_payload(cap, size)?;
         if interval_us > 0 {
             let us = u64::try_from(interval_us).unwrap_or(0);
@@ -196,14 +191,16 @@ async fn streaming_output_call_impl(
         let st = inner.response_status();
         return Err(echoed_status(st.code(), st.message().to_string()));
     }
-    let plan = response_plan(&inner);
-    if let Some((size, _, _)) = plan.first() {
-        checked_response_body_size(cap, *size)?;
+    let params = inner.response_parameters();
+    if let Some(first) = params.get(0) {
+        checked_response_body_size(cap, first.size())?;
     }
-    let want_gzip = plan.iter().any(|(_, _, compress)| *compress);
+    let want_gzip = params
+        .iter()
+        .any(|p| p.has_compressed() && p.compressed().value());
     let (tx, stream) = Streaming::channel(8);
     drop(tokio::spawn(async move {
-        if let Err(status) = emit_plan(&tx, plan, cap).await {
+        if let Err(status) = emit_plan(&tx, &inner, cap).await {
             tx.fail(status).await;
         }
     }));
@@ -255,7 +252,7 @@ async fn full_duplex_call_impl(
                             .await;
                         return;
                     }
-                    match emit_plan(&tx, response_plan(&req), cap).await {
+                    match emit_plan(&tx, &req, cap).await {
                         Ok(true) => {}
                         Ok(false) => return,
                         Err(status) => {

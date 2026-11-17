@@ -458,6 +458,15 @@ mod __gen_google_protobuf_struct_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            for t in self.values.iter() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             for t in self.values.iter() {
                 ::pbrs::rt::encode_len_header(out, 1, t.compute_size());
@@ -540,7 +549,7 @@ mod __gen_google_protobuf_struct_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(ListValue, ListValueView, ListValueMut);
+    ::pbrs::impl_typed_message!(ListValue, ListValueView, ListValueMut; __pbrs_shared_bytes_len);
     /// Represents a JSON object.
     ///
     /// An unordered key-value map, intending to perfectly capture the semantics of a
@@ -824,6 +833,17 @@ mod __gen_google_protobuf_struct_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if !self.fields.is_empty() {
+                for (_, v) in self.fields.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if !self.fields.is_empty() {
                 for (k, v) in self.fields.pairs() {
@@ -913,7 +933,7 @@ mod __gen_google_protobuf_struct_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(Struct, StructView, StructMut);
+    ::pbrs::impl_typed_message!(Struct, StructView, StructMut; __pbrs_shared_bytes_len);
     fn decode_map_entry_Struct_fields_1(
         parent_data: &[u8],
         wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
@@ -1723,6 +1743,24 @@ mod __gen_google_protobuf_struct_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                if c.struct_value.wire_bytes().is_none() {
+                    if let ::core::option::Option::Some(m) = c.struct_value.as_deref() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                    }
+                }
+                if c.list_value.wire_bytes().is_none() {
+                    if let ::core::option::Option::Some(m) = c.list_value.as_deref() {
+                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                    }
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 if let ::core::option::Option::Some(v) = self.null_value {
@@ -1845,7 +1883,7 @@ mod __gen_google_protobuf_struct_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(PbValue, PbValueView, PbValueMut, __pbrs_merge_prevalidated);
+    ::pbrs::impl_typed_message!(PbValue, PbValueView, PbValueMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]
 pub use __gen_google_protobuf_struct_proto::*;

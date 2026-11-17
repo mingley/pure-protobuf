@@ -2669,6 +2669,66 @@ impl OpaqueStreamRef {
         }
     }
 
+    /// Take the next chunk plus up to 64 KB of queued follow-on chunks and
+    /// return their window under one stream lock when the receive window is
+    /// large enough that eager release preserves small-window backpressure.
+    pub fn poll_data_batch_released(
+        &mut self,
+        cx: &Context,
+        rest: &mut std::collections::VecDeque<Bytes>,
+    ) -> Poll<Option<Result<Bytes, proto::Error>>> {
+        const BATCH_WINDOW_MIN: WindowSize = 256 * 1024;
+        const BATCH_MAX_BYTES: usize = 64 * 1024;
+        const BATCH_MAX_CHUNKS: usize = 64;
+
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut stream = me.store.resolve(self.key);
+        match me.actions.recv.poll_data(cx, &mut stream) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
+            Poll::Ready(Some(Ok(first))) => {
+                if first.is_reserved {
+                    me.counts.release_small_response(&mut stream);
+                } else if first.is_budgeted {
+                    me.counts.release_data_frame(first.payload.len());
+                }
+                let mut total_len = first.payload.len();
+                if me.actions.recv.init_window_sz() >= BATCH_WINDOW_MIN {
+                    let mut extra = 0usize;
+                    while total_len < BATCH_MAX_BYTES && extra < BATCH_MAX_CHUNKS {
+                        let Some(next) = me.actions.recv.try_pop_data(&mut stream) else {
+                            break;
+                        };
+                        if next.is_reserved {
+                            me.counts.release_small_response(&mut stream);
+                        } else if next.is_budgeted {
+                            me.counts.release_data_frame(next.payload.len());
+                        }
+                        total_len += next.payload.len();
+                        rest.push_back(next.payload);
+                        extra += 1;
+                    }
+                }
+                if let Ok(window) = WindowSize::try_from(total_len)
+                    && window > 0
+                    && me
+                        .actions
+                        .recv
+                        .release_capacity(window, &mut stream, &mut me.actions.task)
+                        .is_err()
+                {
+                    return Poll::Ready(Some(Err(proto::Error::library_go_away(
+                        Reason::INTERNAL_ERROR,
+                    ))));
+                }
+                me.counts.credit_discarded_for_consumed_data(total_len);
+                Poll::Ready(Some(Ok(first.payload)))
+            }
+        }
+    }
+
     pub fn poll_trailers(&mut self, cx: &Context) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;

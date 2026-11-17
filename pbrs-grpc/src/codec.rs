@@ -39,6 +39,15 @@ pub trait CodecMessage: Sized {
     /// their existing path, without a temporary buffer and copy.
     const ENCODE_APPEND_ONLY: bool = false;
 
+    /// Portion of [`Self::encoded_len`] emitted as detached shared segments
+    /// via [`pbrs::WireOut::put_shared_bytes`] rather than copied into the
+    /// contiguous frame head buffer.
+    #[doc(hidden)]
+    #[inline(always)]
+    fn shared_bytes_len(&self) -> usize {
+        0
+    }
+
     /// Return the uncompressed protobuf payload length.
     fn encoded_len(&self) -> usize;
 
@@ -81,6 +90,19 @@ pub trait CodecMessage: Sized {
         Self::decode_payload(std::mem::take(payload))
     }
 
+    #[doc(hidden)]
+    #[inline(always)]
+    fn prefers_slice_decode(payload_len: usize) -> bool {
+        let _ = payload_len;
+        false
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn decode_payload_slice(payload: &[u8]) -> Result<Self, Status> {
+        Self::decode_payload(Bytes::copy_from_slice(payload))
+    }
+
     /// Empty unary bodies decode as the message default.
     fn empty() -> Self;
 }
@@ -90,6 +112,11 @@ where
     T: Parse + Serialize + Default,
 {
     const ENCODE_APPEND_ONLY: bool = <T as Serialize>::ENCODE_APPEND_ONLY;
+
+    #[inline]
+    fn shared_bytes_len(&self) -> usize {
+        Serialize::shared_bytes_len(self)
+    }
 
     fn encoded_len(&self) -> usize {
         Serialize::serialized_len(self)
@@ -105,6 +132,22 @@ where
 
     fn decode_payload(payload: Bytes) -> Result<Self, Status> {
         Parse::parse_bytes(payload).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn decode_payload_reusable(payload: &mut Bytes) -> Result<Self, Status> {
+        let shared = payload.clone();
+        payload.advance(payload.len());
+        Parse::parse_bytes(shared).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    #[inline(always)]
+    fn prefers_slice_decode(payload_len: usize) -> bool {
+        payload_len == 0
+    }
+
+    #[inline]
+    fn decode_payload_slice(payload: &[u8]) -> Result<Self, Status> {
+        Parse::parse(payload).map_err(|e| Status::internal(e.to_string()))
     }
 
     fn empty() -> Self {

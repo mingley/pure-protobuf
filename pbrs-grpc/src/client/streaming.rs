@@ -549,110 +549,147 @@ async fn pump_outbound_budget<T: CodecMessage>(
     // touches the entry's atomics.
     let channelz_entry = channelz_socket.and_then(crate::channelz::socket_entry);
     let mut items = Vec::with_capacity(OutBatch::BURST);
-    let mut permits = Vec::with_capacity(OutBatch::BURST);
+    let mut batch_permit = crate::limits::BytePermit::empty();
     let mut watch_cancel = true;
+    let mut interactive = false;
     loop {
+        if watch_cancel && cancel_rx.is_cancelled() {
+            send.send_reset(Reason::CANCEL);
+            return PumpEnd::Reset;
+        }
         items.clear();
-        let taken = tokio::select! {
-            cancelled = async {
-                cancel_rx.wait().await;
-                cancel_rx.is_cancelled()
-            }, if watch_cancel => {
-                if cancelled {
-                    send.send_reset(Reason::CANCEL);
-                    return PumpEnd::Reset;
-                }
-                watch_cancel = false;
-                continue;
-            }
-            taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
-        };
-        if taken == 0 {
-            if batch.flush(send).await.is_err() {
-                send.send_reset(Reason::INTERNAL_ERROR);
-                return PumpEnd::Reset;
-            }
-            permits.clear();
-            send.send_data(Bytes::new(), true).ok();
-            if let Some(tap) = tap {
-                tap.log_half_close();
-            }
-            return PumpEnd::HalfClosed;
-        }
-        let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 && !rx.producer_finished() {
-            crate::wire::let_producer_catch_up().await;
-            rx.try_recv_many(&mut items, room);
-        }
-        let mut ready = items.drain(..);
-        while let Some(item) = ready.next() {
-            let ready_messages = ready.len() + 1;
-            let item = match item {
-                Ok(item) => item,
-                Err(error) => {
-                    return PumpEnd::Failed(upload_failure_status(*error, tap, true));
-                }
-            };
-            let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
-            {
-                Ok(len) => len,
-                Err(status) => return PumpEnd::Failed(status),
-            };
-            if batch.needs_reclaim_flush() {
-                loop {
-                    tokio::select! {
-                        biased;
-                        cancelled = async {
-                            cancel_rx.wait().await;
-                            cancel_rx.is_cancelled()
-                        }, if watch_cancel => {
-                            if cancelled {
-                                send.send_reset(Reason::CANCEL);
-                                return PumpEnd::Reset;
-                            }
-                            watch_cancel = false;
-                        }
-                        drained = std::future::poll_fn(|cx| {
-                            if send.poll_reset(cx).is_ready() {
-                                return std::task::Poll::Ready(false);
-                            }
-                            send.poll_send_drained(cx).map(|()| true)
-                        }) => {
-                            if !drained {
-                                return PumpEnd::Reset;
-                            }
-                            break;
-                        }
+        let initial_taken = rx.try_recv_many(&mut items, OutBatch::BURST);
+        let initial_taken = if initial_taken > 0 {
+            initial_taken
+        } else {
+            let taken = tokio::select! {
+                cancelled = async {
+                    cancel_rx.wait().await;
+                    cancel_rx.is_cancelled()
+                }, if watch_cancel => {
+                    if cancelled {
+                        send.send_reset(Reason::CANCEL);
+                        return PumpEnd::Reset;
                     }
+                    watch_cancel = false;
+                    continue;
                 }
-            }
-            match budget.acquire(frame_len) {
-                Ok(permit) => permits.push(permit),
-                Err(status) => return PumpEnd::Failed(status),
-            }
-            if let Err(status) = batch.encode_ready(item, ready_messages) {
-                return PumpEnd::Failed(status);
-            }
-            // Channelz: each encoded message counts as sent (a later
-            // flush failure can only overcount a doomed stream).
-            if let Some(entry) = &channelz_entry {
-                entry.add_messages(true, 1);
-            }
-            if batch.is_full() {
+                taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
+            };
+            if taken == 0 {
                 if batch.flush(send).await.is_err() {
                     send.send_reset(Reason::INTERNAL_ERROR);
                     return PumpEnd::Reset;
                 }
-                permits.clear();
+                batch_permit = crate::limits::BytePermit::empty();
+                drop(batch_permit);
+                send.send_data(Bytes::new(), true).ok();
+                if let Some(tap) = tap {
+                    tap.log_half_close();
+                }
+                return PumpEnd::HalfClosed;
             }
+            taken
+        };
+        if initial_taken > 1 {
+            interactive = false;
         }
-        drop(ready);
+        let mut seen_in_batch = initial_taken;
+        let mut yielded = false;
+        loop {
+            let mut ready = items.drain(..);
+            while let Some(item) = ready.next() {
+                let ready_messages = ready.len() + 1;
+                let item = match item {
+                    Ok(item) => item,
+                    Err(error) => {
+                        return PumpEnd::Failed(upload_failure_status(*error, tap, true));
+                    }
+                };
+                let encoded_len = item.message.encoded_len();
+                let frame_len = match checked_budget_frame_len(encoded_len, wire.limits) {
+                    Ok(len) => len,
+                    Err(status) => return PumpEnd::Failed(status),
+                };
+                if batch.needs_reclaim_flush() {
+                    loop {
+                        tokio::select! {
+                            biased;
+                            cancelled = async {
+                                cancel_rx.wait().await;
+                                cancel_rx.is_cancelled()
+                            }, if watch_cancel => {
+                                if cancelled {
+                                    send.send_reset(Reason::CANCEL);
+                                    return PumpEnd::Reset;
+                                }
+                                watch_cancel = false;
+                            }
+                            drained = std::future::poll_fn(|cx| {
+                                if send.poll_reset(cx).is_ready() {
+                                    return std::task::Poll::Ready(false);
+                                }
+                                send.poll_send_drained(cx).map(|()| true)
+                            }) => {
+                                if !drained {
+                                    return PumpEnd::Reset;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if let Err(status) = budget.acquire_into(&mut batch_permit, frame_len) {
+                    return PumpEnd::Failed(status);
+                }
+                if let Err(status) = batch.encode_ready_with_len(item, encoded_len, ready_messages)
+                {
+                    return PumpEnd::Failed(status);
+                }
+                // Channelz: each encoded message counts as sent (a later
+                // flush failure can only overcount a doomed stream).
+                if let Some(entry) = &channelz_entry {
+                    entry.add_messages(true, 1);
+                }
+                if batch.is_full() {
+                    if batch.flush(send).await.is_err() {
+                        send.send_reset(Reason::INTERNAL_ERROR);
+                        return PumpEnd::Reset;
+                    }
+                    batch_permit = crate::limits::BytePermit::empty();
+                }
+            }
+            drop(ready);
+            if batch.is_full() || rx.producer_finished() {
+                break;
+            }
+            let newly_drained = rx.try_recv_many(&mut items, OutBatch::BURST);
+            if newly_drained > 0 {
+                seen_in_batch += newly_drained;
+                interactive = false;
+                continue;
+            }
+            if !yielded && (seen_in_batch > 1 || !interactive) {
+                yielded = true;
+                crate::wire::let_producer_catch_up().await;
+                let caught_up = rx.try_recv_many(&mut items, OutBatch::BURST);
+                if caught_up > 0 {
+                    seen_in_batch += caught_up;
+                    interactive = false;
+                    continue;
+                }
+                if seen_in_batch == 1 {
+                    interactive = true;
+                }
+            }
+            break;
+        }
         if !batch.is_full() {
             if batch.flush(send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
                 return PumpEnd::Reset;
             }
-            permits.clear();
+            batch_permit = crate::limits::BytePermit::empty();
         }
     }
 }

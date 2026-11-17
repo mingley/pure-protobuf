@@ -9658,6 +9658,79 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if let ::core::option::Option::Some(s) = &self.optional_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if self.optional_nested_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.optional_foreign_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.optional_foreign_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if self.recursive_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            for t in self.repeated_bytes.iter() {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(t));
+            }
+            for t in self.repeated_nested_message.iter() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+            }
+            if !self.map_string_nested_message.is_empty() {
+                for (_, v) in self.map_string_nested_message.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if !self.map_string_foreign_message.is_empty() {
+                for (_, v) in self.map_string_foreign_message.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if self.oneof_nested_message.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            if let ::core::option::Option::Some(s) = &self.oneof_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if let ::core::option::Option::Some(m) = self.groupliketype.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(m) = self.delimited_ext.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(s) = &self.extension_bytes {
+                n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
+            }
+            if let ::core::option::Option::Some(m) = self.groupliketype_201.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if let ::core::option::Option::Some(m) = self.delimited_field.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+            }
+            if !self.map_recursive.is_empty() {
+                for (_, v) in self.map_recursive.pairs() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
+                }
+            }
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                for t in c.repeated_foreign_message.iter() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 if let ::core::option::Option::Some(v) = self.optional_int32 {
@@ -11101,12 +11174,7 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        TestAllTypesEdition2023,
-        TestAllTypesEdition2023View,
-        TestAllTypesEdition2023Mut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(TestAllTypesEdition2023, TestAllTypesEdition2023View, TestAllTypesEdition2023Mut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     fn decode_map_entry_TestAllTypesEdition2023_map_int32_int32_56(
         parent_data: &[u8],
         wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
@@ -12616,6 +12684,17 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
             self.cached_size.set(n);
             n
         }
+        #[doc(hidden)]
+        #[inline]
+        pub fn __pbrs_shared_bytes_len(&self) -> usize {
+            let mut n = 0usize;
+            if self.corecursive.wire_bytes().is_none() {
+                if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
+                }
+            }
+            n
+        }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(v) = self.a {
                 ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
@@ -12715,12 +12794,7 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
             <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    ::pbrs::impl_typed_message!(
-        NestedMessage,
-        NestedMessageView,
-        NestedMessageMut,
-        __pbrs_merge_prevalidated
-    );
+    ::pbrs::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut, __pbrs_merge_prevalidated; __pbrs_shared_bytes_len);
     pub mod test_all_types_edition2023 {
         pub use super::NestedEnum;
         pub use super::NestedMessage;

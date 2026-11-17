@@ -283,6 +283,29 @@ impl RecvStream {
         }
     }
 
+    /// Next DATA chunk plus queued follow-on chunks, releasing their combined
+    /// receive window in one lock.
+    pub(crate) fn poll_data_batch_released(
+        &mut self,
+        cx: &mut Context<'_>,
+        rest: &mut std::collections::VecDeque<Bytes>,
+    ) -> Poll<Option<Result<Bytes, Error>>> {
+        let before = rest.len();
+        match self.inner.poll_data_batch_released(cx, rest) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok(bytes))) => {
+                let mut total = bytes.len();
+                for extra in rest.iter().skip(before) {
+                    total += extra.len();
+                }
+                self.recorder.record_data(total);
+                Poll::Ready(Some(Ok(bytes)))
+            }
+            Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(Error(error)))),
+        }
+    }
+
     /// Release receive window without cloning the stream ref.
     ///
     /// `flow_control` clones that ref so the handle can outlive the stream

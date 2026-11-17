@@ -43,7 +43,10 @@ enum WireInner {
         start: u32,
         end: u32,
     },
-    Shared(Bytes),
+    Shared {
+        bytes: Bytes,
+        root_len: u32,
+    },
 }
 
 /// Private-window offset as `u32`, fail-closed above `u32::MAX` (PB07-F4:
@@ -57,7 +60,10 @@ fn u32_offset(base: usize, rel: usize) -> u32 {
 impl Wire {
     pub fn empty() -> Self {
         Self {
-            inner: WireInner::Shared(Bytes::new()),
+            inner: WireInner::Shared {
+                bytes: Bytes::new(),
+                root_len: 0,
+            },
         }
     }
 
@@ -80,8 +86,12 @@ impl Wire {
         if data.is_empty() {
             return Self::empty();
         }
+        let root_len = u32::try_from(data.len()).unwrap_or(u32::MAX);
         Self {
-            inner: WireInner::Shared(data),
+            inner: WireInner::Shared {
+                bytes: data,
+                root_len,
+            },
         }
     }
 
@@ -104,7 +114,7 @@ impl Wire {
     pub fn as_slice(&self) -> &[u8] {
         match &self.inner {
             WireInner::Private { buf, start, end } => &buf[*start as usize..*end as usize],
-            WireInner::Shared(b) => b,
+            WireInner::Shared { bytes, .. } => bytes,
         }
     }
 
@@ -115,14 +125,34 @@ impl Wire {
             WireInner::Private { buf, start, end } => {
                 Bytes::copy_from_slice(&buf[*start as usize..*end as usize])
             }
-            WireInner::Shared(b) => b.clone(),
+            WireInner::Shared { bytes, .. } => bytes.clone(),
         }
     }
 
     /// Whether this window shares a caller-owned buffer (`from_bytes`).
     /// Private windows (`from_slice`) only pin memory the message owns.
     pub fn is_shared(&self) -> bool {
-        matches!(self.inner, WireInner::Shared(_))
+        matches!(self.inner, WireInner::Shared { .. })
+    }
+
+    /// Whether slicing a `span_len`-byte field out of this `Wire` is safe
+    /// without pinning a disproportionately large shared frame.
+    ///
+    /// Private backings always window. Shared backings window when
+    /// `span_len >= LazyBytes::SHARE_THRESHOLD`, when the root shared frame is
+    /// bounded (`<= LazyStr::LARGE_FRAME`), or when the field accounts for at
+    /// least a quarter of the root shared frame.
+    #[inline]
+    pub fn should_window_span(&self, span_len: usize) -> bool {
+        match &self.inner {
+            WireInner::Private { .. } => true,
+            WireInner::Shared { root_len, .. } => {
+                let root = *root_len as usize;
+                span_len >= LazyBytes::SHARE_THRESHOLD
+                    || root <= LazyStr::LARGE_FRAME
+                    || span_len.saturating_mul(4) >= root
+            }
+        }
     }
 
     /// Build a `Wire` the first time a lazy string/bytes/nested/packed-varint
@@ -150,11 +180,14 @@ impl Wire {
                     },
                 }
             }
-            WireInner::Shared(b) => {
-                debug_assert!(rel_end <= b.len());
+            WireInner::Shared { bytes, root_len } => {
+                debug_assert!(rel_end <= bytes.len());
                 debug_assert!(rel_start <= rel_end);
                 Self {
-                    inner: WireInner::Shared(b.slice(rel_start..rel_end)),
+                    inner: WireInner::Shared {
+                        bytes: bytes.slice(rel_start..rel_end),
+                        root_len: *root_len,
+                    },
                 }
             }
         }
@@ -225,6 +258,11 @@ impl LazyStr {
         if bytes.len() <= Self::INLINE {
             return Self::from_bytes(bytes);
         }
+        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
+            && !w.should_window_span(bytes.len())
+        {
+            return Self::from_bytes(bytes);
+        }
         Self::from_span(Wire::ensure(slot, data), rel_start, rel_end)
     }
 
@@ -255,6 +293,12 @@ impl LazyStr {
         if s.len() <= Self::INLINE {
             require_utf8(s)?;
             return Ok(Self::from_bytes(s));
+        }
+        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
+            && w.should_window_span(s.len())
+        {
+            require_utf8(s)?;
+            return Ok(Self::Wire(w.window(rel_start, rel_end)));
         }
         // Exact copy without pinning the parent: near-whole fields (the
         // parent copy would be pure overhead) or sparse fields in large
@@ -292,6 +336,11 @@ impl LazyStr {
         let s = &data[rel_start..rel_end];
         if s.len() <= Self::INLINE {
             return Self::from_bytes(s);
+        }
+        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
+            && w.should_window_span(s.len())
+        {
+            return Self::Wire(w.window(rel_start, rel_end));
         }
         let _ = slot;
         Self::Wire(Wire::from_slice(s))
@@ -505,10 +554,11 @@ impl LazyBytes {
 
     /// Parse a bytes span from the parent message bytes.
     ///
-    /// Below [`Self::SHARE_THRESHOLD`] the span is copied when the parent
-    /// frame is shared, so a small field never pins a large frame; at or
-    /// above it, the span windows the parent. A private parent (the copying
-    /// `parse` path) is always windowed: it pins nothing foreign.
+    /// Sparse spans below [`Self::SHARE_THRESHOLD`] are copied when the parent
+    /// frame is a large shared buffer, so a small field never pins a large
+    /// frame; dense spans and spans at or above [`Self::SHARE_THRESHOLD`]
+    /// window the parent. A private parent (the copying `parse` path) is
+    /// always windowed: it pins nothing foreign.
     /// Generated `merge_inner` calls this with the message's wire slot.
     #[inline]
     pub fn from_parse_span(
@@ -517,18 +567,28 @@ impl LazyBytes {
         rel_start: usize,
         rel_end: usize,
     ) -> Self {
-        let shared = matches!(slot, Some(w) if w.is_shared());
-        if !shared || rel_end.saturating_sub(rel_start) >= Self::SHARE_THRESHOLD {
-            return Self::from_wire(Wire::ensure(slot, data).window(rel_start, rel_end));
+        let len = rel_end.saturating_sub(rel_start);
+        if len == 0 {
+            return Self::Empty;
         }
-        Self::from_bytes(&data[rel_start..rel_end])
+        if let Some(w) = slot.as_ref() {
+            if w.should_window_span(len) {
+                return Self::from_wire(w.window(rel_start, rel_end));
+            }
+            return Self::from_bytes(&data[rel_start..rel_end]);
+        }
+        Self::from_wire(Wire::ensure(slot, data).window(rel_start, rel_end))
     }
 
     /// Same threshold policy as [`Self::from_parse_span`] for callers that
     /// already hold the parent [`Wire`] (map entry decode).
     #[inline]
     pub fn from_wire_span(wire: &Wire, rel_start: usize, rel_end: usize) -> Self {
-        if !wire.is_shared() || rel_end.saturating_sub(rel_start) >= Self::SHARE_THRESHOLD {
+        let len = rel_end.saturating_sub(rel_start);
+        if len == 0 {
+            return Self::Empty;
+        }
+        if wire.should_window_span(len) {
             return Self::from_wire(wire.window(rel_start, rel_end));
         }
         Self::from_bytes(&wire.as_slice()[rel_start..rel_end])
@@ -580,6 +640,15 @@ impl LazyBytes {
             Self::Wire(w) if w.is_shared() => Some(w.as_bytes()),
             Self::Wire(_) => None,
             Self::Owned(s) => Some(s.as_shared()),
+        }
+    }
+
+    /// Whether [`Self::shared_bytes`] returns `Some`, without cloning or promoting storage.
+    #[inline(always)]
+    pub fn has_shared_bytes(&self) -> bool {
+        match self {
+            Self::Empty | Self::Owned(_) => true,
+            Self::Wire(w) => w.is_shared(),
         }
     }
 
@@ -689,7 +758,7 @@ pub fn parse_proto_bytes(wire: &Option<Wire>, data: &[u8], start: usize, end: us
         return ProtoBytes::new();
     }
     match wire.as_ref().map(|wire| &wire.inner) {
-        Some(WireInner::Shared(bytes)) => ProtoBytes::from(bytes.slice(start..end)),
+        Some(WireInner::Shared { bytes, .. }) => ProtoBytes::from(bytes.slice(start..end)),
         _ => ProtoBytes::from(&data[start..end]),
     }
 }

@@ -61,6 +61,13 @@ pub trait Serialize: SealedInternal {
 
     fn serialize(&self) -> Result<Vec<u8>, SerializeError>;
     fn serialized_len(&self) -> usize;
+    /// Payload bytes that [`Self::encode`] hands to [`crate::WireOut::put_shared`]
+    /// on a shared-capable sink instead of copying into contiguous head storage.
+    #[doc(hidden)]
+    #[inline(always)]
+    fn shared_bytes_len(&self) -> usize {
+        0
+    }
     /// Write the binary payload into `out` without a per-call `Vec`.
     ///
     /// Default implementation serializes to a temporary `Vec` then copies.
