@@ -1,0 +1,18 @@
+[package]
+name = "packed-borrowed-probe"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[workspace]
+
+[features]
+inline-count = []
+
+[dependencies]
+pbrs = { path = "../..", default-features = false }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

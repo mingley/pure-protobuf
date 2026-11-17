@@ -1,0 +1,40 @@
+diff --git a/src/packed.rs b/src/packed.rs
+--- a/src/packed.rs
++++ b/src/packed.rs
+@@ -273,21 +273,28 @@
+     }
+ 
+     pub fn packed_bytes(&self) -> Option<&[u8]> {
+-        if self.is_empty() {
++        let i = self.inner.as_ref()?;
++        let decoded = i.decoded.get();
++        let empty = match decoded {
++            Some(elems) => elems.is_empty(),
++            None => i.wire.as_ref().is_none_or(|w| w.as_slice().is_empty()),
++        };
++        if empty {
+             return None;
+         }
+-        let i = self.inner.as_ref()?;
+         if C::MEMCPY_SAFE {
+             if let Some(w) = i.wire.as_ref() {
+                 return Some(w.as_slice());
+             }
+         }
+-        let elems = i.decoded.get_or_init(|| {
+-            let mut out = Vec::new();
+-            if let Some(w) = &i.wire {
+-                let _ = C::decode(w.as_slice(), &mut out);
+-            }
+-            out
++        let elems = decoded.unwrap_or_else(|| {
++            i.decoded.get_or_init(|| {
++                let mut out = Vec::new();
++                if let Some(w) = &i.wire {
++                    let _ = C::decode(w.as_slice(), &mut out);
++                }
++                out
++            })
+         });
+         if let Some(bytes) = C::borrow_encoded(elems) {
+             return Some(bytes);

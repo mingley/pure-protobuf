@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-17",
+  "decision": "hold_both_candidates",
+  "scope": "packed-field component experiments; no product runtime changes selected; PK-14 remains open",
+  "sources": {
+    "baseline": {
+      "commit": "532c3814a53fdb10092d64d6f85fa57db031bd18",
+      "tree": "94e4146056e8237523b75b7ad10527fd5e40b6cf",
+      "packed_blob": "311968f6fd59fe432ff037f9aec6f5464571e294"
+    },
+    "original": {
+      "commit": "c78922e241c7909446f440e0fea8dc584cddd815",
+      "tree": "f1f2aaa210ee64ba4fc18f91db9dc2f0e6cdeeaf",
+      "packed_blob": "90a64e898e6d415d919ea3d250e8dd57e8a36a35",
+      "tests_blob": "747aa861eeb002dd475e9e1e0bccc04f0ca3d848",
+      "patch": "patches/original.patch"
+    },
+    "refined": {
+      "commit": "21a538db67aa784bc8d3680b1278b039d74c0867",
+      "tree": "e85aed99dc2d60e2e40b7ac2837e8dd8626f059e",
+      "packed_blob": "c4a59a6178a7422fc0b9286fd6caf06b08b80199",
+      "tests_blob": "747aa861eeb002dd475e9e1e0bccc04f0ca3d848",
+      "patch": "patches/refined.patch",
+      "incremental_patch_from_original": "patches/refinement.patch"
+    },
+    "lock_seed": {
+      "commit": "532c3814a53fdb10092d64d6f85fa57db031bd18",
+      "path": "Cargo.lock",
+      "blob": "4e11d08d8c86df94b9a7299e213b0c1dc8a42665",
+      "retained_file": "source/baseline.Cargo.lock"
+    }
+  },
+  "measurement": {
+    "host": "shared GitHub Actions x86_64 Linux runner; environment details in original artifacts",
+    "rust": "1.85.0 (4d91de4e4 2025-02-17)",
+    "llvm": "19.1.7",
+    "profile": "release",
+    "codegen_units": 1,
+    "lto": "thin",
+    "cargo_incremental": false,
+    "cargo_build_jobs": 2,
+    "affinity": "first allowed logical CPU; CPU 0 in both reports",
+    "clock": "Linux CLOCK_THREAD_CPUTIME_ID",
+    "warmup_operations": 2,
+    "calibration": "baseline targets 180000000 thread-CPU ns; identical n for all variants; cap1000000000",
+    "timing": "allocator counter absent from timing binaries",
+    "allocations": "separate instrumented binaries; three differential N-to-2N pairs; all per-case pairs agree",
+    "raw_format": "Complete PACKED_RAW_JSON stdout records parsed and serialized with two-space indentation; JSON values preserved. Original artifact results.json retains original text formatting."
+  },
+  "screens": {
+    "original": {
+      "run_id": 44033791556,
+      "driver_commit": "e3364fee6ab43d1ca22ae1b474f42c11128d0dec",
+      "variants": {
+        "a": "532c3814a53fdb10092d64d6f85fa57db031bd18",
+        "b": "c78922e241c7909446f440e0fea8dc584cddd815",
+        "c": "532c3814a53fdb10092d64d6f85fa57db031bd18"
+      },
+      "cases": 26,
+      "blocks_per_case": 8,
+      "minimum_process_cpu_ns": 106401716,
+      "raw_file": "original-results.json",
+      "raw_git_blob": "943ac3ab3d2f79fcb4e91651dcb4d35232f313f0",
+      "workflow": "source/original-workflow.yml",
+      "driver": "source/original-driver.py",
+      "artifact": {
+        "id": 14306307755,
+        "name": "packed-borrowed-component-screen",
+        "size_in_bytes": 1508829,
+        "url": "https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/14306307755",
+        "archive_download_url": "https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/14306307755/zip",
+        "expired": false,
+        "created_at": "2026-11-17T06:52:17Z",
+        "expires_at": "2026-12-17T06:52:16Z",
+        "updated_at": "2026-11-17T06:52:17Z",
+        "digest": "sha256:f9aedf5e3cd279991794d286333e16e8fc6123fad7e437d6b7955c3658ac03af",
+        "workflow_run": {
+          "id": 44033791556,
+          "repository_id": 1340219952,
+          "head_repository_id": 1340219952,
+          "head_branch": "scratch/packed-borrowed-screen-v2-20261117",
+          "head_sha": "e3364fee6ab43d1ca22ae1b474f42c11128d0dec"
+        }
+      }
+    },
+    "refined": {
+      "run_id": 44035623544,
+      "driver_commit": "930c776bfc1f32462020964e1d916685f1572330",
+      "variants": {
+        "a": "532c3814a53fdb10092d64d6f85fa57db031bd18",
+        "b": "c78922e241c7909446f440e0fea8dc584cddd815",
+        "c": "21a538db67aa784bc8d3680b1278b039d74c0867"
+      },
+      "cases": 16,
+      "blocks_per_case": 6,
+      "minimum_process_cpu_ns": 110478175,
+      "raw_file": "refined-results.json",
+      "raw_git_blob": "d422f82309942d77a917c0845d14886dcf1b3d71",
+      "workflow": "source/refined-workflow.yml",
+      "driver": "source/refined-driver.py",
+      "artifact": {
+        "id": 14306274066,
+        "name": "packed-borrowed-component-screen",
+        "size_in_bytes": 1466651,
+        "url": "https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/14306274066",
+        "archive_download_url": "https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/14306274066/zip",
+        "expired": false,
+        "created_at": "2026-11-17T07:05:05Z",
+        "expires_at": "2026-12-17T07:05:04Z",
+        "updated_at": "2026-11-17T07:05:05Z",
+        "digest": "sha256:a3a92c5a4501014e9fa9a35da44ba7ba815f99aeccf98f889a3c478635cf5ee3",
+        "workflow_run": {
+          "id": 44035623544,
+          "repository_id": 1340219952,
+          "head_repository_id": 1340219952,
+          "head_branch": "scratch/packed-refined-screen-v2-20261117",
+          "head_sha": "930c776bfc1f32462020964e1d916685f1572330"
+        }
+      }
+    }
+  },
+  "validation": {
+    "original": {
+      "source_commit": "c78922e241c7909446f440e0fea8dc584cddd815",
+      "run_id": 44033461702,
+      "successful_steps": [
+        "stable and Rust1.85: 21 packed tests, default profile",
+        "stable and Rust1.85: 21 packed tests, runtime-only std profile",
+        "format",
+        "native Miri",
+        "s390x Miri"
+      ],
+      "run_failure": "Additional host alloc-only whole-lib unit-test command is unsupported by the crate's explicit target_os=none guard; this was a gate configuration error.",
+      "supplemental_run_id": 44034108876,
+      "supplemental_checks": [
+        "strict all-feature clippy",
+        "thumbv7em-none-eabi alloc-only library check"
+      ]
+    },
+    "refined": {
+      "source_commit": "21a538db67aa784bc8d3680b1278b039d74c0867",
+      "run_id": 44034936602,
+      "conclusion": "success",
+      "checks": [
+        "stable and Rust1.85: 21 packed tests, default profile",
+        "stable and Rust1.85: 21 packed tests, runtime-only std profile",
+        "format",
+        "strict all-feature clippy",
+        "native Miri",
+        "s390x Miri"
+      ],
+      "cortex_run_id": 44035822951,
+      "cortex_check": "thumbv7em-none-eabi alloc-only library check; success"
+    }
+  },
+  "limitations": [
+    "Shared-host component screens only; no ranking",
+    "No full generated-message, 1-5MiB qualification, RPC, TLS, upb, prost or tonic comparison",
+    "No cause established for remaining measured getter regressions",
+    "No unsafe generalization from public PackedCodec::MEMCPY_SAFE flag",
+    "Canonical-varint input reuse and full PK-14 work remain unfinished"
+  ]
+}

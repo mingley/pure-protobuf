@@ -1,0 +1,85 @@
+name: Screen borrowed fixed packed encoding
+on:
+  push:
+    branches: [scratch/packed-refined-screen-v2-20261117]
+permissions:
+  contents: write
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.85.0
+      - name: Build exact source snapshots and separate counters
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/bin evidence/source evidence/environment
+          cp bench/packed-borrowed-probe/src/main.rs evidence/source/
+          cp bench/packed-borrowed-probe/Cargo.toml evidence/source/
+          cp scripts/packed-borrowed-compare.py evidence/source/
+          cp .github/workflows/packed-borrowed-screen.yml evidence/source/
+          git diff 532c3814a53fdb10092d64d6f85fa57db031bd18 c78922e241c7909446f440e0fea8dc584cddd815 -- src/packed.rs src/packed/borrowed_tests.rs > evidence/source/candidate.patch
+          git show -s --format=fuller 532c3814a53fdb10092d64d6f85fa57db031bd18 > evidence/source/baseline-commit.txt
+          git show -s --format=fuller c78922e241c7909446f440e0fea8dc584cddd815 > evidence/source/candidate-commit.txt
+          git show -s --format=fuller 21a538db67aa784bc8d3680b1278b039d74c0867 > evidence/source/refined-commit.txt
+          git diff c78922e241c7909446f440e0fea8dc584cddd815 21a538db67aa784bc8d3680b1278b039d74c0867 -- src/packed.rs > evidence/source/refinement.patch
+          rustc --version --verbose > evidence/environment/rustc.txt
+          cargo --version > evidence/environment/cargo.txt
+          lscpu > evidence/environment/lscpu.txt
+          uname -a > evidence/environment/uname.txt
+          env | sort | grep -E '^(CARGO_|RUSTFLAGS|RUSTDOCFLAGS|RUNNER_)' > evidence/environment/build-environment.txt
+          for variant in a b c; do
+            ref=532c3814a53fdb10092d64d6f85fa57db031bd18
+            if test "$variant" = b; then ref=c78922e241c7909446f440e0fea8dc584cddd815; fi
+            if test "$variant" = c; then ref=21a538db67aa784bc8d3680b1278b039d74c0867; fi
+            snapshot="$RUNNER_TEMP/packed-$variant"
+            git worktree add --detach "$snapshot" "$ref"
+            mkdir -p "$snapshot/bench/packed-borrowed-probe/src"
+            cp bench/packed-borrowed-probe/Cargo.toml "$snapshot/bench/packed-borrowed-probe/"
+            cp bench/packed-borrowed-probe/src/main.rs "$snapshot/bench/packed-borrowed-probe/src/"
+            if test "$variant" = a; then
+              cp Cargo.lock "$snapshot/bench/packed-borrowed-probe/Cargo.lock"
+              cargo build --release --manifest-path "$snapshot/bench/packed-borrowed-probe/Cargo.toml" 2>&1 | tee evidence/build-a.log
+              cp "$snapshot/bench/packed-borrowed-probe/Cargo.lock" evidence/source/Cargo.lock
+            else
+              cp evidence/source/Cargo.lock "$snapshot/bench/packed-borrowed-probe/Cargo.lock"
+              cargo build --locked --release --manifest-path "$snapshot/bench/packed-borrowed-probe/Cargo.toml" 2>&1 | tee "evidence/build-$variant.log"
+            fi
+            cp "$snapshot/bench/packed-borrowed-probe/target/release/packed-borrowed-probe" "evidence/bin/$variant"
+            cargo build --locked --release --manifest-path "$snapshot/bench/packed-borrowed-probe/Cargo.toml" --features inline-count 2>&1 | tee "evidence/build-$variant-count.log"
+            cp "$snapshot/bench/packed-borrowed-probe/target/release/packed-borrowed-probe" "evidence/bin/$variant-count"
+          done
+          sha256sum evidence/bin/* > evidence/environment/binary-sha256.txt
+          sha256sum evidence/source/* > evidence/environment/source-sha256.txt
+      - name: Paired pinned CPU and differential allocations
+        run: |
+          set -euo pipefail
+          python3 scripts/packed-borrowed-compare.py evidence/bin/a evidence/bin/b evidence/bin/c evidence/bin/a-count evidence/bin/b-count evidence/bin/c-count evidence/results.json | tee evidence/summary.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-borrowed-component-screen
+          path: evidence
+          retention-days: 30
+      - name: Remove worktrees
+        if: always()
+        run: |
+          for variant in a b c; do
+            snapshot="$RUNNER_TEMP/packed-$variant"
+            if test -d "$snapshot"; then git worktree remove --force "$snapshot"; fi
+          done
+  cleanup:
+    if: always()
+    needs: [screen]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git push --force-with-lease="refs/heads/scratch/packed-refined-screen-v2-20261117:$GITHUB_SHA" origin ":refs/heads/scratch/packed-refined-screen-v2-20261117"

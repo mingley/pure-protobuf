@@ -1,0 +1,297 @@
+diff --git a/src/packed.rs b/src/packed.rs
+--- a/src/packed.rs
++++ b/src/packed.rs
+@@ -20,13 +20,27 @@ use alloc::{boxed::Box, vec::Vec};
+ #[path = "packed/wire_tests.rs"]
+ mod wire_tests;
+ 
++#[cfg(test)]
++#[path = "packed/borrowed_tests.rs"]
++mod borrowed_tests;
++
+ pub trait PackedCodec: Sized {
+     type Elem: Copy + Default + PartialEq;
+     /// Fixed-width packing has a unique encoding; varints must be recoded canonical.
+     const MEMCPY_SAFE: bool = false;
+     fn validate(buf: &[u8]) -> Result<(), ParseError>;
+     fn decode(buf: &[u8], out: &mut Vec<Self::Elem>) -> Result<(), ParseError>;
+     fn encode(elems: &[Self::Elem], out: &mut Vec<u8>);
++
++    /// Borrow the canonical encoding from initialized element storage when possible.
++    ///
++    /// The default uses the ordinary encoded cache. Implementations may return
++    /// bytes tied to `elems`; this hook does not make `MEMCPY_SAFE` a memory
++    /// safety promise for arbitrary element types.
++    #[inline]
++    fn borrow_encoded(_elems: &[Self::Elem]) -> Option<&[u8]> {
++        None
++    }
+ }
+ 
+ /// Byte length of a fixed-width packed run, fail-closed on overflow
+@@ -103,9 +117,34 @@ macro_rules! fixed_codec {
+     ($name:ident, $elem:ty, $width:expr_2021, $read:expr_2021) => {
+         #[derive(Clone, Copy, Debug)]
+         pub enum $name {}
++        impl $name {
++            #[cfg(target_endian = "little")]
++            #[inline]
++            fn native_bytes(elems: &[$elem]) -> &[u8] {
++                let byte_len = packed_byte_len(elems.len(), $width);
++                // SAFETY: $elem is a concrete fixed-width scalar with no
++                // padding or uninitialized bytes. The live shared slice owns
++                // exactly byte_len initialized bytes; u8 requires alignment 1.
++                // The returned borrow cannot outlive elems. Wire order is LE
++                // on this target (see §4.2).
++                unsafe { core::slice::from_raw_parts(elems.as_ptr() as *const u8, byte_len) }
++            }
++        }
+         impl PackedCodec for $name {
+             type Elem = $elem;
+             const MEMCPY_SAFE: bool = true;
++            #[inline]
++            fn borrow_encoded(elems: &[$elem]) -> Option<&[u8]> {
++                #[cfg(target_endian = "little")]
++                {
++                    Some(Self::native_bytes(elems))
++                }
++                #[cfg(target_endian = "big")]
++                {
++                    let _ = elems;
++                    None
++                }
++            }
+             fn validate(buf: &[u8]) -> Result<(), ParseError> {
+                 if buf.len() % $width != 0 {
+                     return Err(ParseError::new("truncated packed fixed"));
+@@ -117,6 +156,7 @@ macro_rules! fixed_codec {
+                     return Err(ParseError::new("truncated packed fixed"));
+                 }
+                 let n = buf.len() / $width;
++                #[cfg(target_endian = "little")]
+                 let start = out.len();
+                 out.reserve(n);
+                 #[cfg(target_endian = "little")]
+@@ -141,14 +181,7 @@ macro_rules! fixed_codec {
+                 crate::copy_counts::note_emit(byte_len);
+                 #[cfg(target_endian = "little")]
+                 {
+-                    // SAFETY: the cast to *const u8 needs only 1-byte
+-                    // alignment, so any element alignment is fine; `elems`
+-                    // is a live shared slice, so `byte_len` bytes at that
+-                    // address are valid and initialized (see §4.2).
+-                    let bytes = unsafe {
+-                        core::slice::from_raw_parts(elems.as_ptr() as *const u8, byte_len)
+-                    };
+-                    out.extend_from_slice(bytes);
++                    out.extend_from_slice(Self::native_bytes(elems));
+                 }
+                 #[cfg(target_endian = "big")]
+                 {
+@@ -240,22 +273,32 @@ impl<C: PackedCodec> Packed<C> {
+     }
+ 
+     pub fn packed_bytes(&self) -> Option<&[u8]> {
+-        if self.is_empty() {
++        let i = self.inner.as_ref()?;
++        let decoded = i.decoded.get();
++        let empty = match decoded {
++            Some(elems) => elems.is_empty(),
++            None => i.wire.as_ref().is_none_or(|w| w.as_slice().is_empty()),
++        };
++        if empty {
+             return None;
+         }
+-        let i = self.inner.as_ref()?;
+         if C::MEMCPY_SAFE {
+             if let Some(w) = i.wire.as_ref() {
+                 return Some(w.as_slice());
+             }
+         }
+-        let elems = i.decoded.get_or_init(|| {
+-            let mut out = Vec::new();
+-            if let Some(w) = &i.wire {
+-                let _ = C::decode(w.as_slice(), &mut out);
+-            }
+-            out
++        let elems = decoded.unwrap_or_else(|| {
++            i.decoded.get_or_init(|| {
++                let mut out = Vec::new();
++                if let Some(w) = &i.wire {
++                    let _ = C::decode(w.as_slice(), &mut out);
++                }
++                out
++            })
+         });
++        if let Some(bytes) = C::borrow_encoded(elems) {
++            return Some(bytes);
++        }
+         Some(i.encoded.get_or_init(|| {
+             let mut out = Vec::new();
+             C::encode(elems, &mut out);
+diff --git a/src/packed/borrowed_tests.rs b/src/packed/borrowed_tests.rs
+new file mode 100644
+--- /dev/null
++++ b/src/packed/borrowed_tests.rs
+@@ -0,0 +1,161 @@
++//! Borrowed fixed-width encoding and custom-codec fallback checks.
++use super::*;
++
++fn from_values<C: PackedCodec>(values: Vec<C::Elem>) -> Packed<C> {
++    Packed::from_repeated(Repeated::from_vec(values))
++}
++
++#[cfg(target_endian = "little")]
++#[test]
++fn fixed_decoded_values_borrow_storage_without_an_encoded_cache() {
++    fn check<C: PackedCodec>(values: Vec<C::Elem>) {
++        let packed = from_values::<C>(values);
++        let values = packed.as_slice();
++        let borrowed = C::borrow_encoded(values).expect("built-in fixed codec");
++        let expected = {
++            let mut out = Vec::new();
++            C::encode(values, &mut out);
++            out
++        };
++        assert_eq!(packed.packed_bytes(), Some(expected.as_slice()));
++        assert_eq!(
++            packed.packed_bytes().expect("bytes").as_ptr(),
++            borrowed.as_ptr()
++        );
++        assert!(
++            packed
++                .inner
++                .as_ref()
++                .expect("populated")
++                .encoded
++                .get()
++                .is_none(),
++            "borrowing must not populate a duplicate byte cache"
++        );
++    }
++    check::<FixedU32>(vec![0, 1, u32::MAX]);
++    check::<FixedI32>(vec![i32::MIN, -1, i32::MAX]);
++    check::<FixedU64>(vec![0, 1, u64::MAX]);
++    check::<FixedI64>(vec![i64::MIN, -1, i64::MAX]);
++    check::<Ieee32>(vec![f32::from_bits(0x7fc0_0001), -0.0, f32::INFINITY]);
++    check::<Ieee64>(vec![
++        f64::from_bits(0x7ff8_0000_0000_0001),
++        -0.0,
++        f64::INFINITY,
++    ]);
++}
++
++#[test]
++fn fixed_mutation_and_clone_preserve_wire_bytes() {
++    let mut packed = from_values::<FixedU32>(Vec::new());
++    assert_eq!(packed.packed_bytes(), None);
++    assert_eq!(PackedFx32::new().packed_bytes(), None);
++    packed.push(1);
++    packed.push(2);
++    assert_eq!(
++        packed.packed_bytes(),
++        Some([1, 0, 0, 0, 2, 0, 0, 0].as_slice())
++    );
++    let cloned = packed.clone();
++    packed.push(3);
++    assert_eq!(
++        cloned.packed_bytes(),
++        Some([1, 0, 0, 0, 2, 0, 0, 0].as_slice())
++    );
++    assert_eq!(
++        packed.packed_bytes(),
++        Some([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0].as_slice())
++    );
++    packed.append_bytes(&4_u32.to_le_bytes()).expect("append");
++    assert_eq!(packed.iter().copied().collect::<Vec<_>>(), [1, 2, 3, 4]);
++    packed.as_mut().set(0, 9);
++    assert_eq!(
++        packed.packed_bytes().expect("bytes").get(..4),
++        Some(9_u32.to_le_bytes().as_slice())
++    );
++    packed.clear();
++    assert_eq!(packed.packed_bytes(), None);
++    packed.push(u32::MAX);
++    assert_eq!(
++        packed.packed_bytes(),
++        Some(u32::MAX.to_le_bytes().as_slice())
++    );
++    packed.clear();
++    packed.append_bytes(&7_u32.to_le_bytes()).expect("regrow");
++    assert_eq!(packed.packed_bytes(), Some(7_u32.to_le_bytes().as_slice()));
++}
++
++#[test]
++fn varints_still_use_canonical_encoded_cache() {
++    let mut packed = PackedU32::new();
++    packed
++        .append_wire(Wire::from_slice(&[0x81, 0x00]))
++        .expect("overlong accepted");
++    assert_eq!(packed.packed_bytes(), Some([1].as_slice()));
++    assert!(
++        packed
++            .inner
++            .as_ref()
++            .expect("populated")
++            .encoded
++            .get()
++            .is_some()
++    );
++    packed.push(128);
++    assert_eq!(packed.packed_bytes(), Some([1, 0x80, 1].as_slice()));
++}
++
++#[derive(Clone, Copy, Default, Debug, PartialEq)]
++#[repr(C)]
++struct Padded {
++    small: u8,
++    wide: u32,
++}
++
++enum CustomFlag {}
++impl PackedCodec for CustomFlag {
++    type Elem = Padded;
++    const MEMCPY_SAFE: bool = true;
++
++    fn validate(buf: &[u8]) -> Result<(), ParseError> {
++        if buf.len() % 5 == 0 {
++            Ok(())
++        } else {
++            Err(ParseError::new("custom width"))
++        }
++    }
++
++    fn decode(buf: &[u8], out: &mut Vec<Padded>) -> Result<(), ParseError> {
++        Self::validate(buf)?;
++        for bytes in buf.chunks_exact(5) {
++            out.push(Padded {
++                small: bytes[0],
++                wide: u32::from_le_bytes(bytes[1..].try_into().expect("checked width")),
++            });
++        }
++        Ok(())
++    }
++
++    fn encode(elems: &[Padded], out: &mut Vec<u8>) {
++        for value in elems {
++            out.push(value.small);
++            out.extend_from_slice(&value.wide.to_le_bytes());
++        }
++    }
++}
++
++#[test]
++fn public_memcpy_flag_does_not_authorize_generic_memory_reinterpretation() {
++    let packed = from_values::<CustomFlag>(vec![Padded { small: 1, wide: 2 }]);
++    assert_eq!(CustomFlag::borrow_encoded(packed.as_slice()), None);
++    assert_eq!(packed.packed_bytes(), Some([1, 2, 0, 0, 0].as_slice()));
++    assert!(
++        packed
++            .inner
++            .as_ref()
++            .expect("populated")
++            .encoded
++            .get()
++            .is_some()
++    );
++}
