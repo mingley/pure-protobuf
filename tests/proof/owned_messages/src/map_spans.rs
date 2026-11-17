@@ -10,6 +10,7 @@ mod api {
 pub(super) fn verify() {
     scalar_values();
     required_values();
+    mixed_parent_control(true);
     // Every short string fits existing inline storage. The only allocations
     // are the map's backing object and entry vector; no wire buffer is needed.
     let first = [bytes(1, b"key"), bytes(2, b"before")].concat();
@@ -214,4 +215,62 @@ fn required_values() {
     println!(
         "PASS scalar required map values: final-tree checks after fragment merging and key replacement"
     );
+}
+
+pub(super) fn mixed_parent_control(enforce: bool) {
+    use super::owned::strict_types::MixedScalarRoot;
+
+    const CHILDREN: usize = 32;
+    let entry = [scalar(1, 7), bytes(2, &scalar(1, 42))].concat();
+    for payload_len in [32, 8192] {
+        let payload = vec![0x5a; payload_len];
+        let child = bytes(2, &bytes(1, &payload));
+        let children = child.repeat(CHILDREN);
+        for map_first in [true, false] {
+            let map = bytes(1, &entry);
+            let wire = if map_first {
+                [map, children.clone()].concat()
+            } else {
+                [children.clone(), map].concat()
+            };
+            let mut borrowed = None;
+            let borrowed_allocations =
+                allocated(|| borrowed = Some(MixedScalarRoot::parse(&wire).unwrap()));
+            let source = pbrs::rt::Bytes::from(wire);
+            // Promote Vec-backed Bytes before either the parser or its
+            // caller-owned source clone is counted.
+            drop(source.clone());
+            let mut shared = None;
+            let shared_allocations = allocated(|| {
+                shared = Some(MixedScalarRoot::parse_bytes(source.clone()).unwrap());
+            });
+            for parsed in [borrowed.unwrap(), shared.unwrap()] {
+                assert_eq!(parsed.values().get(7).unwrap().n(), 42);
+                assert_eq!(parsed.children().len(), CHILDREN);
+                for child in parsed.children().iter() {
+                    assert_eq!(child.data(), payload.as_slice());
+                }
+            }
+
+            // The source is >1 KiB: shared 32-byte fields copy individually,
+            // while shared 8-KiB fields window their caller-owned buffer.
+            // Container costs cancel for each pair over the same input wire.
+            let child_copies = if payload_len < 4096 { CHILDREN } else { 0 };
+            let containers = shared_allocations - child_copies;
+            let expected_borrowed = if map_first {
+                containers + 1
+            } else {
+                containers + CHILDREN + 1
+            };
+            println!(
+                "{{\"schema\":\"mixed-parent-wire/1\",\"children\":{CHILDREN},\"payload_bytes\":{payload_len},\"map_first\":{map_first},\"borrowed_allocations\":{borrowed_allocations},\"shared_allocations\":{shared_allocations},\"expected_borrowed\":{expected_borrowed}}}"
+            );
+            if enforce {
+                assert_eq!(
+                    borrowed_allocations, expected_borrowed,
+                    "mixed scalar-map parents must retain backing for eager child payloads"
+                );
+            }
+        }
+    }
 }

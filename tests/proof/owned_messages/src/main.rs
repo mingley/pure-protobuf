@@ -384,6 +384,17 @@ fn reference_compact(wire: &[u8]) -> strict_reference::CompactNode {
 }
 
 fn main() {
+    match std::env::args().nth(1).as_deref() {
+        Some("--mixed-parent-check") => {
+            map_spans::mixed_parent_control(true);
+            return;
+        }
+        Some("--mixed-parent-report") => {
+            map_spans::mixed_parent_control(false);
+            return;
+        }
+        _ => {}
+    }
     map_spans::verify();
     verify_profile!(owned, true);
     verify_profile!(lazy, false);

@@ -26,3 +26,9 @@ message ScalarValue {
 message ScalarRoot {
   map<int32, ScalarValue> values = 1;
 }
+
+// A scalar map must not stop later eager children sharing the parent frame.
+message MixedScalarRoot {
+  map<int32, ScalarValue> values = 1;
+  repeated Blob children = 2;
+}

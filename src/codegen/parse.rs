@@ -1051,10 +1051,9 @@ pub(crate) fn emit_merge_arm(
     let _ = writeln!(src, "                    }}");
 }
 
-// Scalar map values consume their wire eagerly. Passing through an existing
-// source still supports shared input, but borrowed input needs no retained frame.
-// Keep the parent allocation for payload-bearing values: it amortizes their
-// private backing storage across entries.
+// Scalar map values consume their wire eagerly. A parent frame is still needed
+// when ordinary eager descendants may share it, even if this value does not.
+// Keep the old policy outside an enclosing scalar-only/map-only schema.
 fn scalar_map_value(field: &FieldDescriptor, pool: &DescriptorPool) -> bool {
     field
         .message
@@ -1078,6 +1077,24 @@ fn scalar_map_value(field: &FieldDescriptor, pool: &DescriptorPool) -> bool {
         })
 }
 
+fn scalar_map_parent(desc: &MessageDescriptor, pool: &DescriptorPool) -> bool {
+    !desc.message_set_wire_format
+        && desc.fields.values().all(|field| {
+            if field.is_map {
+                scalar_map_value(field, pool)
+            } else {
+                field.cardinality != Cardinality::Repeated
+                    && !matches!(
+                        field.field_type,
+                        FieldType::String
+                            | FieldType::Bytes
+                            | FieldType::Message
+                            | FieldType::Group
+                    )
+            }
+        })
+}
+
 pub(crate) fn emit_map_decoders(
     src: &mut String,
     desc: &MessageDescriptor,
@@ -1087,6 +1104,7 @@ pub(crate) fn emit_map_decoders(
     let runtime = runtime_crate_path();
     bind_field_idents(desc);
     let msg = rust_ident(&desc.full_name).replace("r#", "");
+    let mut scalar_parent = None;
     for f in desc.fields.values() {
         if !f.is_map {
             continue;
@@ -1147,7 +1165,10 @@ pub(crate) fn emit_map_decoders(
                 .and_then(|entry| entry.field(2))
                 .is_some_and(field_needs_initialization);
             let owned = OWNED_MESSAGE_FIELDS.with(|owned| owned.get());
-            let child_wire = if owned && !scalar_map_value(f, pool) {
+            let elide_parent = owned
+                && scalar_map_value(f, pool)
+                && *scalar_parent.get_or_insert_with(|| scalar_map_parent(desc, pool));
+            let child_wire = if owned && !elide_parent {
                 runtime_path(
                     "::core::option::Option::Some(::pbrs::rt::Wire::ensure(wire, parent_data).window(start + s, start + e))",
                 )
