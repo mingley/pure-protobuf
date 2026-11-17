@@ -1026,7 +1026,11 @@ impl<T> Request<T> {
 
     pub(crate) fn set_lazy_extensions(&mut self, extensions: crate::lazy_ext::LazyExt) {
         self.extensions = extensions;
-        self.publish_existing_connect_info();
+        // Context can arrive before set_http installs the transport scheme.
+        // Let set_http classify it once, without inventing cleartext TLS info.
+        if self.scheme.is_some() {
+            self.publish_existing_connect_info();
+        }
     }
 
     // Nonempty user context is moved into its final map. Add transport facts
@@ -1052,14 +1056,14 @@ impl<T> Request<T> {
             return;
         }
         let https = self.scheme.as_deref() == Some("https");
-        let identity = self.peer_identity.clone();
+        let identity = self.peer_identity.as_ref();
         self.extensions.publish(|map| {
             insert_connect_info(
                 map,
                 https.then_some("https"),
                 remote_addr,
                 local_addr,
-                identity.as_ref(),
+                identity,
             );
         });
     }
@@ -3461,6 +3465,156 @@ mod tests {
     use crate::telemetry::DiagnosticConfig;
     use crate::tls::PeerIdentity;
     use std::time::Duration;
+
+    #[test]
+    fn transport_context_waits_for_http_scheme() {
+        use super::TlsConnectInfo;
+
+        for (scheme, identity) in [
+            ("http", None),
+            ("https", None),
+            ("https", PeerIdentity::from_der_certs([b"peer-leaf"])),
+        ] {
+            let mut request = Request::from_metadata(
+                (),
+                crate::metadata::Metadata::new(),
+                Some("127.0.0.1:12345".parse().expect("peer")),
+                Some("127.0.0.1:443".parse().expect("local")),
+                identity.clone(),
+            );
+            let mut map = http::Extensions::new();
+            map.insert(7_u8);
+            request.set_lazy_extensions(crate::lazy_ext::LazyExt::from_extensions(map));
+            assert!(request.extensions.get().get::<TcpConnectInfo>().is_none());
+            assert!(request.extensions.get().get::<TlsConnectInfo>().is_none());
+            request.set_http(None, Some(super::HttpStr::from_static(scheme)), None);
+            assert_eq!(request.extensions().get::<u8>(), Some(&7));
+            if scheme == "https" {
+                assert!(request.extensions().get::<TcpConnectInfo>().is_none());
+                let info = request
+                    .extensions()
+                    .get::<TlsConnectInfo>()
+                    .expect("TLS info");
+                assert_eq!(info.peer_identity(), identity.as_ref());
+                assert_eq!(info.get_ref().remote_addr(), request.remote_addr());
+                assert_eq!(info.get_ref().local_addr(), request.local_addr());
+            } else {
+                assert!(request.extensions().get::<TlsConnectInfo>().is_none());
+                let info = request
+                    .extensions()
+                    .get::<TcpConnectInfo>()
+                    .expect("TCP info");
+                assert_eq!(info.remote_addr(), request.remote_addr());
+                assert_eq!(info.local_addr(), request.local_addr());
+            }
+        }
+    }
+
+    #[test]
+    fn completed_unknown_scheme_keeps_tcp_connect_info() {
+        let mut map = http::Extensions::new();
+        map.insert(7_u8);
+        let mut request = Request::from_metadata(
+            (),
+            crate::metadata::Metadata::new(),
+            Some("127.0.0.1:12345".parse().expect("peer")),
+            None,
+            None,
+        );
+        request.set_lazy_extensions(crate::lazy_ext::LazyExt::from_extensions(map));
+        request.set_http(None, None, None);
+        assert!(request.extensions().get::<TcpConnectInfo>().is_some());
+        let (_, mut parts) = request.into_message_and_parts();
+        parts.extensions.remove::<TcpConnectInfo>();
+        let rebuilt = Request::<()>::from_message_and_parts((), parts);
+        assert_eq!(rebuilt.extensions().get::<u8>(), Some(&7));
+        assert!(rebuilt.extensions().get::<TcpConnectInfo>().is_some());
+    }
+
+    #[test]
+    fn deferred_transport_context_preserves_user_connect_info() {
+        use super::TlsConnectInfo;
+
+        let user_tcp = TcpConnectInfo::default();
+        let user_identity = PeerIdentity::from_der_certs([b"user-leaf"]);
+        let mut map = http::Extensions::new();
+        map.insert(user_tcp.clone());
+        map.insert(TlsConnectInfo::new(user_tcp.clone(), user_identity.clone()));
+        let mut request = Request::from_metadata(
+            (),
+            crate::metadata::Metadata::new(),
+            Some("127.0.0.1:12345".parse().expect("peer")),
+            Some("127.0.0.1:443".parse().expect("local")),
+            PeerIdentity::from_der_certs([b"transport-leaf"]),
+        );
+        request.set_lazy_extensions(crate::lazy_ext::LazyExt::from_extensions(map));
+        request.set_http(None, Some(super::HttpStr::from_static("https")), None);
+        assert_eq!(
+            request.extensions().get::<TcpConnectInfo>(),
+            Some(&user_tcp)
+        );
+        let info = request
+            .extensions()
+            .get::<TlsConnectInfo>()
+            .expect("user TLS info");
+        assert_eq!(info.peer_identity(), user_identity.as_ref());
+        assert_eq!(info.get_ref(), &user_tcp);
+    }
+
+    #[test]
+    fn tls_connect_info_preserves_identity_and_user_overrides() {
+        use super::TlsConnectInfo;
+
+        for identity in [None, PeerIdentity::from_der_certs([b"peer-leaf"])] {
+            let mut request = Request::new(7_u32);
+            request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
+            request.local_addr = Some("127.0.0.1:443".parse().expect("local"));
+            request.peer_identity = identity.clone();
+            request.set_http(None, Some(super::HttpStr::from_static("https")), None);
+            let first = request
+                .extensions()
+                .get::<TlsConnectInfo>()
+                .expect("TLS connect info");
+            assert_eq!(first.peer_identity(), identity.as_ref());
+            assert_eq!(first.get_ref().remote_addr(), request.remote_addr());
+            let first_address = std::ptr::from_ref(first);
+            for _ in 0..4 {
+                assert_eq!(
+                    request
+                        .extensions()
+                        .get::<TlsConnectInfo>()
+                        .map(std::ptr::from_ref),
+                    Some(first_address)
+                );
+            }
+            let rebuilt = request.map(|value| value + 1);
+            assert_eq!(*rebuilt.get_ref(), 8);
+            assert_eq!(
+                rebuilt
+                    .extensions()
+                    .get::<TlsConnectInfo>()
+                    .expect("mapped TLS info")
+                    .peer_identity(),
+                identity.as_ref()
+            );
+        }
+
+        let user_identity = PeerIdentity::from_der_certs([b"user-leaf"]);
+        let mut request = Request::new(());
+        request.extensions_mut().insert(TlsConnectInfo::new(
+            TcpConnectInfo::default(),
+            user_identity.clone(),
+        ));
+        request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
+        request.peer_identity = PeerIdentity::from_der_certs([b"transport-leaf"]);
+        request.set_http(None, Some(super::HttpStr::from_static("https")), None);
+        let info = request
+            .extensions()
+            .get::<TlsConnectInfo>()
+            .expect("user TLS info");
+        assert_eq!(info.peer_identity(), user_identity.as_ref());
+        assert_eq!(info.get_ref().remote_addr(), None);
+    }
 
     #[test]
     fn publishing_connect_info_does_not_clone_user_extensions() {
