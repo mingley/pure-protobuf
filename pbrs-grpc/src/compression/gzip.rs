@@ -116,11 +116,11 @@ fn acquire_raw_decompressor() -> Decompress {
 fn release_raw_decompressor(mut decomp: Decompress) {
     RAW_DECOMPRESSORS
         .try_with(|cell| {
-            if let Ok(mut pool) = cell.try_borrow_mut()
-                && pool.len() < MAX_POOLED_DECODERS
-            {
-                decomp.reset(false);
-                pool.push(decomp);
+            if let Ok(mut pool) = cell.try_borrow_mut() {
+                if pool.len() < MAX_POOLED_DECODERS {
+                    decomp.reset(false);
+                    pool.push(decomp);
+                }
             }
         })
         .ok();
@@ -452,10 +452,10 @@ impl<R: BufRead> Read for GzipMembers<R> {
                     let written =
                         usize::try_from(decomp.total_out() - before_out).unwrap_or(output.len());
                     self.reader.consume(consumed);
-                    if let Some(decoded) = output.get(..written)
-                        && !decoded.is_empty()
-                    {
-                        self.body_crc.update(decoded);
+                    if let Some(decoded) = output.get(..written) {
+                        if !decoded.is_empty() {
+                            self.body_crc.update(decoded);
+                        }
                     }
                     match res {
                         Ok(FlateStatus::StreamEnd) => {

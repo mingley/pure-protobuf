@@ -132,11 +132,11 @@ impl Drop for PooledZlibReader<'_> {
         };
         ZLIB_DECOMPRESSORS
             .try_with(|cell| {
-                if let Ok(mut pool) = cell.try_borrow_mut()
-                    && pool.len() < MAX_POOLED_DECODERS
-                {
-                    decomp.reset(true);
-                    pool.push(decomp);
+                if let Ok(mut pool) = cell.try_borrow_mut() {
+                    if pool.len() < MAX_POOLED_DECODERS {
+                        decomp.reset(true);
+                        pool.push(decomp);
+                    }
                 }
             })
             .ok();
