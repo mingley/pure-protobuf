@@ -2711,17 +2711,18 @@ impl OpaqueStreamRef {
                         extra += 1;
                     }
                 }
-                if let Ok(window) = WindowSize::try_from(total_len)
-                    && window > 0
-                    && me
-                        .actions
-                        .recv
-                        .release_capacity(window, &mut stream, &mut me.actions.task)
-                        .is_err()
-                {
-                    return Poll::Ready(Some(Err(proto::Error::library_go_away(
-                        Reason::INTERNAL_ERROR,
-                    ))));
+                if let Ok(window) = WindowSize::try_from(total_len) {
+                    if window > 0
+                        && me
+                            .actions
+                            .recv
+                            .release_capacity(window, &mut stream, &mut me.actions.task)
+                            .is_err()
+                    {
+                        return Poll::Ready(Some(Err(proto::Error::library_go_away(
+                            Reason::INTERNAL_ERROR,
+                        ))));
+                    }
                 }
                 me.counts.credit_discarded_for_consumed_data(total_len);
                 Poll::Ready(Some(Ok(first.payload)))

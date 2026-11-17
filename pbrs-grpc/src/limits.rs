@@ -265,8 +265,10 @@ impl ByteBudgetTracker {
     /// across a streaming burst.
     #[inline]
     pub(crate) fn acquire_into(&self, permit: &mut BytePermit, bytes: usize) -> Result<(), Status> {
-        if let Some(existing) = &permit.tracker
-            && Arc::ptr_eq(&existing.inner, &self.inner)
+        if permit
+            .tracker
+            .as_ref()
+            .is_some_and(|existing| Arc::ptr_eq(&existing.inner, &self.inner))
         {
             if bytes == 0 {
                 return Ok(());

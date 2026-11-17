@@ -522,20 +522,20 @@ pub(crate) fn decode_frame<T: CodecMessage>(
         let raw = codec.decode_limited_into(&frame.payload, limits, scratch)?;
         let mut payload = Bytes::from(raw);
         let message = T::decode_payload_reusable(&mut payload)?;
-        if payload.is_empty()
-            && let Ok(reclaimed) = payload.try_into_mut()
-        {
-            let mut buf = Vec::from(reclaimed);
-            if buf.capacity() > 0 && buf.capacity() <= MAX_UNARY_DECODE_SCRATCH_BYTES {
-                buf.clear();
-                UNARY_DECODE_SCRATCH.with(|slot| {
-                    let existing = slot.take();
-                    if buf.capacity() >= existing.capacity() {
-                        slot.set(buf);
-                    } else {
-                        slot.set(existing);
-                    }
-                });
+        if payload.is_empty() {
+            if let Ok(reclaimed) = payload.try_into_mut() {
+                let mut buf = Vec::from(reclaimed);
+                if buf.capacity() > 0 && buf.capacity() <= MAX_UNARY_DECODE_SCRATCH_BYTES {
+                    buf.clear();
+                    UNARY_DECODE_SCRATCH.with(|slot| {
+                        let existing = slot.take();
+                        if buf.capacity() >= existing.capacity() {
+                            slot.set(buf);
+                        } else {
+                            slot.set(existing);
+                        }
+                    });
+                }
             }
         }
         message
