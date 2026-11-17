@@ -1,0 +1,116 @@
+name: Compression decoder reset candidate
+on:
+  push:
+    branches: [scratch/compression-reset-final-gate-20261117]
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "2"
+jobs:
+  correctness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.85.0", stable]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2f27343e23770571c3ab40a15038c6dcb2ed5217
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - name: Verify source
+        run: |
+          test "$(git rev-parse HEAD)" = "2f27343e23770571c3ab40a15038c6dcb2ed5217"
+          git diff e0d6d09230c4e53934be6aa8aa928612bb40733d HEAD -- > compression-reset.patch
+          rustc -Vv | tee rustc.txt
+      - name: Install protobuf compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Compression correctness
+        run: |
+          cargo test --locked -p pbrs-grpc --lib compression::
+          cargo test --locked -p pbrs-grpc --test compression --test compression_negotiation
+      - name: Tonic gzip interoperability
+        if: matrix.toolchain == 'stable'
+        run: cargo test --locked -p pbrs-grpc --features tonic-gzip --test tonic_opaque_transport
+      - name: Formatting and strict all-feature lint
+        if: matrix.toolchain == 'stable'
+        run: |
+          rustfmt --check --edition 2024 pbrs-grpc/src/compression/gzip.rs pbrs-grpc/src/compression/deflate.rs
+          cargo clippy --locked --all-targets --all-features -p pbrs-grpc -- -D warnings
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compression-reset-correctness-${{ matrix.toolchain }}
+          path: |
+            compression-reset.patch
+            rustc.txt
+  negative-control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2f27343e23770571c3ab40a15038c6dcb2ed5217
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protobuf compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Remove reset on return and demand diagnostic test failure
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for coding, wrapped in (("gzip", "false"), ("deflate", "true")):
+              path = Path(f"pbrs-grpc/src/compression/{coding}.rs")
+              source = path.read_text()
+              target = f"                        decomp.reset({wrapped});" if coding == "deflate" else f"                    decomp.reset({wrapped});"
+              if source.count(target) != 1:
+                  raise SystemExit(f"wrong reset mutation count: {coding}")
+              path.write_text(source.replace(target, ""))
+          PY
+          git diff > compression-dirty-state-mutant.patch
+          set +e
+          cargo test --locked -p pbrs-grpc --lib decoder_pool_recovers_from_early_drop_and_unwinding_and_stays_bounded -- --nocapture > dirty-state-mutant.log 2>&1
+          result=$?
+          set -e
+          cat dirty-state-mutant.log
+          test "$result" = 101
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path("dirty-state-mutant.log").read_text()
+          for coding in ("gzip", "deflate"):
+              name = f"compression::{coding}::tests::decoder_pool_recovers_from_early_drop_and_unwinding_and_stays_bounded"
+              if name not in log:
+                  raise SystemExit(f"missing mutant diagnostic: {coding}")
+          if "test result: FAILED. 0 passed; 2 failed;" not in log:
+              raise SystemExit("mutant did not reach exactly the two failing tests")
+          if "assertion failed: pool.iter().all" not in log:
+              raise SystemExit("mutant failed for a reason other than dirty pooled state")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compression-reset-negative-control
+          path: |
+            compression-dirty-state-mutant.patch
+            dirty-state-mutant.log
+  cleanup:
+    needs: [correctness, negative-control]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Remove isolated driver ref with lease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          actual=$(gh api "repos/$GH_REPO/git/ref/heads/scratch/compression-reset-final-gate-20261117" --jq .object.sha)
+          test "$actual" = "$GITHUB_SHA"
+          gh api --method DELETE "repos/$GH_REPO/git/refs/heads/scratch/compression-reset-final-gate-20261117"

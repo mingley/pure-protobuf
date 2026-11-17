@@ -1,0 +1,81 @@
+name: Compression reset component CPU screen
+on:
+  push:
+    branches: [scratch/compression-reset-perf-20261117]
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "2"
+jobs:
+  component-screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protobuf compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Build exact library source pair with identical example only
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD^)" = "2f27343e23770571c3ab40a15038c6dcb2ed5217"
+          git diff e0d6d09230c4e53934be6aa8aa928612bb40733d 2f27343e23770571c3ab40a15038c6dcb2ed5217 -- > evidence/compression-reset.patch
+          rustc -Vv > evidence/rustc.txt
+          lscpu > evidence/lscpu.txt
+          uname -a > evidence/uname.txt
+          cp .github/scratch/compression-reset/probe.rs evidence/probe.rs
+          cp .github/scratch/compression-reset/driver.py evidence/driver.py
+          printf '%s\n' 'e0d6d09230c4e53934be6aa8aa928612bb40733d' > evidence/baseline.sha
+          printf '%s\n' '2f27343e23770571c3ab40a15038c6dcb2ed5217' > evidence/candidate.sha
+          for label in baseline candidate; do
+            if test "$label" = baseline; then source_sha="e0d6d09230c4e53934be6aa8aa928612bb40733d"; else source_sha="2f27343e23770571c3ab40a15038c6dcb2ed5217"; fi
+            source_dir="$RUNNER_TEMP/compression-$label"
+            git worktree add --detach "$source_dir" "$source_sha"
+            mkdir -p "$source_dir/pbrs-grpc/examples"
+            cp evidence/probe.rs "$source_dir/pbrs-grpc/examples/compression_reset_screen.rs"
+            (
+              cd "$source_dir"
+              test "$(git rev-parse HEAD)" = "$source_sha"
+              git diff --exit-code
+              CARGO_TARGET_DIR="$RUNNER_TEMP/target-$label" cargo build --locked --release -p pbrs-grpc --example compression_reset_screen
+              git diff --exit-code
+            )
+            cp "$RUNNER_TEMP/target-$label/release/examples/compression_reset_screen" "evidence/$label"
+            sha256sum "evidence/$label" >> evidence/binary-sha256.txt
+          done
+      - name: Four alternating blocks per case and duplicate-executable controls
+        run: |
+          python3 evidence/driver.py "$PWD/evidence/baseline" "$PWD/evidence/candidate" evidence/results.json | tee evidence/summary.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("evidence/results.json").read_text())
+          print("source", result["base"], result["candidate"])
+          print("scope", result["scope"])
+          print("affinity", result["affinity"], "available", result["available_cpus"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compression-reset-component-cpu
+          path: evidence/
+          retention-days: 30
+  cleanup:
+    needs: component-screen
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Remove isolated driver ref with lease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          actual=$(gh api "repos/$GH_REPO/git/ref/heads/scratch/compression-reset-perf-20261117" --jq .object.sha)
+          test "$actual" = "$GITHUB_SHA"
+          gh api --method DELETE "repos/$GH_REPO/git/refs/heads/scratch/compression-reset-perf-20261117"
