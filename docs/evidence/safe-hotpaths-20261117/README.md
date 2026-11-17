@@ -73,11 +73,19 @@ libtest-output parser. No timing was rerun to repair report extraction.
 
 ## Owned scalar-map decoding
 
-[f4e5fdb1](https://github.com/mingley/pure-protobuf/commit/f4e5fdb1812c942933df65a637647cd51ad69466)
-avoids a parent-wire allocation when eagerly decoding map values whose schema
-contains only singular scalars. Shared input keeps its existing windows.
-Strings, bytes, repeated fields, nested values, extern types and MessageSet
-values keep the existing parent-backing strategy.
+[0a04b3ea](https://github.com/mingley/pure-protobuf/commit/0a04b3ea7c708835ef3a06f7af5d796db230b8ff)
+avoids a parent-wire allocation for owned maps of scalar-only messages only
+when its enclosing schema is limited to singular scalars and such maps.
+Mixed schemas retain parent backing that later eager descendants may share.
+
+A pre-publication review of the
+[initial candidate](https://github.com/mingley/pure-protobuf/commit/f4e5fdb1812c942933df65a637647cd51ad69466)
+found that a scalar map followed by 32 byte-bearing children could increase
+borrowed allocations from 6 to 37. The narrowed guard restores the original
+counts in both field orders. The measured pure-map decoder bodies remain
+byte-identical; shared-input counts are unchanged.
+The [parent-backing follow-up](../owned-parent-backing-20261117/README.md)
+retains the three-generator controls.
 
 The [generated-consumer gate](https://github.com/mingley/pure-protobuf/actions/runs/44036214749)
 covers unknown fields, malformed descendants, required-value merges and

@@ -16,8 +16,9 @@ build time. Public API compatibility and qualification boundaries remain unchang
   retaining reset-on-return, later gzip-member resets, and bounded pools.
 - Avoid allocating storage for an empty repeated field's mutable slice while
   preserving existing buffers and reserved capacity.
-- Avoid parent-wire allocation for owned scalar-only map values.
-  Payload-bearing values retain their existing backing strategy.
+- Avoid unused parent backing for owned maps of scalar-only messages when the
+  enclosing schema is limited to singular scalars and such maps. Mixed
+  schemas keep their shared backing for eager descendants.
 - Preserve Rust 1.85 compatibility, the documented copy policy for unselected
   shared byte fields smaller than 4096 bytes, and TLS connection metadata
   across the new paths. Explicitly selected `ProtoBytes` fields keep sharing
