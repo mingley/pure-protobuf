@@ -258,8 +258,9 @@ impl LazyStr {
         if bytes.len() <= Self::INLINE {
             return Self::from_bytes(bytes);
         }
-        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
-            && !w.should_window_span(bytes.len())
+        if slot
+            .as_ref()
+            .is_some_and(|w| w.is_shared() && !w.should_window_span(bytes.len()))
         {
             return Self::from_bytes(bytes);
         }
@@ -294,8 +295,9 @@ impl LazyStr {
             require_utf8(s)?;
             return Ok(Self::from_bytes(s));
         }
-        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
-            && w.should_window_span(s.len())
+        if let Some(w) = slot
+            .as_ref()
+            .filter(|w| w.is_shared() && w.should_window_span(s.len()))
         {
             require_utf8(s)?;
             return Ok(Self::Wire(w.window(rel_start, rel_end)));
@@ -337,8 +339,9 @@ impl LazyStr {
         if s.len() <= Self::INLINE {
             return Self::from_bytes(s);
         }
-        if let Some(w) = slot.as_ref().filter(|w| w.is_shared())
-            && w.should_window_span(s.len())
+        if let Some(w) = slot
+            .as_ref()
+            .filter(|w| w.is_shared() && w.should_window_span(s.len()))
         {
             return Self::Wire(w.window(rel_start, rel_end));
         }
