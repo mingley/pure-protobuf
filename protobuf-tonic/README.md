@@ -7,10 +7,9 @@
 `protobuf-tonic` connects [`pbrs`](https://crates.io/crates/pbrs) messages to
 Tonic 0.14 transport and middleware. It provides a `ProtobufCodec` adapter,
 generated client and server stubs, and single-buffer wire conversion helpers.
-The last published version is `0.1.0`, paired with `pbrs 0.2.1`.
-This checkout prepares patch candidate `0.1.1` with `pbrs 0.2.2`, retaining
-the same qualification boundaries and Rust 1.88 minimum. Older Tonic versions
-(0.12, 0.13) are unsupported.
+Source version `0.1.1` pairs with `pbrs` (`0.2.2`) and requires Rust 1.88.
+The qualification boundaries are unchanged. Older Tonic versions (0.12, 0.13)
+are unsupported.
 
 Two boundaries matter when migrating:
 

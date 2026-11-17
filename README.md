@@ -151,16 +151,17 @@ generation, reflection, JSON, text format, and bundled WKT bindings.
 
 <a id="workspace-crates"></a>
 
-| Need | Use | Patch candidate | Status |
+| Need | Use | Source version | Status |
 |---|---|---|---|
 | Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.2` | Core runtime and generator |
 | Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.1` | Supported `0.1.x` line |
 | tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.1` | Supported `0.1.x` line |
 | Runnable service with health and reflection | [`examples/greeter`](examples/greeter/README.md) | — | Workspace example (`publish = false`) |
 
-The last published versions are `pbrs 0.2.1` and adapters `0.1.0`.
-The candidates keep the existing qualification boundaries. Dependency examples
-use compatible minor requirements, so they work before and after the patch.
+The table describes source versions. Check the crate badges and
+[release readiness](docs/release-readiness.md) for publication evidence.
+The patch keeps the existing qualification boundaries. Dependency examples
+use compatible minor requirements.
 
 ## Code generation options
 

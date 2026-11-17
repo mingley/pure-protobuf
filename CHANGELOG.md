@@ -1,10 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 / 0.1.1
 
-Coordinated patch candidates: `pbrs 0.2.2`, `pbrs-grpc 0.1.1`, and
-`protobuf-tonic 0.1.1`. The last published versions are `pbrs 0.2.1` and
-adapters `0.1.0`. Both candidate adapters require the new core at runtime and
+Coordinated patch versions: `pbrs` (`0.2.2`), `pbrs-grpc` (`0.1.1`), and
+`protobuf-tonic` (`0.1.1`). Both adapters require the new core at runtime and
 build time. Public API compatibility and qualification boundaries remain unchanged.
 
 - Reduce client and server per-call work with shared load-balancer snapshots,
@@ -28,9 +27,9 @@ build time. Public API compatibility and qualification boundaries remain unchang
 
 See the [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
 and [benchmark results](docs/benchmarks.md) for
-source-specific checks, measured costs, and remaining losses. These candidates
-are not yet published and do not promote a production profile or claim overall
-performance leadership.
+source-specific checks, measured costs, and remaining losses. The
+[release checklist](docs/release-readiness.md) records publication evidence.
+This patch keeps the existing profiles and qualification boundaries.
 
 ## pbrs-grpc 0.1.0 / protobuf-tonic 0.1.0
 
