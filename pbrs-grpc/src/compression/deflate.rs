@@ -108,14 +108,11 @@ struct PooledZlibReader<'a> {
 
 impl<'a> PooledZlibReader<'a> {
     fn new(payload: &'a [u8]) -> Self {
+        // Only reset engines are returned to the pool; fresh engines start clean.
         let decomp = ZLIB_DECOMPRESSORS
             .try_with(|cell| cell.try_borrow_mut().ok().and_then(|mut pool| pool.pop()))
             .ok()
             .flatten()
-            .map(|mut d| {
-                d.reset(true);
-                d
-            })
             .unwrap_or_else(|| Decompress::new(true));
         Self {
             rem: payload,
@@ -306,6 +303,96 @@ mod tests {
     use super::{decode, decode_limited, encode, encode_level};
     use crate::limits::MessageLimits;
     use crate::status::Code;
+
+    fn assert_decoder_pool_reset() {
+        super::ZLIB_DECOMPRESSORS.with(|cell| {
+            let pool = cell.borrow();
+            assert!(pool.len() <= super::MAX_POOLED_DECODERS);
+            assert!(pool.iter().all(|d| d.total_in() == 0 && d.total_out() == 0));
+        });
+    }
+
+    #[test]
+    fn decoder_pool_recovers_after_errors_and_output_limits() {
+        super::ZLIB_DECOMPRESSORS.with(|cell| cell.borrow_mut().clear());
+        let payload = b"independent decoder history".repeat(40);
+        let encoded = encode(&payload).expect("encode");
+        let next = encode(b"next message").expect("encode next");
+
+        for end in 0..encoded.len() {
+            assert!(decode(&encoded[..end]).is_err(), "truncated at {end}");
+            assert_decoder_pool_reset();
+            assert_eq!(
+                decode(&next).expect("decode after truncation"),
+                b"next message"
+            );
+        }
+        let mut bad_checksum = encoded.clone();
+        let checksum_pos = bad_checksum.len() - 1;
+        bad_checksum[checksum_pos] ^= 1;
+        assert!(decode(&bad_checksum).is_err());
+        assert_decoder_pool_reset();
+        assert_eq!(
+            decode_limited(&encoded, MessageLimits::new().with_max_decoding(3))
+                .expect_err("decoded cap")
+                .code(),
+            Code::ResourceExhausted
+        );
+        assert_decoder_pool_reset();
+        assert_eq!(decode(&next).expect("fresh reuse"), b"next message");
+        assert!(
+            decode(&encode(b"").expect("empty frame"))
+                .expect("empty")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn decoder_pool_recovers_from_early_drop_and_unwinding_and_stays_bounded() {
+        use std::io::Read;
+
+        super::ZLIB_DECOMPRESSORS.with(|cell| cell.borrow_mut().clear());
+        let encoded = encode(&vec![b'a'; 4096]).expect("encode");
+        let mut active = Vec::new();
+        for _ in 0..super::MAX_POOLED_DECODERS + 2 {
+            let mut decoder = super::PooledZlibReader::new(encoded.as_slice());
+            let mut byte = [0];
+            decoder.read_exact(&mut byte).expect("partial decode");
+            assert_eq!(byte, [b'a']);
+            active.push(decoder);
+        }
+        drop(active);
+        assert_decoder_pool_reset();
+        super::ZLIB_DECOMPRESSORS.with(|cell| {
+            assert_eq!(cell.borrow().len(), super::MAX_POOLED_DECODERS);
+        });
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut decoder = super::PooledZlibReader::new(encoded.as_slice());
+            let mut byte = [0];
+            decoder.read_exact(&mut byte).expect("partial decode");
+            panic!("unwind while the decoder is leased");
+        }));
+        assert!(caught.is_err());
+        assert_decoder_pool_reset();
+        assert_eq!(
+            decode(&encoded).expect("decode after unwind"),
+            vec![b'a'; 4096]
+        );
+    }
+
+    #[test]
+    fn decoder_pool_falls_back_while_borrowed() {
+        let payload = b"a separate engine while the pool is borrowed";
+        let encoded = encode(payload).expect("encode");
+        super::ZLIB_DECOMPRESSORS.with(|cell| {
+            let mut pool = cell.borrow_mut();
+            pool.clear();
+            assert_eq!(decode(&encoded).expect("decode without the pool"), payload);
+            assert!(pool.is_empty(), "the borrowed pool cannot accept a return");
+        });
+        assert_eq!(decode(&encoded).expect("decode with the pool"), payload);
+        assert_decoder_pool_reset();
+    }
 
     #[test]
     fn a_zlib_stream_requires_one_compression_frame() {

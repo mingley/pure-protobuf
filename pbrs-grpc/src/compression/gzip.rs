@@ -101,15 +101,12 @@ impl Drop for RawCompressorLease {
     }
 }
 
+// Returned pool entries are reset before insertion; new engines also start clean.
 fn acquire_raw_decompressor() -> Decompress {
     RAW_DECOMPRESSORS
         .try_with(|cell| cell.try_borrow_mut().ok().and_then(|mut pool| pool.pop()))
         .ok()
         .flatten()
-        .map(|mut decomp| {
-            decomp.reset(false);
-            decomp
-        })
         .unwrap_or_else(|| Decompress::new(false))
 }
 
@@ -338,7 +335,7 @@ enum MemberPhase {
 }
 
 /// Message-local member decoder shared by native and tonic inbound paths.
-/// Admission precedes each reset, whose DEFLATE history clear has fixed cost.
+/// Admission precedes acquisition and each later member's DEFLATE history reset.
 pub(crate) struct GzipMembers<R> {
     reader: R,
     decomp: Option<Decompress>,
@@ -415,7 +412,7 @@ impl<R: BufRead> Read for GzipMembers<R> {
             match &mut self.phase {
                 MemberPhase::First => {
                     self.admit_member()?;
-                    self.ensure_decompressor().reset(false);
+                    self.ensure_decompressor();
                     self.body_crc = Crc::new();
                     self.phase = MemberPhase::Header(HeaderParser::new());
                 }
@@ -670,6 +667,116 @@ mod tests {
     use crate::limits::MessageLimits;
     use crate::status::Code;
     use std::io::{self, Read, Write};
+
+    fn assert_decoder_pool_reset() {
+        super::RAW_DECOMPRESSORS.with(|cell| {
+            let pool = cell.borrow();
+            assert!(pool.len() <= super::MAX_POOLED_DECODERS);
+            assert!(pool.iter().all(|d| d.total_in() == 0 && d.total_out() == 0));
+        });
+    }
+
+    #[test]
+    fn decoder_pool_recovers_after_errors_and_output_limits() {
+        super::RAW_DECOMPRESSORS.with(|cell| cell.borrow_mut().clear());
+        let payload = b"independent decoder history".repeat(40);
+        let encoded = encode(&payload).expect("encode");
+        let next = encode(b"next message").expect("encode next");
+
+        for end in 0..encoded.len() {
+            assert!(decode(&encoded[..end]).is_err(), "truncated at {end}");
+            assert_decoder_pool_reset();
+            assert_eq!(
+                decode(&next).expect("decode after truncation"),
+                b"next message"
+            );
+        }
+        let mut bad_crc = encoded.clone();
+        let crc_pos = bad_crc.len() - 8;
+        bad_crc[crc_pos] ^= 1;
+        assert!(decode(&bad_crc).is_err());
+        assert_decoder_pool_reset();
+        assert_eq!(
+            decode_limited(&encoded, MessageLimits::new().with_max_decoding(3))
+                .expect_err("decoded cap")
+                .code(),
+            Code::ResourceExhausted
+        );
+        assert_decoder_pool_reset();
+        let joined = [encoded.as_slice(), next.as_slice()].concat();
+        assert_eq!(
+            decode(&joined).expect("independent concatenated members"),
+            [payload.as_slice(), b"next message"].concat()
+        );
+        assert_decoder_pool_reset();
+        assert_eq!(decode(&next).expect("fresh reuse"), b"next message");
+        assert!(
+            decode(&encode(b"").expect("empty frame"))
+                .expect("empty")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn decoder_pool_recovers_from_early_drop_and_unwinding_and_stays_bounded() {
+        super::RAW_DECOMPRESSORS.with(|cell| cell.borrow_mut().clear());
+        let encoded = encode(&vec![b'a'; 4096]).expect("encode");
+        let mut active = Vec::new();
+        for _ in 0..super::MAX_POOLED_DECODERS + 2 {
+            let mut decoder = GzipMembers::new(encoded.as_slice(), None);
+            let mut byte = [0];
+            decoder.read_exact(&mut byte).expect("partial decode");
+            assert_eq!(byte, [b'a']);
+            active.push(decoder);
+        }
+        drop(active);
+        assert_decoder_pool_reset();
+        super::RAW_DECOMPRESSORS.with(|cell| {
+            assert_eq!(cell.borrow().len(), super::MAX_POOLED_DECODERS);
+        });
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut decoder = GzipMembers::new(encoded.as_slice(), None);
+            let mut byte = [0];
+            decoder.read_exact(&mut byte).expect("partial decode");
+            panic!("unwind while the decoder is leased");
+        }));
+        assert!(caught.is_err());
+        assert_decoder_pool_reset();
+        assert_eq!(
+            decode(&encoded).expect("decode after unwind"),
+            vec![b'a'; 4096]
+        );
+    }
+
+    #[test]
+    fn decoder_pool_falls_back_while_borrowed() {
+        let payload = b"a separate engine while the pool is borrowed";
+        let encoded = encode(payload).expect("encode");
+        super::RAW_DECOMPRESSORS.with(|cell| {
+            let mut pool = cell.borrow_mut();
+            pool.clear();
+            assert_eq!(decode(&encoded).expect("decode without the pool"), payload);
+            assert!(pool.is_empty(), "the borrowed pool cannot accept a return");
+        });
+        assert_eq!(decode(&encoded).expect("decode with the pool"), payload);
+        assert_decoder_pool_reset();
+    }
+
+    #[test]
+    fn pooled_decoders_keep_independent_histories_across_sizes_and_codecs() {
+        for length in [0, 1, 1024, 65_537, 1024 * 1024, 15, 8192, 0] {
+            let payload = noise(length);
+            let gzip = encode(&payload).expect("gzip encode");
+            let zlib = crate::compression::deflate::encode(&payload).expect("deflate encode");
+            assert_eq!(decode(&gzip).expect("gzip history"), payload);
+            assert_eq!(
+                crate::compression::deflate::decode(&zlib).expect("deflate history"),
+                payload
+            );
+            assert_eq!(decode(&gzip).expect("gzip reuse"), payload);
+            assert_decoder_pool_reset();
+        }
+    }
 
     fn noise(length: usize) -> Vec<u8> {
         let mut state = 0x7f4a_7c15_9e37_79b9u64;
