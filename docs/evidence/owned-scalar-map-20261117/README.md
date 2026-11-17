@@ -1,9 +1,16 @@
 # Owned scalar map values
 
-The owned-message generator now avoids a private parent Wire for map values
+The recorded candidate avoided a private parent Wire for map values
 whose resolved type contains only singular scalar fields. Each borrowed parse
 saves one allocation and a frame copy. Payload-bearing, repeated, nested, extern,
 and MessageSet value types retain their existing policy.
+
+Before publication, the initial broad predicate recorded here was narrowed to
+enclosing schemas that cannot rely on parent backing for ordinary eager
+descendants. See the [mixed-parent follow-up](../owned-parent-backing-20261117/README.md).
+The positive timings below apply to the measured pure fixtures, whose generated
+bodies remain unchanged by that narrowing. The raw data and original candidate
+patch stay historical and unchanged.
 
 On this hosted runner, borrowed owned decoding improved by 40.7%, 27.8%, and
 27.6% for maps of 1, 32, and 512 entries. The 32-entry unknown-heavy case improved

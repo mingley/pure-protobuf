@@ -1,0 +1,4 @@
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":32,"map_first":true,"borrowed_allocations":37,"shared_allocations":37,"expected_borrowed":6}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":32,"map_first":false,"borrowed_allocations":37,"shared_allocations":37,"expected_borrowed":38}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":8192,"map_first":true,"borrowed_allocations":37,"shared_allocations":5,"expected_borrowed":6}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":8192,"map_first":false,"borrowed_allocations":37,"shared_allocations":5,"expected_borrowed":38}

@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "111e7b88d70a5bcbb5137f225932330f7171e721",
+  "candidate_commit": "0a04b3ea7c708835ef3a06f7af5d796db230b8ff",
+  "candidate_tree": "2ec76fe1fed96d884b5ac242f9b83571e37960c2",
+  "driver_commit": "b2af80fa7af86415568ac745c7e6247c94ebc987",
+  "gate_run": "https://github.com/mingley/pure-protobuf/actions/runs/44051816441",
+  "artifact": "https://github.com/mingley/pure-protobuf/actions/runs/44051816441/artifacts/14313749122",
+  "artifact_zip_sha256": "8b5f6417ded2386c191b75fc79d8911b9ef6bc7f10c3dba35c483979f36f1c85",
+  "compiler": "1.99.1",
+  "msrv": "1.85.0",
+  "measurement": "Allocation events only; no new elapsed-time, CPU, cycle or instruction measurements.",
+  "variants": {
+    "previous": "Frozen baseline111 with only identical new proof schema/tests copied in.",
+    "original": "Same baseline/runtime and fixture, with owned map child Wire::ensure restored unconditionally.",
+    "fix": "Exact candidate source, with enclosing-parent eligibility cached once and evaluated lazily."
+  },
+  "source_blobs": {
+    "src/codegen/parse.rs": "59172ef6024dd6996986c6cad9bd95250bdc09b4",
+    "tests/proof/owned_messages/strict.proto": "e75cff823bdb1538d0a84953c1dc4f3d551470d8",
+    "tests/proof/owned_messages/src/map_spans.rs": "6c518ddf02811615dd7eb6143b6ee5cd5de8f926",
+    "tests/proof/owned_messages/src/main.rs": "7cca6fc599c457601a3c22d10891411b58d0a19d",
+    "tests/proof/owned_messages/build.rs": "22c4c8b88ecfd99afff12d613ce74982dc329abc",
+    "tests/proof/owned_messages/Cargo.toml": "08eec6c781ef6d8c584a626d66100aa1f6a496b1",
+    "tests/proof/owned_messages/Cargo.lock": "ac363d22e183b6243adc840eed05947fceae7064"
+  }
+}

@@ -1,0 +1,4 @@
+ M src/codegen/parse.rs
+ M tests/proof/owned_messages/src/main.rs
+ M tests/proof/owned_messages/src/map_spans.rs
+ M tests/proof/owned_messages/strict.proto

@@ -1,0 +1,10 @@
+{
+  "default/strict.rs": "9ffcd4158f7b8604508224f4967faae9b6466a5f1c37306cb84649c38a9a4127",
+  "default/proof.rs": "c01a6321fe2f882b3af2c23fff21771d1f6bb88fb23352d737180d82be49531c",
+  "lazy/strict.rs": "9ffcd4158f7b8604508224f4967faae9b6466a5f1c37306cb84649c38a9a4127",
+  "lazy/proof.rs": "c01a6321fe2f882b3af2c23fff21771d1f6bb88fb23352d737180d82be49531c",
+  "owned/strict-excluding-mixed-helper": "2bb20a5ca56c3c8f62fea204085371bbf0170eab4a8122a2ecedae91896372d5",
+  "owned/mixed-helper": "2ab2f61567e0fd145a84a067685537a57c8ded37620e8b6f4eab0b82be9c8f57",
+  "owned/proof.rs": "1c15b6e79440689ec15c5e2713cb6f3ff6c7f6f3b02b4743eea8876c24e3360e",
+  "api-codec/codec_cases.rs": "b420c22831e0ba319e9d2e1b7a1a9ee6031c23e1ff0f41b5fc1c4d1a0659c01e"
+}

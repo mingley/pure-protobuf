@@ -1,0 +1,23 @@
+PASS scalar map messages: two container allocations, merge, unknowns, shared lifetime and bounds
+PASS scalar required map values: final-tree checks after fragment merging and key replacement
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":32,"map_first":true,"borrowed_allocations":6,"shared_allocations":37,"expected_borrowed":6}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":32,"map_first":false,"borrowed_allocations":38,"shared_allocations":37,"expected_borrowed":38}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":8192,"map_first":true,"borrowed_allocations":6,"shared_allocations":5,"expected_borrowed":6}
+{"schema":"mixed-parent-wire/1","children":32,"payload_bytes":8192,"map_first":false,"borrowed_allocations":38,"shared_allocations":5,"expected_borrowed":38}
+PASS short map strings: two container allocations, no wire copy; last wins
+PASS map strings: parent-relative offsets and owned-buffer lifetime
+PASS map strings: UTF-8 and entry bounds reject malformed input
+PASS owned map messages: multiple parent offsets, copied and shared input
+PASS lazy map messages: multiple parent offsets, copied and shared input
+PASS defaulted map messages: multiple parent offsets, copied and shared input
+PASS owned generated defaults and binary/JSON string/bytes states (64-bit)
+PASS owned large-byte sharing: singular=true repeated=true map=true
+PASS owned semantics against Prost, later getter allocations=0
+PASS lazy generated defaults and binary/JSON string/bytes states (64-bit)
+PASS lazy large-byte sharing: singular=true repeated=false map=false
+PASS lazy semantics against Prost, later getter allocations=61
+PASS defaulted generated defaults and binary/JSON string/bytes states (64-bit)
+PASS defaulted large-byte sharing: singular=true repeated=false map=false
+PASS defaulted semantics against Prost, later getter allocations=61
+PASS compact node layout: owned=24 lazy=32
+PASS profile work distinction: owned parse 63 allocations, lazy/default 2/2

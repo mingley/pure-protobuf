@@ -1,0 +1,123 @@
+diff --git a/src/codegen/parse.rs b/src/codegen/parse.rs
+index 4fbb6e61..0eaba86f 100644
+--- a/src/codegen/parse.rs
++++ b/src/codegen/parse.rs
+@@ -1147,7 +1147,7 @@ pub(crate) fn emit_map_decoders(
+                 .and_then(|entry| entry.field(2))
+                 .is_some_and(field_needs_initialization);
+             let owned = OWNED_MESSAGE_FIELDS.with(|owned| owned.get());
+-            let child_wire = if owned && !scalar_map_value(f, pool) {
++            let child_wire = if owned {
+                 runtime_path(
+                     "::core::option::Option::Some(::pbrs::rt::Wire::ensure(wire, parent_data).window(start + s, start + e))",
+                 )
+diff --git a/tests/proof/owned_messages/src/main.rs b/tests/proof/owned_messages/src/main.rs
+index 4d0ae44e..7cca6fc5 100644
+--- a/tests/proof/owned_messages/src/main.rs
++++ b/tests/proof/owned_messages/src/main.rs
+@@ -384,6 +384,17 @@ fn reference_compact(wire: &[u8]) -> strict_reference::CompactNode {
+ }
+ 
+ fn main() {
++    match std::env::args().nth(1).as_deref() {
++        Some("--mixed-parent-check") => {
++            map_spans::mixed_parent_control(true);
++            return;
++        }
++        Some("--mixed-parent-report") => {
++            map_spans::mixed_parent_control(false);
++            return;
++        }
++        _ => {}
++    }
+     map_spans::verify();
+     verify_profile!(owned, true);
+     verify_profile!(lazy, false);
+diff --git a/tests/proof/owned_messages/src/map_spans.rs b/tests/proof/owned_messages/src/map_spans.rs
+index 3a0ad885..6c518ddf 100644
+--- a/tests/proof/owned_messages/src/map_spans.rs
++++ b/tests/proof/owned_messages/src/map_spans.rs
+@@ -10,6 +10,7 @@ mod api {
+ pub(super) fn verify() {
+     scalar_values();
+     required_values();
++    mixed_parent_control(true);
+     // Every short string fits existing inline storage. The only allocations
+     // are the map's backing object and entry vector; no wire buffer is needed.
+     let first = [bytes(1, b"key"), bytes(2, b"before")].concat();
+@@ -215,3 +216,61 @@ fn required_values() {
+         "PASS scalar required map values: final-tree checks after fragment merging and key replacement"
+     );
+ }
++
++pub(super) fn mixed_parent_control(enforce: bool) {
++    use super::owned::strict_types::MixedScalarRoot;
++
++    const CHILDREN: usize = 32;
++    let entry = [scalar(1, 7), bytes(2, &scalar(1, 42))].concat();
++    for payload_len in [32, 8192] {
++        let payload = vec![0x5a; payload_len];
++        let child = bytes(2, &bytes(1, &payload));
++        let children = child.repeat(CHILDREN);
++        for map_first in [true, false] {
++            let map = bytes(1, &entry);
++            let wire = if map_first {
++                [map, children.clone()].concat()
++            } else {
++                [children.clone(), map].concat()
++            };
++            let mut borrowed = None;
++            let borrowed_allocations =
++                allocated(|| borrowed = Some(MixedScalarRoot::parse(&wire).unwrap()));
++            let source = pbrs::rt::Bytes::from(wire);
++            // Promote Vec-backed Bytes before either the parser or its
++            // caller-owned source clone is counted.
++            drop(source.clone());
++            let mut shared = None;
++            let shared_allocations = allocated(|| {
++                shared = Some(MixedScalarRoot::parse_bytes(source.clone()).unwrap());
++            });
++            for parsed in [borrowed.unwrap(), shared.unwrap()] {
++                assert_eq!(parsed.values().get(7).unwrap().n(), 42);
++                assert_eq!(parsed.children().len(), CHILDREN);
++                for child in parsed.children().iter() {
++                    assert_eq!(child.data(), payload.as_slice());
++                }
++            }
++
++            // The source is >1 KiB: shared 32-byte fields copy individually,
++            // while shared 8-KiB fields window their caller-owned buffer.
++            // Container costs cancel for each pair over the same input wire.
++            let child_copies = if payload_len < 4096 { CHILDREN } else { 0 };
++            let containers = shared_allocations - child_copies;
++            let expected_borrowed = if map_first {
++                containers + 1
++            } else {
++                containers + CHILDREN + 1
++            };
++            println!(
++                "{{\"schema\":\"mixed-parent-wire/1\",\"children\":{CHILDREN},\"payload_bytes\":{payload_len},\"map_first\":{map_first},\"borrowed_allocations\":{borrowed_allocations},\"shared_allocations\":{shared_allocations},\"expected_borrowed\":{expected_borrowed}}}"
++            );
++            if enforce {
++                assert_eq!(
++                    borrowed_allocations, expected_borrowed,
++                    "mixed scalar-map parents must retain backing for eager child payloads"
++                );
++            }
++        }
++    }
++}
+diff --git a/tests/proof/owned_messages/strict.proto b/tests/proof/owned_messages/strict.proto
+index 7991746c..e75cff82 100644
+--- a/tests/proof/owned_messages/strict.proto
++++ b/tests/proof/owned_messages/strict.proto
+@@ -26,3 +26,9 @@ message ScalarValue {
+ message ScalarRoot {
+   map<int32, ScalarValue> values = 1;
+ }
++
++// A scalar map must not stop later eager children sharing the parent frame.
++message MixedScalarRoot {
++  map<int32, ScalarValue> values = 1;
++  repeated Blob children = 2;
++}

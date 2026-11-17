@@ -1,0 +1,13 @@
+2026-11-17T09:02:54+00:00
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: x86_64-unknown-linux-gnu
+release: 1.99.1
+LLVM version: 23.1.1
+cargo 1.99.1 (5f94df478 2026-08-27)
+libprotoc 3.21.12
+baseline=111e7b88d70a5bcbb5137f225932330f7171e721
+candidate=0a04b3ea7c708835ef3a06f7af5d796db230b8ff
+driver=b2af80fa7af86415568ac745c7e6247c94ebc987

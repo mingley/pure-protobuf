@@ -1,0 +1,194 @@
+name: Verify enclosing scalar-map parent guard
+on:
+  push:
+    branches: ["codex/scalar-map-parent-guard-20261117"]
+permissions:
+  contents: write
+env:
+  BASE_SHA: 111e7b88d70a5bcbb5137f225932330f7171e721
+  CANDIDATE_SHA: 0a04b3ea7c708835ef3a06f7af5d796db230b8ff
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: 1.99.1
+          components: rustfmt,clippy
+      - name: Install schema compiler
+        run: bash scripts/ci-install-apt.sh protobuf-compiler
+      - name: Prepare three pinned generator variants
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          artifacts="$RUNNER_TEMP/scalar-parent-evidence"
+          mkdir -p "$artifacts"
+          printf 'ARTIFACTS=%s\n' "$artifacts" >> "$GITHUB_ENV"
+          printf 'CARGO_TARGET_DIR=%s\n' "$RUNNER_TEMP/scalar-parent-target" >> "$GITHUB_ENV"
+          for side in previous original fix; do
+            if [[ "$side" == fix ]]; then sha="$CANDIDATE_SHA"; else sha="$BASE_SHA"; fi
+            tree="$RUNNER_TEMP/scalar-parent-$side"
+            git worktree add --detach "$tree" "$sha"
+            test -z "$(git -C "$tree" status --porcelain=v1 --untracked-files=all)"
+            printf '%s_TREE=%s\n' "$(printf '%s' "$side" | tr '[:lower:]' '[:upper:]')" "$tree" >> "$GITHUB_ENV"
+          done
+          git diff "$BASE_SHA" "$CANDIDATE_SHA" > "$artifacts/fix.patch"
+          cp .github/workflows/scalar-parent-guard.yml "$artifacts/driver.yml"
+          {
+            date -u --iso-8601=seconds
+            rustc -Vv
+            cargo -V
+            protoc --version
+            printf 'baseline=%s\ncandidate=%s\ndriver=%s\n' "$BASE_SHA" "$CANDIDATE_SHA" "$GITHUB_SHA"
+          } > "$artifacts/environment.txt"
+          python3 -I - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          fix = root / "scalar-parent-fix"
+          for side in ("previous", "original"):
+              tree = root / ("scalar-parent-" + side)
+              for path in ("tests/proof/owned_messages/strict.proto",
+                           "tests/proof/owned_messages/src/map_spans.rs",
+                           "tests/proof/owned_messages/src/main.rs"):
+                  (tree / path).write_bytes((fix / path).read_bytes())
+          original = root / "scalar-parent-original/src/codegen/parse.rs"
+          source = original.read_text()
+          needle = "let child_wire = if owned && !scalar_map_value(f, pool) {"
+          assert source.count(needle) == 1
+          original.write_text(source.replace(needle, "let child_wire = if owned {"))
+          PY
+          for side in previous original fix; do
+            tree="$RUNNER_TEMP/scalar-parent-$side"
+            git -C "$tree" diff --binary HEAD > "$artifacts/$side-source.patch"
+            git -C "$tree" status --porcelain=v1 --untracked-files=all > "$artifacts/$side-source-status.txt"
+          done
+      - name: Check generator formatting and strict lint
+        run: |
+          set -euo pipefail
+          cd "$FIX_TREE"
+          rustfmt --edition 2024 --check src/codegen/parse.rs tests/proof/owned_messages/src/map_spans.rs tests/proof/owned_messages/src/main.rs 2>&1 | tee "$ARTIFACTS/format.log"
+          cargo clippy --locked -p pbrs --all-targets --all-features -- -D warnings 2>&1 | tee "$ARTIFACTS/clippy.log"
+          cargo test --locked -p pbrs --lib codegen::parse::tests 2>&1 | tee "$ARTIFACTS/codegen-tests.log"
+      - name: Build the same proof fixture with all three generators
+        run: |
+          set -euo pipefail
+          for side in previous original fix; do
+            tree="$RUNNER_TEMP/scalar-parent-$side"
+            CARGO_TARGET_DIR="$RUNNER_TEMP/scalar-parent-proof-target" cargo build --locked --release --message-format=json \
+              --manifest-path "$tree/tests/proof/owned_messages/Cargo.toml" 2>&1 | tee "$ARTIFACTS/$side-cargo-artifacts.jsonl"
+            cp "$RUNNER_TEMP/scalar-parent-proof-target/release/pbrs-owned-messages-proof" "$ARTIFACTS/$side-proof"
+            sha256sum "$ARTIFACTS/$side-proof" > "$ARTIFACTS/$side-binary.sha256"
+          done
+      - name: Bind generated output to each generator
+        run: |
+          set -euo pipefail
+          python3 -I - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          artifacts = Path(os.environ["ARTIFACTS"])
+          outputs = {}
+          for side in ("previous", "original", "fix"):
+              lines = (artifacts / (side + "-cargo-artifacts.jsonl")).read_text().splitlines()
+              records = [json.loads(line) for line in lines if line.startswith("{")]
+              selected = [record["out_dir"] for record in records if record.get("reason") == "build-script-executed"
+                          and "pbrs-owned-messages-proof" in record["package_id"]]
+              assert len(selected) == 1, (side, selected)
+              outputs[side] = Path(selected[0])
+          def helper_span(source):
+              matches = list(re.finditer(r"fn\s+decode_map_entry_[A-Za-z0-9_]*MixedScalarRoot[A-Za-z0-9_]*\s*\(", source))
+              assert len(matches) == 1, len(matches)
+              start = matches[0].start()
+              brace = source.index("{", matches[0].end())
+              depth, end = 0, None
+              for index in range(brace, len(source)):
+                  if source[index] == "{": depth += 1
+                  elif source[index] == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = index + 1
+                          break
+              assert end is not None
+              return start, end
+          identity = {}
+          for profile in ("default", "lazy"):
+              for schema in ("strict.rs", "proof.rs"):
+                  values = [(outputs[side] / profile / schema).read_bytes() for side in outputs]
+                  assert values[0] == values[1] == values[2], (profile, schema)
+                  identity[profile + "/" + schema] = hashlib.sha256(values[0]).hexdigest()
+          previous = (outputs["previous"] / "owned/strict.rs").read_text()
+          fixed = (outputs["fix"] / "owned/strict.rs").read_text()
+          original = (outputs["original"] / "owned/strict.rs").read_text()
+          a, b = helper_span(previous)
+          c, d = helper_span(fixed)
+          e, f = helper_span(original)
+          assert previous[:a] + previous[b:] == fixed[:c] + fixed[d:], "pure owned bodies changed"
+          assert fixed[c:d] == original[e:f], "mixed helper differs from original ensure"
+          identity["owned/strict-excluding-mixed-helper"] = hashlib.sha256((fixed[:c] + fixed[d:]).encode()).hexdigest()
+          identity["owned/mixed-helper"] = hashlib.sha256(fixed[c:d].encode()).hexdigest()
+          for path in ("owned/proof.rs", "api-codec/codec_cases.rs"):
+              before = (outputs["previous"] / path).read_bytes()
+              after = (outputs["fix"] / path).read_bytes()
+              assert before == after, path
+              identity[path] = hashlib.sha256(after).hexdigest()
+          (artifacts / "generated-identity.json").write_text(json.dumps(identity, indent=2) + "\n")
+          print(json.dumps(identity, indent=2))
+          PY
+      - name: Original, previous, and narrowed allocation controls
+        run: |
+          set -euo pipefail
+          "$ARTIFACTS/original-proof" --mixed-parent-check > "$ARTIFACTS/original-check.jsonl"
+          "$ARTIFACTS/fix-proof" --mixed-parent-check > "$ARTIFACTS/fix-check.jsonl"
+          "$ARTIFACTS/fix-proof" > "$ARTIFACTS/fix-full-proof.log"
+          set +e
+          "$ARTIFACTS/previous-proof" --mixed-parent-check > "$ARTIFACTS/previous-negative.stdout" 2> "$ARTIFACTS/previous-negative.stderr"
+          status=$?
+          set -e
+          test "$status" = 101
+          grep -F 'mixed scalar-map parents must retain backing for eager child payloads' "$ARTIFACTS/previous-negative.stderr"
+          for side in previous original fix; do
+            "$ARTIFACTS/$side-proof" --mixed-parent-report > "$ARTIFACTS/$side-report.jsonl"
+          done
+          python3 -I - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["ARTIFACTS"])
+          rows = {side:[json.loads(line) for line in (root / (side + "-report.jsonl")).read_text().splitlines()]
+                  for side in ("previous", "original", "fix")}
+          assert all(len(values) == 4 for values in rows.values())
+          for previous, original, fixed in zip(rows["previous"], rows["original"], rows["fix"]):
+              for field in ("schema","children","payload_bytes","map_first","shared_allocations","expected_borrowed"):
+                  assert previous[field] == original[field] == fixed[field], field
+              assert original == fixed
+              assert fixed["borrowed_allocations"] == fixed["expected_borrowed"]
+              expected_delta = 31 if fixed["map_first"] else -1
+              assert previous["borrowed_allocations"] - fixed["borrowed_allocations"] == expected_delta
+          (root / "allocation-controls.json").write_text(json.dumps(rows, indent=2) + "\n")
+          print(json.dumps(rows, indent=2))
+          PY
+      - name: Rust 1.85 generator and owned consumer
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.0 --profile minimal
+          cd "$FIX_TREE"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/scalar-parent-msrv" cargo +1.85.0 test --locked -p pbrs --lib codegen::parse::tests 2>&1 | tee "$ARTIFACTS/msrv-generator.log"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/scalar-parent-msrv-proof" cargo +1.85.0 run --locked --release \
+            --manifest-path tests/proof/owned_messages/Cargo.toml 2>&1 | tee "$ARTIFACTS/msrv-proof.log"
+      - name: Retain bounded correctness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalar-map-parent-guard
+          path: ${{ runner.temp }}/scalar-parent-evidence/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove scratch ref
+        if: always()
+        run: git push --force-with-lease="refs/heads/codex/scalar-map-parent-guard-20261117:$GITHUB_SHA" origin ":refs/heads/codex/scalar-map-parent-guard-20261117"
