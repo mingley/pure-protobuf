@@ -29,6 +29,7 @@ async fn connect() -> Result<Channel, Status> {
 | Setting | Default | Effect |
 |---|---|---|
 | `tcp_nodelay` | `true` | Disables Nagle's algorithm on native TCP connections, including TLS. |
+| `tcp_user_timeout` | Environment or kernel default | Limits how long Linux TCP can wait for acknowledgement of sent data or for the peer's zero receive window to reopen. |
 | `keep_alive_interval` | Disabled | Sends HTTP/2 PINGs at the configured interval. |
 | `keep_alive_timeout` | 20 seconds | Closes a connection whose PING is not acknowledged in time. |
 | `keep_alive_while_idle` | `true` | Allows interval PINGs without an active RPC. |
@@ -42,6 +43,16 @@ if the RPC ends.
 The idle policy also applies when `adaptive_window(true)` is enabled. Separate
 BDP probes triggered by received DATA remain enabled. TCP operating-system
 keepalive uses the separate `tcp_keepalive*` settings.
+
+Use `ChannelConfig::tcp_user_timeout(duration)` on native Linux TCP channels,
+including TLS and the TCP leg to an HTTP CONNECT proxy. The native connector
+applies it after TCP connect or proxy CONNECT, before TLS and HTTP/2 setup.
+An explicit setting takes precedence over `PBRS_TCP_USER_TIMEOUT_MS`.
+Pass `Duration::ZERO` to use the kernel default even when the variable is set.
+Leaving the option unset lets a positive value from the environment apply.
+Other platforms, Unix sockets, `Channel::from_io` and caller connectors skip
+this socket option.
+To match A18's HTTP/2 keepalive timeout, configure both durations explicitly.
 
 ## Request origin and dial target
 

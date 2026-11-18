@@ -4,6 +4,7 @@
 //! issues. It does not compile C. Unix domain sockets skip this module.
 //! `TCP_NODELAY` defaults on and is configurable on both client and server.
 
+use crate::config::ChannelConfig;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -99,11 +100,7 @@ async fn bind_connect(local: SocketAddr, remote: SocketAddr) -> std::io::Result<
     socket.connect(remote).await
 }
 
-/// Apply `TCP_NODELAY`; `SO_KEEPALIVE` when `keepalive` is `Some`.
-/// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time.
-/// `keepalive_retries` is `TCP_KEEPCNT`. Neither turns `SO_KEEPALIVE` on by
-/// itself. `TCP_USER_TIMEOUT` (A18, Linux only) comes from
-/// `PBRS_TCP_USER_TIMEOUT_MS`; a `ChannelConfig` surface is a follow-up.
+/// Tune accepted TCP sockets with the process-wide user timeout fallback.
 pub(crate) fn tune(
     tcp: &TcpStream,
     nodelay: bool,
@@ -111,8 +108,41 @@ pub(crate) fn tune(
     keepalive_interval: Option<Duration>,
     keepalive_retries: Option<u32>,
 ) -> std::io::Result<()> {
+    tune_with_user_timeout(
+        tcp,
+        nodelay,
+        keepalive,
+        keepalive_interval,
+        keepalive_retries,
+        None,
+    )
+}
+
+/// Tune a native client socket using its channel configuration.
+pub(crate) fn tune_client(tcp: &TcpStream, config: ChannelConfig) -> std::io::Result<()> {
+    tune_with_user_timeout(
+        tcp,
+        config.tcp_nodelay_enabled(),
+        config.tcp_keepalive_period(),
+        config.tcp_keepalive_probe_interval(),
+        config.tcp_keepalive_probe_retries(),
+        config.tcp_user_timeout_duration(),
+    )
+}
+
+/// Apply `TCP_NODELAY`, the Linux user timeout, and optional `SO_KEEPALIVE`.
+fn tune_with_user_timeout(
+    tcp: &TcpStream,
+    nodelay: bool,
+    keepalive: Option<Duration>,
+    keepalive_interval: Option<Duration>,
+    keepalive_retries: Option<u32>,
+    user_timeout: Option<Duration>,
+) -> std::io::Result<()> {
     tcp.set_nodelay(nodelay)?;
-    apply_user_timeout(tcp)?;
+    if let Some(timeout) = user_timeout.or_else(user_timeout_from_env) {
+        crate::proxy::set_user_timeout(tcp, timeout)?;
+    }
     if let Some(time) = keepalive {
         let ka = socket2::TcpKeepalive::new().with_time(time);
         let ka = apply_keepalive_interval(ka, keepalive_interval);
@@ -122,16 +152,6 @@ pub(crate) fn tune(
         let _ = (keepalive_interval, keepalive_retries);
     }
     Ok(())
-}
-
-/// Apply A18 `TCP_USER_TIMEOUT` from `PBRS_TCP_USER_TIMEOUT_MS`
-/// (milliseconds; absent/invalid/zero disables). Linux only; socket2
-/// exposes no public API, so this uses one raw setsockopt.
-fn apply_user_timeout(tcp: &TcpStream) -> std::io::Result<()> {
-    let Some(timeout) = user_timeout_from_env() else {
-        return Ok(());
-    };
-    crate::proxy::set_user_timeout(tcp, timeout)
 }
 
 /// Parse the user-timeout env value (pure; milliseconds).
@@ -258,7 +278,8 @@ fn apply_keepalive_retries(
 
 #[cfg(test)]
 mod tests {
-    use super::{connect, tune};
+    use super::{connect, tune, tune_client};
+    use crate::config::ChannelConfig;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::time::Duration;
     use tokio::net::{TcpListener, TcpStream};
@@ -346,6 +367,36 @@ mod tests {
         tune(&server, true, None, None, None).unwrap();
         assert!(server.nodelay().unwrap());
         assert!(!socket2::SockRef::from(&server).keepalive().unwrap());
+    }
+
+    #[tokio::test]
+    async fn tune_client_sets_tcp_user_timeout_independently_of_keepalive() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let client = TcpStream::connect(listener.local_addr().unwrap())
+            .await
+            .unwrap();
+        let (_server, _) = listener.accept().await.unwrap();
+
+        let config = ChannelConfig::new();
+        tune_client(&client, config).unwrap();
+        #[cfg(target_os = "linux")]
+        assert_eq!(
+            crate::proxy::get_user_timeout(&client).unwrap(),
+            super::user_timeout_from_env()
+        );
+
+        let timeout = Duration::from_millis(1_250);
+        tune_client(&client, config.tcp_user_timeout(timeout)).unwrap();
+        #[cfg(target_os = "linux")]
+        assert_eq!(
+            crate::proxy::get_user_timeout(&client).unwrap(),
+            Some(timeout)
+        );
+        assert!(!socket2::SockRef::from(&client).keepalive().unwrap());
+
+        tune_client(&client, config.tcp_user_timeout(Duration::ZERO)).unwrap();
+        #[cfg(target_os = "linux")]
+        assert_eq!(crate::proxy::get_user_timeout(&client).unwrap(), None);
     }
 
     #[tokio::test]

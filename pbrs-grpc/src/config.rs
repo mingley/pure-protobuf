@@ -3,6 +3,7 @@
 use crate::compression::{Codec, CompressionAlgorithm};
 use crate::limits::MessageLimits;
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::time::Duration;
 
 /// Default HTTP/2 stream and connection window: 16 MiB.
@@ -1074,7 +1075,9 @@ pub struct ChannelConfig {
     tcp_nodelay: bool,
     tcp_keepalive: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
-    tcp_keepalive_retries: Option<u32>,
+    tcp_keepalive_retries: Option<NonZeroU32>,
+    // Store milliseconds plus one so zero can select the kernel default.
+    tcp_user_timeout_ms_plus_one: Option<NonZeroU32>,
     local_address: Option<SocketAddr>,
     connect_timeout: Duration,
     max_connection_idle: Option<Duration>,
@@ -1120,6 +1123,7 @@ impl Default for ChannelConfig {
             tcp_keepalive: None,
             tcp_keepalive_interval: None,
             tcp_keepalive_retries: None,
+            tcp_user_timeout_ms_plus_one: None,
             local_address: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_idle: None,
@@ -1455,7 +1459,36 @@ impl ChannelConfig {
     /// including TLS.
     #[must_use]
     pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
-        self.tcp_keepalive_retries = Some(retries.max(1));
+        self.tcp_keepalive_retries = NonZeroU32::new(retries.max(1));
+        self
+    }
+
+    /// Limit how long Linux TCP tolerates unacknowledged data or data
+    /// blocked by the peer's zero receive window before closing a connection.
+    ///
+    /// Applies to native Linux TCP dials, including TLS and the TCP leg
+    /// of an HTTP CONNECT tunnel. Other platforms, Unix sockets, caller
+    /// connectors and [`crate::Channel::from_io`] skip this option.
+    ///
+    /// Overrides `PBRS_TCP_USER_TIMEOUT_MS` for this channel. A zero duration
+    /// restores the kernel default. Positive durations use whole milliseconds
+    /// and are clamped to 1 through 2,147,483,647 ms. When unset, native Linux
+    /// dials use the environment setting or the kernel default.
+    /// HTTP/2 PINGs and TCP keepalive probes are configured independently.
+    /// When TCP keepalive is enabled, Linux also uses the user timeout to
+    /// decide when to close a connection on keepalive failure.
+    #[must_use]
+    pub fn tcp_user_timeout(mut self, timeout: Duration) -> Self {
+        // Linux rejects socket option values above the signed int range.
+        const MAX_MILLIS: u32 = 2_147_483_647;
+        let millis = if timeout.is_zero() {
+            0
+        } else {
+            u32::try_from(timeout.as_millis())
+                .unwrap_or(MAX_MILLIS)
+                .clamp(1, MAX_MILLIS)
+        };
+        self.tcp_user_timeout_ms_plus_one = NonZeroU32::new(millis + 1);
         self
     }
 
@@ -1748,7 +1781,16 @@ impl ChannelConfig {
     /// [`Self::tcp_keepalive_retries`]. Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive_probe_retries(self) -> Option<u32> {
-        self.tcp_keepalive_retries
+        self.tcp_keepalive_retries.map(NonZeroU32::get)
+    }
+
+    /// Explicit TCP user timeout after millisecond normalization.
+    /// See [`Self::tcp_user_timeout`]. `None` leaves selection to the
+    /// environment and the kernel default.
+    #[must_use]
+    pub fn tcp_user_timeout_duration(self) -> Option<Duration> {
+        self.tcp_user_timeout_ms_plus_one
+            .map(|millis| Duration::from_millis(u64::from(millis.get() - 1)))
     }
 
     /// Configured TCP source bind, if any. See [`Self::local_address`].
@@ -2363,6 +2405,26 @@ mod tests {
                 .rpc_timeout(),
             Some(Duration::from_millis(1))
         );
+    }
+
+    #[test]
+    fn channel_tcp_user_timeout_preserves_zero_and_bounds_positive_values() {
+        let config = ChannelConfig::new();
+        assert_eq!(config.tcp_user_timeout_duration(), None);
+        for (configured, expected) in [
+            (Duration::ZERO, Duration::ZERO),
+            (Duration::from_nanos(1), Duration::from_millis(1)),
+            (Duration::from_micros(1_500), Duration::from_millis(1)),
+            (Duration::from_secs(3), Duration::from_secs(3)),
+            (Duration::MAX, Duration::from_millis(2_147_483_647)),
+        ] {
+            assert_eq!(
+                config
+                    .tcp_user_timeout(configured)
+                    .tcp_user_timeout_duration(),
+                Some(expected)
+            );
+        }
     }
 
     #[test]

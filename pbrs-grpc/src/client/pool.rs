@@ -3080,14 +3080,7 @@ async fn finish_tcp(
     tls: Option<&ClientTls>,
     executor: &crate::executor::TaskExecutor,
 ) -> Result<Dialed, Status> {
-    crate::tcp::tune(
-        &tcp,
-        config.tcp_nodelay_enabled(),
-        config.tcp_keepalive_period(),
-        config.tcp_keepalive_probe_interval(),
-        config.tcp_keepalive_probe_retries(),
-    )
-    .map_err(|e| Status::unavailable(e.to_string()))?;
+    crate::tcp::tune_client(&tcp, config).map_err(|e| Status::unavailable(e.to_string()))?;
     // Captured before the stream moves into the handshake: channelz
     // socket addresses.
     let local_addr = tcp

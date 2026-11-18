@@ -24,7 +24,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
 | A17 | Client-side health checking | shipped | Server `Check`/`Watch`/`HealthReporter` plus client gating: per-subchannel same-conn Watch, unhealthy skips rotation (RR) / fails over (PF), UNIMPLEMENTED treated healthy, service-config opt-in with channel switch (CH-05). No channel-trace hookup yet. |
 | A90 | Health `List` method | shipped | `Health::list`. |
-| A18 | TCP user timeout | shipped | `PBRS_TCP_USER_TIMEOUT_MS` applied on every dial via Linux-only raw `TCP_USER_TIMEOUT` setsockopt (`proxy::set_user_timeout`; socket2 exposes no API); round-trip unit test runs on Linux, no-op elsewhere (CH-09). `ChannelConfig` surface is a follow-up. |
+| A18 | TCP user timeout | partial | `ChannelConfig::tcp_user_timeout` sets `TCP_USER_TIMEOUT` on native Linux client TCP sockets and takes precedence over `PBRS_TCP_USER_TIMEOUT_MS`. Automatic coupling to the HTTP/2 keepalive timeout remains a gap. See [transport controls](guides/transport-controls.md). |
 | A61 | IPv4/IPv6 dualstack backends | shipped | Hostname resolution plus Happy-Eyeballs racing: 250ms-staggered full dials, fast-failure advance, first READY wins, family interleave after shuffle (CH-04). No RFC-6724 sort in the DNS resolver; no channel-arg delay knob. |
 | A101 | SNI setting and SNI/SAN validation | partial | `ClientTls` constructors take an explicit server name for SNI and certificate verification, independent of the dial address. xDS-driven name handling is not implemented. |
 | A105 | `max_concurrent_streams` connection scaling | planned | Grow the pool when the server lowers the stream cap. |
