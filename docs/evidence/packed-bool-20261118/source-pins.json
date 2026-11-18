@@ -1,0 +1,93 @@
+{
+  "repository": "mingley/pure-protobuf",
+  "baseline": {
+    "commit": "9061b8ee0a75d32acb19ebf7090e4a95660012db",
+    "tree": "2f3a2420d469690df22f29a6f9fe7b4a243e3602"
+  },
+  "candidate": {
+    "commit": "04b4aa04b4e5630e0033428520db9cdd2b49edbc",
+    "tree": "168b888b956e8440b0808f61c6679281946c3a2d",
+    "paths": [
+      "src/packed.rs",
+      "src/packed/wire_tests.rs"
+    ],
+    "patch_uncompressed_sha256": "e20752de1962060b4bc2549dd2cb2c99c8ceb4867c8cdd80563cf1340c5cab52"
+  },
+  "original": {
+    "workflow_commit": "6c7448bd0276068fef7819e185d7c5cfa5c8213a",
+    "run_id": 44347181608,
+    "job_id": 134952621208,
+    "artifact_id": 14447042334,
+    "artifact_sha256": "c4673210b40f4ffa65357a8d12d6910e73a4b45dce4ecae06bdda9fe47d72901",
+    "artifact_expires_at": "2026-12-18T16:33:54Z",
+    "environment": {
+      "rustc.txt": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n",
+      "cargo.txt": "cargo 1.85.0 (d73d2caf9 2024-12-31)\n",
+      "lscpu.txt": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 7763 64-Core Processor\nCPU family:                              25\nModel:                                   1\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                4890.86\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                1 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "runner-image.txt": "ubuntu26\n20261111.196.1\n",
+      "uname.txt": "Linux runnervmccnms 7.0.0-1019-azure #20-Ubuntu SMP PREEMPT Mon Oct 19 22:41:16 UTC 2026 x86_64 GNU/Linux\n"
+    },
+    "binary_sha256": {
+      "a": "4b25669afc05225573c85b7e2920c131bb67883eb1d598578c48468ee080e6f4",
+      "a-count": "0d4192fe3539d778d2741e4d5efc561856f2efc64fd2819d0843198fea6a191a",
+      "b": "ca2df08ab17ed24203452b8ebc23751c5894060676c6d5c868a8f1d08c04bf00",
+      "b-count": "202c286e06f56b925c4d60425525d26749d1b7f28f441f858d0ba82fd31d9e13",
+      "c": "10591b3bcb0475122ff66765ffddefa9d776b8abc5b6e52e6478990e056e6b82",
+      "c-count": "aa754917abc56855f84b073731e55c2822786a466b976ad881922bf76255d447"
+    },
+    "raw_report": {
+      "file": "original-results.json.gz",
+      "uncompressed_sha256": "5cc5e6fd79c8d42477fa9535312dc37b38422f3b70751a1bc5817723e0100503",
+      "cases": 28
+    }
+  },
+  "validation": {
+    "run_id": 44347181608,
+    "job_id": 134952621815,
+    "artifact_id": 14447440763,
+    "artifact_sha256": "b1d59965997279e79cbc2d4ff4890b98b29ea507d29cc1f7b77c4bcafa1a90ef",
+    "artifact_expires_at": "2026-12-18T16:28:21Z"
+  },
+  "replay": {
+    "workflow_commit": "f6487b7384b47ae2e1b0d51798a9e482222d11a9",
+    "run_id": 44349349623,
+    "job_id": 134960376454,
+    "artifact_id": 14447287759,
+    "artifact_sha256": "b8b8a31e7a5aa562889fe611b0b6a8344f105043336c1721fd5301b5c8cbae53",
+    "artifact_expires_at": "2026-12-18T16:38:53Z",
+    "input_binary_sha256": {
+      "a": "4b25669afc05225573c85b7e2920c131bb67883eb1d598578c48468ee080e6f4",
+      "a-count": "0d4192fe3539d778d2741e4d5efc561856f2efc64fd2819d0843198fea6a191a",
+      "b": "ca2df08ab17ed24203452b8ebc23751c5894060676c6d5c868a8f1d08c04bf00",
+      "b-count": "202c286e06f56b925c4d60425525d26749d1b7f28f441f858d0ba82fd31d9e13",
+      "c": "10591b3bcb0475122ff66765ffddefa9d776b8abc5b6e52e6478990e056e6b82",
+      "c-count": "aa754917abc56855f84b073731e55c2822786a466b976ad881922bf76255d447"
+    },
+    "environment": {
+      "lscpu.txt": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.25\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                2 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "uname.txt": "Linux runnervmccnms 7.0.0-1019-azure #20-Ubuntu SMP PREEMPT Mon Oct 19 22:41:16 UTC 2026 x86_64 GNU/Linux\n",
+      "objdump-version.txt": "GNU objdump (GNU Binutils for Ubuntu) 2.46\n"
+    },
+    "raw_report": {
+      "file": "replay-results.json.gz",
+      "uncompressed_sha256": "bdc5bfa4409726e285aea33b15a535e96e47b2f12ba6117b30cf20d25ab74b74",
+      "cases": 8
+    }
+  },
+  "evidence_file_sha256": {
+    "README.md": "937389510d9b49e94481709ecd0ea7c4ec47d7e2adc18dfb1f7728027b5290e0",
+    "REPRODUCE.md": "288135c7c9a2e0d318a92e119dede6b49a7b977cd583ee5ef1cfca491134f786",
+    "layout.json": "8260b358dffbfa07fc112d787774ef850e5df47e591631d65f919940663c325a",
+    "original-results.json.gz": "b182638b179da223c37dcd6a0affdfc804db9b90180d6629ae7a32e11159119d",
+    "replay-results.json.gz": "4d847b64ce34c780454bdfc7b9da1fae429f7443dea0f03cd9f5b2d3741c2daf",
+    "source/Cargo.toml": "394092697e7dec5f75efa8cc187b9133fbb2b558cb5f581b0a8fcbb54f0291b7",
+    "source/audit.py": "f1be2d80971a852e2168ea2d7f06634b88c85291fa2d3c63e46ea05b104d25d4",
+    "source/candidate.patch.gz": "8f42571470d076bf7077e6af8921cd67764e5cf801591e5223c7e1f564257929",
+    "source/compare-selected.py": "34305aee1acf8fd88ff60d3806c5df07a7f6f622b54b3fbf752d00a72663c77c",
+    "source/compare.py": "bc47321bcc0cacb6af39700c4cc063e7dc4978c151a1212bac87830136258a75",
+    "source/packed-bool-replay-20261118.yml": "a1dec55655de855168fea2b154d661d05001a33bb0bcb8ddaa2354cbd053d6d0",
+    "source/packed-bool-screen-20261118.yml": "8294fc156044e0261165e2e1e4a6ed3398ddd31b743c363c135e5737b08bbba1",
+    "source/probe.rs": "9ddd97bcf00efbbacce72db968c4428b131238e5ba000a456e4797933fcdd89a",
+    "source/resolved.Cargo.lock": "013468707eab7ff6858c59313ba74367bea661ad570264b82bb7d296174638bd"
+  }
+}

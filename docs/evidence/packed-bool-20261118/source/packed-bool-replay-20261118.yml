@@ -1,0 +1,89 @@
+name: Replay packed boolean getter controls
+on:
+  push:
+    branches: [scratch/packed-bool-replay-20261118]
+    paths: ['.github/workflows/packed-bool-replay-20261118.yml']
+permissions:
+  contents: read
+env:
+  PACKED_BASE: "9061b8ee0a75d32acb19ebf7090e4a95660012db"
+  PACKED_CANDIDATE: "04b4aa04b4e5630e0033428520db9cdd2b49edbc"
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate identity and archive the replay source
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/packed-bool-replay/output"
+          mkdir -p "$out"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "$PACKED_CANDIDATE"
+          test "$(git rev-parse "$PACKED_CANDIDATE^")" = "$PACKED_BASE"
+          cp ".github/experiments/packed-bool-replay-20261118/audit.py" "$out/"
+          cp ".github/workflows/packed-bool-replay-20261118.yml" "$out/"
+          git checkout --detach "$PACKED_CANDIDATE"
+          test "$(git rev-parse HEAD)" = "$PACKED_CANDIDATE"
+          git log -1 --format=fuller HEAD > "$out/candidate-commit.txt"
+          lscpu > "$out/lscpu.txt"
+          cat "$out/lscpu.txt"
+          uname -a > "$out/uname.txt"
+          objdump --version | head -n1 > "$out/objdump-version.txt"
+      - uses: actions/download-artifact@v4
+        with:
+          name: packed-bool-component-screen
+          github-token: ${{ github.token }}
+          run-id: 44347181608
+          path: ${{ runner.temp }}/packed-bool-replay/input
+      - name: Verify and replay the original matched binaries
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/packed-bool-replay"
+          (
+            cd "$root/input"
+            sha256sum --check environment/input-sha256.txt
+            sha256sum --check environment/results-sha256.txt
+            printf '%s\n' "44347181608 14447042334" > "$root/output/original-artifact.txt"
+            cp environment/input-sha256.txt "$root/output/original-input-sha256.txt"
+            cp environment/results-sha256.txt "$root/output/original-results-sha256.txt"
+            cp environment/lscpu.txt "$root/output/original-lscpu.txt"
+            chmod +x bin/a bin/b bin/c bin/a-count bin/b-count bin/c-count
+          )
+          python3 "$root/output/audit.py" "$root/input" "$root/output" | tee "$root/output/replay.log"
+          (
+            cd "$root/output"
+            sha256sum replay-results.json replay.log layout.json
+          ) | tee "$root/output/replay-sha256.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-bool-getter-replay
+          path: ${{ runner.temp }}/packed-bool-replay/output
+          if-no-files-found: error
+          retention-days: 30
+  cleanup:
+    needs: [replay]
+    if: ${{ always() && github.ref == 'refs/heads/scratch/packed-bool-replay-20261118' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Delete this exact scratch head
+        run: |
+          set -euo pipefail
+          ref="refs/heads/scratch/packed-bool-replay-20261118"
+          test "$GITHUB_REF" = "$ref"
+          git push --force-with-lease="$ref:$GITHUB_SHA" origin ":$ref"
+          test -z "$(git ls-remote origin "$ref")"

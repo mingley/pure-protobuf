@@ -1,0 +1,428 @@
+{
+  "<pbrs::packed::Bools as pbrs::packed::PackedCodec>::decode": {
+    "symbols": {
+      "a": [
+        {
+          "address": "0000000000056930",
+          "size": 266,
+          "mod_64": 48
+        }
+      ],
+      "b": [
+        {
+          "address": "00000000000568a0",
+          "size": 266,
+          "mod_64": 32
+        }
+      ],
+      "c": [
+        {
+          "address": "0000000000056920",
+          "size": 266,
+          "mod_64": 32
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "c111ed7a3ee0b406"
+      ],
+      "b": [
+        "c0111acc30a3ad7d"
+      ],
+      "c": [
+        "758e96d95b7ccb3b"
+      ]
+    }
+  },
+  "core::ptr::drop_in_place<pbrs::packed::Packed<pbrs::packed::Bools>>": {
+    "symbols": {
+      "a": [
+        {
+          "address": "000000000001e090",
+          "size": 61,
+          "mod_64": 16
+        },
+        {
+          "address": "0000000000052200",
+          "size": 64,
+          "mod_64": 0
+        }
+      ],
+      "b": [
+        {
+          "address": "000000000001e040",
+          "size": 61,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000052170",
+          "size": 64,
+          "mod_64": 48
+        }
+      ],
+      "c": [
+        {
+          "address": "000000000001e080",
+          "size": 61,
+          "mod_64": 0
+        },
+        {
+          "address": "00000000000521f0",
+          "size": 64,
+          "mod_64": 48
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "4936f31310d05c7d",
+        "cf96321721593d45"
+      ],
+      "b": [
+        "4936f31310d05c7d",
+        "cf96321721593d45"
+      ],
+      "c": [
+        "4936f31310d05c7d",
+        "cf96321721593d45"
+      ]
+    }
+  },
+  "core::ptr::drop_in_place<pbrs::packed::PackedInner<pbrs::packed::Bools>>": {
+    "symbols": {
+      "a": [
+        {
+          "address": "000000000001e4a0",
+          "size": 185,
+          "mod_64": 32
+        },
+        {
+          "address": "00000000000525c0",
+          "size": 185,
+          "mod_64": 0
+        }
+      ],
+      "b": [
+        {
+          "address": "000000000001e450",
+          "size": 185,
+          "mod_64": 16
+        },
+        {
+          "address": "0000000000052530",
+          "size": 185,
+          "mod_64": 48
+        }
+      ],
+      "c": [
+        {
+          "address": "000000000001e490",
+          "size": 185,
+          "mod_64": 16
+        },
+        {
+          "address": "00000000000525b0",
+          "size": 185,
+          "mod_64": 48
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "745d1216447394d4",
+        "745d1216447394d4"
+      ],
+      "b": [
+        "745d1216447394d4",
+        "745d1216447394d4"
+      ],
+      "c": [
+        "745d1216447394d4",
+        "745d1216447394d4"
+      ]
+    }
+  },
+  "packed_bool_probe::bool_component::{{closure}}": {
+    "symbols": {
+      "a": [
+        {
+          "address": "0000000000043a40",
+          "size": 631,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000043cc0",
+          "size": 462,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000043e90",
+          "size": 1958,
+          "mod_64": 16
+        }
+      ],
+      "b": [
+        {
+          "address": "00000000000439f0",
+          "size": 631,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000043c70",
+          "size": 462,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000043e40",
+          "size": 1958,
+          "mod_64": 0
+        }
+      ],
+      "c": [
+        {
+          "address": "0000000000043a30",
+          "size": 631,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000043cb0",
+          "size": 462,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000043e80",
+          "size": 1958,
+          "mod_64": 0
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "2d02e51e95cd752e",
+        "35f6f9772ff6aba8",
+        "640f0eea76aed0d5"
+      ],
+      "b": [
+        "35f6f9772ff6aba8",
+        "6d18b55f684f8c27",
+        "71b964630f0d008a"
+      ],
+      "c": [
+        "35f6f9772ff6aba8",
+        "458a68165bb43f1a",
+        "e9be9d0ddb99e7ae"
+      ]
+    }
+  },
+  "packed_bool_probe::observe_values": {
+    "symbols": {
+      "a": [
+        {
+          "address": "0000000000043860",
+          "size": 478,
+          "mod_64": 32
+        }
+      ],
+      "b": [
+        {
+          "address": "0000000000043810",
+          "size": 478,
+          "mod_64": 16
+        }
+      ],
+      "c": [
+        {
+          "address": "0000000000043850",
+          "size": 478,
+          "mod_64": 16
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "cdc432793a1e23e1"
+      ],
+      "b": [
+        "cdc432793a1e23e1"
+      ],
+      "c": [
+        "cdc432793a1e23e1"
+      ]
+    }
+  },
+  "pbrs::wire::bulk_decode_varints": {
+    "symbols": {
+      "a": [
+        {
+          "address": "00000000000621c0",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "00000000000621c0",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000062660",
+          "size": 2499,
+          "mod_64": 32
+        },
+        {
+          "address": "0000000000063030",
+          "size": 885,
+          "mod_64": 48
+        },
+        {
+          "address": "00000000000633b0",
+          "size": 1075,
+          "mod_64": 48
+        },
+        {
+          "address": "00000000000633b0",
+          "size": 1075,
+          "mod_64": 48
+        },
+        {
+          "address": "00000000000637f0",
+          "size": 1619,
+          "mod_64": 48
+        }
+      ],
+      "b": [
+        {
+          "address": "0000000000062130",
+          "size": 1075,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000062130",
+          "size": 1075,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000062570",
+          "size": 2499,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000062f40",
+          "size": 885,
+          "mod_64": 0
+        },
+        {
+          "address": "00000000000632c0",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "00000000000632c0",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000063760",
+          "size": 1619,
+          "mod_64": 32
+        }
+      ],
+      "c": [
+        {
+          "address": "00000000000621b0",
+          "size": 885,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000062530",
+          "size": 2499,
+          "mod_64": 48
+        },
+        {
+          "address": "0000000000062f00",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000062f00",
+          "size": 1184,
+          "mod_64": 0
+        },
+        {
+          "address": "00000000000633a0",
+          "size": 1619,
+          "mod_64": 32
+        },
+        {
+          "address": "0000000000063a00",
+          "size": 1075,
+          "mod_64": 0
+        },
+        {
+          "address": "0000000000063a00",
+          "size": 1075,
+          "mod_64": 0
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "61b857ca2c5e7950",
+        "8476fecece2a5675",
+        "8e7ebde5775755f9",
+        "a9f4ff78c2c506d5",
+        "cf7ee0ceda94fcc2"
+      ],
+      "b": [
+        "33cab296a5aa2a0e",
+        "3b751e400401bdeb",
+        "4a7974bf3e6838de",
+        "aa3dcea8748bf728",
+        "ff0726ebebf68c61"
+      ],
+      "c": [
+        "25a8283dd4c63bb5",
+        "73ad6548d7a0d2dc",
+        "86cd61de46d6afbb",
+        "caf9e1e6eb7fbd43",
+        "eaaf0aadef40402c"
+      ]
+    }
+  },
+  "pbrs::wire::validate_bulk_16": {
+    "symbols": {
+      "a": [
+        {
+          "address": "0000000000062070",
+          "size": 330,
+          "mod_64": 48
+        }
+      ],
+      "b": [
+        {
+          "address": "0000000000061fe0",
+          "size": 330,
+          "mod_64": 32
+        }
+      ],
+      "c": [
+        {
+          "address": "0000000000062060",
+          "size": 330,
+          "mod_64": 32
+        }
+      ]
+    },
+    "normalized_instructions": {
+      "a": [
+        "e26b37f92d32a07b"
+      ],
+      "b": [
+        "fd01d89618e7a124"
+      ],
+      "c": [
+        "52fb4f55657e5a51"
+      ]
+    }
+  }
+}

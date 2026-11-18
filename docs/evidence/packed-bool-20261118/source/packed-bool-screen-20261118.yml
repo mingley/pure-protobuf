@@ -1,0 +1,171 @@
+name: Packed boolean component screen
+on:
+  push:
+    branches: [scratch/packed-bool-screen-20261118]
+    paths: ['.github/workflows/packed-bool-screen-20261118.yml']
+permissions:
+  contents: read
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  PACKED_BASE: "9061b8ee0a75d32acb19ebf7090e4a95660012db"
+  PACKED_CANDIDATE: "04b4aa04b4e5630e0033428520db9cdd2b49edbc"
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify source and build the paired consumers
+        run: |
+          set -euo pipefail
+          scratch="$RUNNER_TEMP/packed-bool-screen"
+          evidence="$scratch/evidence"
+          mkdir -p "$evidence/bin" "$evidence/source" "$evidence/environment"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "$PACKED_CANDIDATE"
+          test "$(git rev-parse "$PACKED_CANDIDATE^")" = "$PACKED_BASE"
+          cp .github/experiments/packed-bool-20261118/* "$evidence/source/"
+          cp .github/workflows/packed-bool-screen-20261118.yml "$evidence/source/"
+          git diff --binary "$PACKED_BASE" "$PACKED_CANDIDATE" > "$evidence/source/candidate.patch"
+          git diff --check "$PACKED_BASE" "$PACKED_CANDIDATE"
+          diff -u <(printf '%s\n' src/packed.rs src/packed/wire_tests.rs) <(git diff --name-only "$PACKED_BASE" "$PACKED_CANDIDATE")
+          git log -1 --format=fuller "$PACKED_BASE" > "$evidence/source/baseline-commit.txt"
+          git log -1 --format=fuller "$PACKED_CANDIDATE" > "$evidence/source/candidate-commit.txt"
+          git checkout --detach "$PACKED_CANDIDATE"
+          test "$(git rev-parse HEAD)" = "$PACKED_CANDIDATE"
+          rustup toolchain install 1.85.0 --profile minimal
+          rustc +1.85.0 -vV > "$evidence/environment/rustc.txt"
+          cargo +1.85.0 -V > "$evidence/environment/cargo.txt"
+          lscpu > "$evidence/environment/lscpu.txt"
+          uname -a > "$evidence/environment/uname.txt"
+          printf '%s\n' "$ImageOS" "$ImageVersion" > "$evidence/environment/runner-image.txt"
+          for variant in a b c; do
+            ref="$PACKED_BASE"
+            if test "$variant" = b; then ref="$PACKED_CANDIDATE"; fi
+            snapshot="$scratch/source-$variant"
+            consumer="$scratch/probe-$variant"
+            target="$scratch/build-$variant"
+            git worktree add --detach "$snapshot" "$ref"
+            test "$(git -C "$snapshot" rev-parse HEAD)" = "$ref"
+            test -z "$(git -C "$snapshot" status --porcelain)"
+            mkdir -p "$consumer/src"
+            cp "$evidence/source/probe.rs" "$consumer/src/main.rs"
+            sed "s|@PACKED_SOURCE@|$snapshot|" "$evidence/source/Cargo.toml" > "$consumer/Cargo.toml"
+            flags=()
+            if test "$variant" = a; then
+              cp "$snapshot/Cargo.lock" "$consumer/Cargo.lock"
+            else
+              cp "$evidence/source/resolved.Cargo.lock" "$consumer/Cargo.lock"
+              flags+=(--locked)
+            fi
+            CARGO_TARGET_DIR="$target" cargo +1.85.0 build --release "${flags[@]}" --manifest-path "$consumer/Cargo.toml" 2>&1 | tee "$evidence/build-$variant.log"
+            if test "$variant" = a; then cp "$consumer/Cargo.lock" "$evidence/source/resolved.Cargo.lock"; fi
+            cp "$target/release/packed-bool-probe" "$evidence/bin/$variant"
+            CARGO_TARGET_DIR="$target" cargo +1.85.0 build --locked --release --features inline-count --manifest-path "$consumer/Cargo.toml" 2>&1 | tee "$evidence/build-$variant-count.log"
+            cp "$target/release/packed-bool-probe" "$evidence/bin/$variant-count"
+            test -z "$(git -C "$snapshot" status --porcelain)"
+          done
+          cd "$evidence"
+          sha256sum bin/* source/* > environment/input-sha256.txt
+      - name: Pair CPU samples and measure allocation requests
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/packed-bool-screen/evidence"
+          python3 "$evidence/source/compare.py" "$evidence/bin" "$evidence/results.json" | tee "$evidence/summary.txt"
+          cd "$evidence"
+          sha256sum results.json summary.txt > environment/results-sha256.txt
+          cat environment/results-sha256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-bool-component-screen
+          path: ${{ runner.temp }}/packed-bool-screen/evidence
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove local worktrees
+        if: always()
+        run: |
+          for variant in a b c; do
+            snapshot="$RUNNER_TEMP/packed-bool-screen/source-$variant"
+            if test -d "$snapshot"; then git worktree remove "$snapshot"; fi
+          done
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test the exact candidate on stable and Rust 1.85
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/packed-bool-checks"
+          mkdir -p "$evidence"
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/packed-bool-checks-target"
+          (
+            set -eux
+            test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+            test "$(git rev-parse HEAD^)" = "$PACKED_CANDIDATE"
+            test "$(git rev-parse "$PACKED_CANDIDATE^")" = "$PACKED_BASE"
+            git checkout --detach "$PACKED_CANDIDATE"
+            test "$(git rev-parse HEAD)" = "$PACKED_CANDIDATE"
+            git diff --check "$PACKED_BASE" HEAD
+            rustup toolchain install stable --profile minimal --component clippy --component rustfmt
+            rustup toolchain install 1.85.0 --profile minimal --target thumbv7em-none-eabi
+            rustfmt +stable --edition 2024 --config skip_children=true --check src/packed.rs src/packed/wire_tests.rs
+            for toolchain in stable 1.85.0; do
+              rustc "+$toolchain" -vV
+              cargo "+$toolchain" test --locked -p pbrs --lib packed::
+              cargo "+$toolchain" test --locked -p pbrs --no-default-features --lib packed::
+            done
+            cargo +stable clippy --locked -p pbrs --all-features --lib -- -D warnings
+            cargo +1.85.0 check --locked -p pbrs --target thumbv7em-none-eabi --no-default-features --features alloc-only
+            test -z "$(git status --porcelain)"
+          ) 2>&1 | tee "$evidence/checks.log"
+      - name: Run the focused bool oracle under Miri on both endians
+        env:
+          MIRIFLAGS: "-Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/packed-bool-checks"
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/packed-bool-miri-target"
+          (
+            set -eux
+            test "$(git rev-parse HEAD)" = "$PACKED_CANDIDATE"
+            rustup toolchain install nightly --profile minimal --component miri --component rust-src
+            rustc +nightly -vV
+            cargo +nightly miri --version
+            cargo +nightly miri test --locked -p pbrs --no-default-features --lib packed_bools_append_canonical_bytes
+            cargo +nightly miri test --locked -p pbrs --no-default-features --lib --target s390x-unknown-linux-gnu packed_bools_append_canonical_bytes
+          ) 2>&1 | tee "$evidence/miri.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-bool-checks
+          path: ${{ runner.temp }}/packed-bool-checks
+          if-no-files-found: error
+          retention-days: 30
+  cleanup:
+    needs: [screen, checks]
+    if: ${{ always() && github.ref == 'refs/heads/scratch/packed-bool-screen-20261118' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Delete this exact scratch head
+        run: |
+          set -euo pipefail
+          ref="refs/heads/scratch/packed-bool-screen-20261118"
+          test "$GITHUB_REF" = "$ref"
+          git push --force-with-lease="$ref:$GITHUB_SHA" origin ":$ref"
+          test -z "$(git ls-remote origin "$ref")"
