@@ -697,28 +697,23 @@ impl Rpc {
             };
             match outcome
                 .and_then(|mut response| {
-                    {
-                        response.apply_outbound(
-                            path,
-                            gzip_level,
-                            prefer_gzip,
-                            peer_accepts_gzip,
-                            wire.accept_gzip,
-                            deadline,
-                            timeout,
-                            peer_timeout,
-                            rpc_timeout,
-                            Some(wire.limits),
-                            Some(wire.send_buffer),
-                        );
-                        // No hook: keep the response in place. The call would only
-                        // move it in and return it.
-                        if hook.is_none() {
-                            Ok(response)
-                        } else {
-                            crate::interceptor::intercept_response(response, hook.as_deref())
-                        }
-                    }
+                    let Some(hook) = hook.as_deref() else {
+                        return Ok(response);
+                    };
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
+                    crate::interceptor::intercept_response(response, Some(hook))
                 })
                 .and_then(|response| {
                     if call_cancel.deadline.expired() {
@@ -897,28 +892,23 @@ impl Rpc {
             };
             match outcome
                 .and_then(|mut response| {
-                    {
-                        response.apply_outbound(
-                            path,
-                            gzip_level,
-                            prefer_gzip,
-                            peer_accepts_gzip,
-                            wire.accept_gzip,
-                            deadline,
-                            timeout,
-                            peer_timeout,
-                            rpc_timeout,
-                            Some(wire.limits),
-                            Some(wire.send_buffer),
-                        );
-                        // No hook: keep the response in place. The call would only
-                        // move it in and return it.
-                        if hook.is_none() {
-                            Ok(response)
-                        } else {
-                            crate::interceptor::intercept_response(response, hook.as_deref())
-                        }
-                    }
+                    let Some(hook) = hook.as_deref() else {
+                        return Ok(response);
+                    };
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
+                    crate::interceptor::intercept_response(response, Some(hook))
                 })
                 .and_then(|response| {
                     if call_cancel.deadline.expired() {
@@ -1045,28 +1035,23 @@ impl Rpc {
             };
             match outcome
                 .and_then(|mut response| {
-                    {
-                        response.apply_outbound(
-                            path,
-                            gzip_level,
-                            prefer_gzip,
-                            peer_accepts_gzip,
-                            wire.accept_gzip,
-                            deadline,
-                            timeout,
-                            peer_timeout,
-                            rpc_timeout,
-                            Some(wire.limits),
-                            Some(wire.send_buffer),
-                        );
-                        // No hook: keep the response in place. The call would only
-                        // move it in and return it.
-                        if hook.is_none() {
-                            Ok(response)
-                        } else {
-                            crate::interceptor::intercept_response(response, hook.as_deref())
-                        }
-                    }
+                    let Some(hook) = hook.as_deref() else {
+                        return Ok(response);
+                    };
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
+                    crate::interceptor::intercept_response(response, Some(hook))
                 })
                 .and_then(|response| {
                     if call_cancel.deadline.expired() {
@@ -1284,28 +1269,23 @@ impl Rpc {
             };
             match outcome
                 .and_then(|mut response| {
-                    {
-                        response.apply_outbound(
-                            path,
-                            gzip_level,
-                            prefer_gzip,
-                            peer_accepts_gzip,
-                            wire.accept_gzip,
-                            deadline,
-                            timeout,
-                            peer_timeout,
-                            rpc_timeout,
-                            Some(wire.limits),
-                            Some(wire.send_buffer),
-                        );
-                        // No hook: keep the response in place. The call would only
-                        // move it in and return it.
-                        if hook.is_none() {
-                            Ok(response)
-                        } else {
-                            crate::interceptor::intercept_response(response, hook.as_deref())
-                        }
-                    }
+                    let Some(hook) = hook.as_deref() else {
+                        return Ok(response);
+                    };
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
+                    crate::interceptor::intercept_response(response, Some(hook))
                 })
                 .and_then(|response| {
                     if call_cancel.deadline.expired() {
@@ -1379,11 +1359,12 @@ impl Rpc {
         // Move the request record before constructing the read future. An
         // async fn would retain another Rpc-sized argument slot until its
         // first poll even though the live state already belongs on the heap.
+        let retain_path = self.observer.is_some() || self.response_interceptor.is_some();
         let mut inbound = InboundRpc::from_rpc(self);
         async move {
             // Box the read here, in a synchronous helper, so this future stores
             // a pointer instead of the read state machine.
-            let outcome = read_unary_fut(&mut inbound, handler).await;
+            let outcome = read_unary_fut(&mut inbound, handler, retain_path).await;
             Some((*inbound).into_prepared(outcome))
         }
     }
@@ -1403,9 +1384,10 @@ impl Rpc {
         // `Rpc` is 960 bytes. An `async fn` keeps that argument in the
         // generator and the connection task copies it on every resume.
         // Move it into the heap before the future is built.
+        let retain_path = self.observer.is_some() || self.response_interceptor.is_some();
         let mut inbound = InboundRpc::from_rpc(self);
         async move {
-            let outcome = read_streaming_fut(&mut inbound, handler).await;
+            let outcome = read_streaming_fut(&mut inbound, handler, retain_path).await;
             Some(box_prepared(inbound, outcome))
         }
     }
@@ -1650,10 +1632,14 @@ impl InboundRpc {
         }
     }
 
-    fn base_request<T>(&mut self, message: T) -> Request<T> {
-        // The handler and outbound response each need the RPC path. Response
-        // interceptors use it even when no lifecycle observer is installed.
-        let path = self.path.clone();
+    fn base_request<T>(&mut self, message: T, retain_path: bool) -> Request<T> {
+        // The outbound writer needs the path only for observer labels or a
+        // response interceptor. Otherwise the handler takes the sole copy.
+        let path = if retain_path {
+            self.path.clone()
+        } else {
+            self.path.take()
+        };
         let mut req = Request::from_metadata(
             message,
             std::mem::take(&mut self.metadata),
@@ -1687,7 +1673,11 @@ impl InboundRpc {
         req
     }
 
-    async fn read_unary<Req, T, F, Fut>(&mut self, handler: F) -> Result<T, Status>
+    async fn read_unary<Req, T, F, Fut>(
+        &mut self,
+        handler: F,
+        retain_path: bool,
+    ) -> Result<T, Status>
     where
         Req: CodecMessage,
         F: FnOnce(Request<Req>) -> Fut,
@@ -1700,7 +1690,7 @@ impl InboundRpc {
         if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
             obs.on_bytes_received(&labels.as_borrowed(), 0);
         }
-        let mut req = self.base_request(framed.message);
+        let mut req = self.base_request(framed.message, retain_path);
         req.set_compressed(framed.compressed);
         req.set_cancel(Arc::clone(self.cancel_tx.flag()));
         let on_reset = Arc::clone(self.cancel_tx.flag());
@@ -1748,7 +1738,11 @@ impl InboundRpc {
             .ok_or_else(|| Status::internal("Missing request message."))
     }
 
-    async fn read_streaming<Req, T, F, Fut>(&mut self, handler: F) -> Result<T, Status>
+    async fn read_streaming<Req, T, F, Fut>(
+        &mut self,
+        handler: F,
+        retain_path: bool,
+    ) -> Result<T, Status>
     where
         Req: CodecMessage + Send + 'static,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
@@ -1767,7 +1761,7 @@ impl InboundRpc {
             self.binlog.clone(),
         ))
         .bind_channelz_socket_count_only(self.channelz_socket);
-        let mut req = self.base_request(stream);
+        let mut req = self.base_request(stream, retain_path);
         req.set_cancel(Arc::clone(self.cancel_tx.flag()));
         let on_reset = Arc::clone(self.cancel_tx.flag());
         if self.cancel_tx.flag().deadline.expired() {
@@ -1790,13 +1784,14 @@ impl InboundRpc {
 fn read_unary_fut<'a, Req, T: 'a, F, Fut>(
     inbound: &'a mut InboundRpc,
     handler: F,
+    retain_path: bool,
 ) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>>
 where
     Req: CodecMessage + 'a,
     F: FnOnce(Request<Req>) -> Fut + 'a,
     Fut: Future<Output = Result<T, Status>> + 'a,
 {
-    Box::pin(inbound.read_unary(handler))
+    Box::pin(inbound.read_unary(handler, retain_path))
 }
 
 #[cfg(feature = "grpc-web")]
@@ -1835,13 +1830,14 @@ fn box_prepared<T>(inbound: Box<InboundRpc>, outcome: Result<T, Status>) -> Box<
 fn read_streaming_fut<'a, Req, T: 'a, F, Fut>(
     inbound: &'a mut InboundRpc,
     handler: F,
+    retain_path: bool,
 ) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>>
 where
     Req: CodecMessage + Send + 'static,
     F: FnOnce(Request<Streaming<Req>>) -> Fut + 'a,
     Fut: Future<Output = Result<T, Status>> + 'a,
 {
-    Box::pin(inbound.read_streaming(handler))
+    Box::pin(inbound.read_streaming(handler, retain_path))
 }
 
 /// `call_start` is only read when an observer records elapsed time.
