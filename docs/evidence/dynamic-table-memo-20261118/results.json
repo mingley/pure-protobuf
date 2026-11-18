@@ -1,0 +1,2801 @@
+{
+  "allowed_cpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "selected_cpu": 0,
+  "cases": {
+    "pooled_empty": {
+      "calibration": {
+        "case": "pooled_empty",
+        "n": 50000,
+        "wall_ns": 3485653,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 0,
+        "wire_hash": "cbf29ce484222325",
+        "process_cpu_ns": 4777000
+      },
+      "n": 2000000,
+      "blocks": [
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 170855811,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 171929000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 117359020,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 118753000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 116652437,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 117664000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 139380504,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 140364000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 118047468,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 119017000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 137321901,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 138277000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 137613497,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 138603000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 118397273,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 119400000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 138341139,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 139303000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 116172710,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 117171000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 116746734,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 117711000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 137525642,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 138519000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 117892819,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 118875000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 141159824,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 142152000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 153126370,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 154102000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 116891374,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 117879000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 151070101,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 152088000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 115410593,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 116455000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 115555304,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 116536000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 136579640,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 137579000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 118744284,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 119721000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 137552220,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 138396000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 138424910,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 139432000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_empty",
+            "n": 2000000,
+            "wall_ns": 117090174,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 0,
+            "wire_hash": "cbf29ce484222325",
+            "process_cpu_ns": 118080000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4829,
+                "alloc_events": 64,
+                "requested_bytes": 4096,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 1038000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 9117,
+                "alloc_events": 128,
+                "requested_bytes": 8192,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 956000
+              }
+            ],
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4809,
+                "alloc_events": 64,
+                "requested_bytes": 4096,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 963000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 9257,
+                "alloc_events": 128,
+                "requested_bytes": 8192,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 981000
+              }
+            ],
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4769,
+                "alloc_events": 64,
+                "requested_bytes": 4096,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 993000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 9237,
+                "alloc_events": 128,
+                "requested_bytes": 8192,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 974000
+              }
+            ]
+          ],
+          "per_parse": [
+            1,
+            64
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4138,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 979000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 7644,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 967000
+              }
+            ],
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4098,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 946000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 7825,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 968000
+              }
+            ],
+            [
+              {
+                "case": "pooled_empty",
+                "n": 64,
+                "wall_ns": 4047,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 967000
+              },
+              {
+                "case": "pooled_empty",
+                "n": 128,
+                "wall_ns": 7845,
+                "alloc_events": 0,
+                "requested_bytes": 0,
+                "wire_len": 0,
+                "wire_hash": "cbf29ce484222325",
+                "process_cpu_ns": 1026000
+              }
+            ]
+          ],
+          "per_parse": [
+            0,
+            0
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 0.8236300008527467,
+          "min": 0.7543006594827559,
+          "max": 0.8600010865097844
+        },
+        "a_over_a": {
+          "median": 0.9981143110998814,
+          "min": 0.8157785397184998,
+          "max": 1.0847730300372151
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 0.8248907262069185,
+          "min": 0.7570358605540309,
+          "max": 0.8610842242126553
+        },
+        "a_over_a": {
+          "median": 0.9983647835431921,
+          "min": 0.8164067725630929,
+          "max": 1.0840649445663797
+        }
+      }
+    },
+    "pooled_leaf": {
+      "calibration": {
+        "case": "pooled_leaf",
+        "n": 50000,
+        "wall_ns": 14030621,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 12,
+        "wire_hash": "4e3dd1dcbc5208e6",
+        "process_cpu_ns": 15013000
+      },
+      "n": 570181,
+      "blocks": [
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 158454499,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159455000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 153071193,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 154053000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 157185178,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 158182000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 173187543,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 174128000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 154590390,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 155607000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 199830015,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 200117000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 256109204,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 256302000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 241840618,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 242131000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 262507007,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 262611000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 246332590,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 246564000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 244468537,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 244730000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 159231410,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 160241000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 155499348,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156476000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 159931318,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 160943000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 158632832,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159640000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 165319164,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 166291000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 158763136,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159768000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 154095129,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 155078000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 152836176,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 153823000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 160653434,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 161642000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 156090802,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 157094000,
+            "binary": "b"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 160003298,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 161017000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 158660478,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159628000,
+            "binary": "a"
+          },
+          {
+            "case": "pooled_leaf",
+            "n": 570181,
+            "wall_ns": 155523290,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156533000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 18775,
+                "alloc_events": 128,
+                "requested_bytes": 47104,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1037000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 36748,
+                "alloc_events": 256,
+                "requested_bytes": 94208,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1056000
+              }
+            ],
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 18374,
+                "alloc_events": 128,
+                "requested_bytes": 47104,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 993000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 36458,
+                "alloc_events": 256,
+                "requested_bytes": 94208,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1021000
+              }
+            ],
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 18986,
+                "alloc_events": 128,
+                "requested_bytes": 47104,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 994000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 36749,
+                "alloc_events": 256,
+                "requested_bytes": 94208,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 988000
+              }
+            ]
+          ],
+          "per_parse": [
+            2,
+            736
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 17804,
+                "alloc_events": 64,
+                "requested_bytes": 43008,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1007000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 35837,
+                "alloc_events": 128,
+                "requested_bytes": 86016,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1023000
+              }
+            ],
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 19467,
+                "alloc_events": 64,
+                "requested_bytes": 43008,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 996000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 36007,
+                "alloc_events": 128,
+                "requested_bytes": 86016,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1023000
+              }
+            ],
+            [
+              {
+                "case": "pooled_leaf",
+                "n": 64,
+                "wall_ns": 17923,
+                "alloc_events": 64,
+                "requested_bytes": 43008,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1081000
+              },
+              {
+                "case": "pooled_leaf",
+                "n": 128,
+                "wall_ns": 35767,
+                "alloc_events": 128,
+                "requested_bytes": 86016,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1012000
+              }
+            ]
+          ],
+          "per_parse": [
+            1,
+            672
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 0.9693948207028489,
+          "min": 0.8694821403376576,
+          "max": 1.1637572182569274
+        },
+        "a_over_a": {
+          "median": 1.0018936905358382,
+          "min": 0.6065796559860972,
+          "max": 1.2816353138941614
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 0.9695968643518937,
+          "min": 0.8714317326842221,
+          "max": 1.1618580496249278
+        },
+        "a_over_a": {
+          "median": 1.0018167368933377,
+          "min": 0.6101838841480365,
+          "max": 1.2807607549583493
+        }
+      }
+    },
+    "poolless_leaf": {
+      "calibration": {
+        "case": "poolless_leaf",
+        "n": 50000,
+        "wall_ns": 23836498,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 12,
+        "wire_hash": "4e3dd1dcbc5208e6",
+        "process_cpu_ns": 24855000
+      },
+      "n": 335620,
+      "blocks": [
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 156802502,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 157815000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 155154942,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156193000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 155177083,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156170000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 161091834,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 162074000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 153047500,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 154038000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 159051238,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 160045000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 165325141,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 166337000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 154639057,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 155657000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 157074722,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 158060000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 153276198,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 154288000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 152663272,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 153660000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 165851656,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 166865000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 155791011,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156795000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 159784570,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 160789000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 158275668,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159304000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 154836867,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 155859000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 158267873,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 159264000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 155150213,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 156164000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 153497001,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 154492000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 166204176,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 167218000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 153478737,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 154476000,
+            "binary": "b"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 156794719,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 157777000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 159312918,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 160300000,
+            "binary": "a"
+          },
+          {
+            "case": "poolless_leaf",
+            "n": 335620,
+            "wall_ns": 154320661,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 12,
+            "wire_hash": "4e3dd1dcbc5208e6",
+            "process_cpu_ns": 155390000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 31248,
+                "alloc_events": 576,
+                "requested_bytes": 91392,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1058000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 61315,
+                "alloc_events": 1152,
+                "requested_bytes": 182784,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1030000
+              }
+            ],
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 31278,
+                "alloc_events": 576,
+                "requested_bytes": 91392,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1037000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 61655,
+                "alloc_events": 1152,
+                "requested_bytes": 182784,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1093000
+              }
+            ],
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 31168,
+                "alloc_events": 576,
+                "requested_bytes": 91392,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1015000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 61786,
+                "alloc_events": 1152,
+                "requested_bytes": 182784,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1038000
+              }
+            ]
+          ],
+          "per_parse": [
+            9,
+            1428
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 29395,
+                "alloc_events": 512,
+                "requested_bytes": 87296,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1041000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 58860,
+                "alloc_events": 1024,
+                "requested_bytes": 174592,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1075000
+              }
+            ],
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 29485,
+                "alloc_events": 512,
+                "requested_bytes": 87296,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1012000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 59892,
+                "alloc_events": 1024,
+                "requested_bytes": 174592,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1055000
+              }
+            ],
+            [
+              {
+                "case": "poolless_leaf",
+                "n": 64,
+                "wall_ns": 29575,
+                "alloc_events": 512,
+                "requested_bytes": 87296,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1040000
+              },
+              {
+                "case": "poolless_leaf",
+                "n": 128,
+                "wall_ns": 58750,
+                "alloc_events": 1024,
+                "requested_bytes": 174592,
+                "wire_len": 12,
+                "wire_hash": "4e3dd1dcbc5208e6",
+                "process_cpu_ns": 1060000
+              }
+            ]
+          ],
+          "per_parse": [
+            8,
+            1364
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 0.9624730151044711,
+          "min": 0.9473969636509533,
+          "max": 0.9766322252453323
+        },
+        "a_over_a": {
+          "median": 1.0334003975716874,
+          "min": 0.9905566476162248,
+          "max": 1.055877444112236
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 0.9628555771736026,
+          "min": 0.9477510194660306,
+          "max": 0.9767598791601191
+        },
+        "a_over_a": {
+          "median": 1.0331506191021562,
+          "min": 0.990764293577297,
+          "max": 1.0557066936606352
+        }
+      }
+    },
+    "recursive": {
+      "calibration": {
+        "case": "recursive",
+        "n": 50000,
+        "wall_ns": 54400176,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 30,
+        "wire_hash": "75684f10f2ededa1",
+        "process_cpu_ns": 55452000
+      },
+      "n": 147058,
+      "blocks": [
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159252975,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160274000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156486762,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157543000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 158406262,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 159453000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159372008,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160440000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 158149192,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 159189000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 160679293,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 161765000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 162961494,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 164012000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 155897085,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 156945000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 161007863,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 162060000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156047315,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157089000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 160704246,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 161751000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159047290,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160117000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156550386,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157603000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 160601824,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 161680000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159620722,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160648000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156367895,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157413000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 160976775,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 162023000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156085718,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157127000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 157128555,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 158215000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159774284,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160806000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 156680300,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 157729000,
+            "binary": "b"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 161974400,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 163009000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 159596072,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 160636000,
+            "binary": "a"
+          },
+          {
+            "case": "recursive",
+            "n": 147058,
+            "wall_ns": 157664721,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 30,
+            "wire_hash": "75684f10f2ededa1",
+            "process_cpu_ns": 158727000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 69109,
+                "alloc_events": 640,
+                "requested_bytes": 356352,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1158000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 137848,
+                "alloc_events": 1280,
+                "requested_bytes": 712704,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1171000
+              }
+            ],
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 69330,
+                "alloc_events": 640,
+                "requested_bytes": 356352,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1097000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 165970,
+                "alloc_events": 1280,
+                "requested_bytes": 712704,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1244000
+              }
+            ],
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 68498,
+                "alloc_events": 640,
+                "requested_bytes": 356352,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1165000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 137778,
+                "alloc_events": 1280,
+                "requested_bytes": 712704,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1166000
+              }
+            ]
+          ],
+          "per_parse": [
+            10,
+            5568
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 67506,
+                "alloc_events": 576,
+                "requested_bytes": 352256,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1114000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 134561,
+                "alloc_events": 1152,
+                "requested_bytes": 704512,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1153000
+              }
+            ],
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 67867,
+                "alloc_events": 576,
+                "requested_bytes": 352256,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1123000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 140763,
+                "alloc_events": 1152,
+                "requested_bytes": 704512,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1193000
+              }
+            ],
+            [
+              {
+                "case": "recursive",
+                "n": 64,
+                "wall_ns": 67647,
+                "alloc_events": 576,
+                "requested_bytes": 352256,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1085000
+              },
+              {
+                "case": "recursive",
+                "n": 128,
+                "wall_ns": 138028,
+                "alloc_events": 1152,
+                "requested_bytes": 704512,
+                "wire_len": 30,
+                "wire_hash": "75684f10f2ededa1",
+                "process_cpu_ns": 1178000
+              }
+            ]
+          ],
+          "per_parse": [
+            9,
+            5504
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 0.9773603868942874,
+          "min": 0.9703544473212519,
+          "max": 0.9896780540196458
+        },
+        "a_over_a": {
+          "median": 0.9932105623879395,
+          "min": 0.9853166426299464,
+          "max": 1.0142034543306087
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 0.9775512118194896,
+          "min": 0.9703999975443325,
+          "max": 0.9896423394593655
+        },
+        "a_over_a": {
+          "median": 0.9930528710068875,
+          "min": 0.9854425215785632,
+          "max": 1.0138905201990542
+        }
+      }
+    },
+    "repeated_child": {
+      "calibration": {
+        "case": "repeated_child",
+        "n": 50000,
+        "wall_ns": 132047659,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 112,
+        "wire_hash": "96f7394eb83d46d5",
+        "process_cpu_ns": 133195000
+      },
+      "n": 60584,
+      "blocks": [
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 170733308,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 171882000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 157743408,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 158926000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 161034542,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 162161000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 160486006,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 161645000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 159613284,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 160791000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158194291,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159351000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 159010457,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 160191000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 160284289,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 161427000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 163514800,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 164645000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158310337,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159494000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 160831202,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 162001000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158385017,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159552000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 160006219,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 161174000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158442455,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159597000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158423730,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159564000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 160616890,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 161781000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 158952459,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 160099000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 161479915,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 162634000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 161721757,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 162873000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 162669449,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 163851000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 159644342,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 160823000,
+            "binary": "b"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 159554926,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 160704000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 161397150,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 162561000,
+            "binary": "a"
+          },
+          {
+            "case": "repeated_child",
+            "n": 60584,
+            "wall_ns": 157929426,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "96f7394eb83d46d5",
+            "process_cpu_ns": 159107000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 177141,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1343000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 354242,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1495000
+              }
+            ],
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 174576,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1309000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 342661,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1532000
+              }
+            ],
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 171821,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1330000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 352800,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1489000
+              }
+            ]
+          ],
+          "per_parse": [
+            14,
+            6968
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 167843,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1346000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 336759,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1492000
+              }
+            ],
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 169707,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1334000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 354333,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1483000
+              }
+            ],
+            [
+              {
+                "case": "repeated_child",
+                "n": 64,
+                "wall_ns": 171380,
+                "alloc_events": 896,
+                "requested_bytes": 445952,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1311000
+              },
+              {
+                "case": "repeated_child",
+                "n": 128,
+                "wall_ns": 338673,
+                "alloc_events": 1792,
+                "requested_bytes": 891904,
+                "wire_len": 112,
+                "wire_hash": "96f7394eb83d46d5",
+                "process_cpu_ns": 1526000
+              }
+            ]
+          ],
+          "per_parse": [
+            14,
+            6968
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 0.9981715600851284,
+          "min": 0.9624376856236107,
+          "max": 1.0118565002447326
+        },
+        "a_over_a": {
+          "median": 1.002520540796398,
+          "min": 0.9399806509928338,
+          "max": 1.0233842874994465
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 0.998235929319866,
+          "min": 0.9627016703295386,
+          "max": 1.0118874173222918
+        },
+        "a_over_a": {
+          "median": 1.0025323056197255,
+          "min": 0.9404416983744662,
+          "max": 1.0234354992848176
+        }
+      }
+    },
+    "wide_memo": {
+      "calibration": {
+        "case": "wide_memo",
+        "n": 50000,
+        "wall_ns": 158355392,
+        "alloc_events": 0,
+        "requested_bytes": 0,
+        "wire_len": 112,
+        "wire_hash": "76dd179c725bbc35",
+        "process_cpu_ns": 159526000
+      },
+      "n": 50519,
+      "blocks": [
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159364689,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160562000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159894270,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161085000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 160520661,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161726000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 160616921,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161820000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 163288657,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 164482000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159965032,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161171000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 157804302,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 158994000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 161079716,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 162307000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 165564933,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 166797000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159500363,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160715000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159765088,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160955000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 158882959,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160086000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 161842623,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 163085000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159812096,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161014000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 161802087,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 162984000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 160866639,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 162073000,
+            "binary": "b"
+          }
+        ],
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159914782,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 161137000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 158909013,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160101000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 165857167,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 167056000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 163254084,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 164489000,
+            "binary": "a"
+          }
+        ],
+        [
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 162999929,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 164206000,
+            "binary": "b"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 159041227,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 160237000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 161946850,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 163157000,
+            "binary": "a"
+          },
+          {
+            "case": "wide_memo",
+            "n": 50519,
+            "wall_ns": 162384157,
+            "alloc_events": 0,
+            "requested_bytes": 0,
+            "wire_len": 112,
+            "wire_hash": "76dd179c725bbc35",
+            "process_cpu_ns": 163622000,
+            "binary": "b"
+          }
+        ]
+      ],
+      "allocations": {
+        "a-count": {
+          "pairs": [
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 228367,
+                "alloc_events": 896,
+                "requested_bytes": 440320,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1414000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 403855,
+                "alloc_events": 1792,
+                "requested_bytes": 880640,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1604000
+              }
+            ],
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 205524,
+                "alloc_events": 896,
+                "requested_bytes": 440320,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1396000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 415076,
+                "alloc_events": 1792,
+                "requested_bytes": 880640,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1606000
+              }
+            ],
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 203580,
+                "alloc_events": 896,
+                "requested_bytes": 440320,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1384000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 402102,
+                "alloc_events": 1792,
+                "requested_bytes": 880640,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1593000
+              }
+            ]
+          ],
+          "per_parse": [
+            14,
+            6880
+          ]
+        },
+        "b-count": {
+          "pairs": [
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 201136,
+                "alloc_events": 832,
+                "requested_bytes": 423936,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1387000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 447928,
+                "alloc_events": 1664,
+                "requested_bytes": 847872,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1638000
+              }
+            ],
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 199784,
+                "alloc_events": 832,
+                "requested_bytes": 423936,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1366000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 400538,
+                "alloc_events": 1664,
+                "requested_bytes": 847872,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1581000
+              }
+            ],
+            [
+              {
+                "case": "wide_memo",
+                "n": 64,
+                "wall_ns": 200835,
+                "alloc_events": 832,
+                "requested_bytes": 423936,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1424000
+              },
+              {
+                "case": "wide_memo",
+                "n": 128,
+                "wall_ns": 447337,
+                "alloc_events": 1664,
+                "requested_bytes": 847872,
+                "wire_len": 112,
+                "wire_hash": "76dd179c725bbc35",
+                "process_cpu_ns": 1612000
+              }
+            ]
+          ],
+          "per_parse": [
+            13,
+            6624
+          ]
+        }
+      },
+      "wall_ns": {
+        "b_over_a": {
+          "median": 1.00417380338244,
+          "min": 0.9840268926758815,
+          "max": 1.0207667584437208
+        },
+        "a_over_a": {
+          "median": 1.010154858890525,
+          "min": 0.9596413692264171,
+          "max": 1.020881759386071
+        }
+      },
+      "process_cpu_ns": {
+        "b_over_a": {
+          "median": 1.0041409910110906,
+          "min": 0.9840523979527843,
+          "max": 1.020689332063155
+        },
+        "a_over_a": {
+          "median": 1.0100349702845546,
+          "min": 0.9597654634076153,
+          "max": 1.0208021745471245
+        }
+      }
+    }
+  }
+}

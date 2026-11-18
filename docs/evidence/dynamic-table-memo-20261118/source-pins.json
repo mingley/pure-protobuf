@@ -1,0 +1,13 @@
+{
+  "baseline": "9061b8ee0a75d32acb19ebf7090e4a95660012db",
+  "candidate": "72722c85f80579337479009c27ce72c888887891",
+  "candidate_tree": "972e4660422573cef29355d5e290379b172c7ddd",
+  "screen_driver": "4692a55c363d07db8d2b7d798efad567b0f33b0c",
+  "screen_run": 44347575883,
+  "artifact_id": 14446717122,
+  "artifact_digest": "sha256:1e71720ee4ad23df1266857f694a783cfea7581d9a413bb0662a7207cffb6699",
+  "artifact_expires_at": "2026-12-18T16:29:58Z",
+  "correctness_run": 44347112961,
+  "compiler": "1.85.0",
+  "target": "x86_64-unknown-linux-gnu"
+}

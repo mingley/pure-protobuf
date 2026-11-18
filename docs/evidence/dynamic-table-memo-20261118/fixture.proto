@@ -1,0 +1,67 @@
+syntax = "proto2";
+
+package memo;
+
+message Empty {}
+message Leaf {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Recursive {
+  optional int32 id = 1;
+  optional Recursive child = 2;
+}
+message RepeatedChild {
+  repeated Leaf children = 1;
+}
+message Child1 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child2 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child3 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child4 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child5 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child6 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child7 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message Child8 {
+  required int32 id = 1;
+  optional bool active = 2;
+  optional string name = 3;
+}
+message WideMemo {
+  optional Child1 field1 = 1;
+  optional Child2 field2 = 2;
+  optional Child3 field3 = 3;
+  optional Child4 field4 = 4;
+  optional Child5 field5 = 5;
+  optional Child6 field6 = 6;
+  optional Child7 field7 = 7;
+  optional Child8 field8 = 8;
+}

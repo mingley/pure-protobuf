@@ -1,0 +1,88 @@
+name: Dynamic table memo screen
+on:
+  push:
+    branches: [scratch/nov18-dynamic-table-screen]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_BUILD_JOBS: '2'
+  BASE_SOURCE: 9061b8ee0a75d32acb19ebf7090e4a95660012db
+  CANDIDATE_SOURCE: 72722c85f80579337479009c27ce72c888887891
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - name: Install descriptor compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+      - name: Build exact sources with the same probe
+        run: |
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SOURCE"
+          test "$(git rev-parse "$CANDIDATE_SOURCE^")" = "$BASE_SOURCE"
+          test -z "$(git status --porcelain)"
+          evidence="$RUNNER_TEMP/dynamic-memo"
+          mkdir -p "$evidence/bin"
+          cp scratch/dynamic-memo/* "$evidence/"
+          printf '%s\n%s\n' "$BASE_SOURCE" "$CANDIDATE_SOURCE" > "$evidence/sources.txt"
+          rustc +1.85.0 -vV > "$evidence/rustc.txt"
+          lscpu > "$evidence/lscpu.txt"
+          protoc --version > "$evidence/protoc.txt"
+          protoc -I "$evidence" --descriptor_set_out="$evidence/fixture.fds" "$evidence/fixture.proto"
+          git diff --binary "$BASE_SOURCE" "$CANDIDATE_SOURCE" > "$evidence/source.patch"
+          for role in a b; do
+            source="$BASE_SOURCE"
+            if test "$role" = b; then source="$CANDIDATE_SOURCE"; fi
+            work="$RUNNER_TEMP/memo-$role"
+            git worktree add --detach "$work" "$source"
+            test "$(git -C "$work" rev-parse HEAD)" = "$source"
+            test -z "$(git -C "$work" status --porcelain)"
+            cp "$evidence/probe.rs" "$work/examples/nov18_dynamic_memo.rs"
+            for label in "$role" "$role-count"; do
+              flags=""
+              if [[ "$label" == *-count ]]; then flags="--cfg memo_counts"; fi
+              build="$RUNNER_TEMP/target-memo-$label"
+              (
+                cd "$work"
+                CARGO_TARGET_DIR="$build" RUSTFLAGS="$flags" cargo +1.85.0 build \
+                  --locked --release -p pbrs --no-default-features --features reflect \
+                  --example nov18_dynamic_memo
+              )
+              cp "$build/release/examples/nov18_dynamic_memo" "$evidence/bin/$label"
+            done
+            rm "$work/examples/nov18_dynamic_memo.rs"
+            test -z "$(git -C "$work" status --porcelain)"
+            git worktree remove "$work"
+          done
+          cd "$evidence"
+          sha256sum bin/* fixture.fds probe.rs driver.py source.patch > sha256.txt
+      - name: Measure valid parse and drop operations
+        run: |
+          evidence="$RUNNER_TEMP/dynamic-memo"
+          python3 "$evidence/driver.py" "$evidence/fixture.fds" "$evidence/bin" "$evidence/results.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dynamic-table-memo
+          path: ${{ runner.temp }}/dynamic-memo/
+          retention-days: 30
+
+  cleanup:
+    needs: [measure]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove only this scratch ref
+        run: git push --force-with-lease="refs/heads/scratch/nov18-dynamic-table-screen:$GITHUB_SHA" origin ":refs/heads/scratch/nov18-dynamic-table-screen"
