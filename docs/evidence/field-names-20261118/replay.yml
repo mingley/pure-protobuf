@@ -1,0 +1,87 @@
+name: Replay retained field-name consumers
+on:
+  push:
+    branches: [scratch/field-name-replay-20261118]
+permissions: {}
+env:
+  CANDIDATE: f20b8f49d6f3889e4afbae3427eae061ad081195
+  BASE: 9061b8ee0a75d32acb19ebf7090e4a95660012db
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+  RUSTUP_TOOLCHAIN: "1.99.1"
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify original report and actual generated source files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/field-name-replay"
+          mkdir -p "$work/original" "$work/evidence"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test "$(git rev-parse "$GITHUB_SHA^")" = "$CANDIDATE"
+          test "$(git rev-parse "$CANDIDATE^")" = "$BASE"
+          test "$(git diff --name-only "$BASE" "$CANDIDATE")" = src/codegen/naming.rs
+          cp .github/experiments/field-name-reuse/verify.py "$work/evidence/verify.py"
+          cp .github/workflows/scratch-field-name-replay-20261118.yml "$work/evidence/workflow.yml"
+          git checkout --detach "$CANDIDATE"
+          test -z "$(git status --porcelain)"
+          curl --fail --silent --show-error --location --max-time 60 --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/mingley/pure-protobuf/actions/artifacts/14445684438/zip --output "$work/original.zip"
+          printf 'b6a5bd65fdff26b09c121beccbb7f81f51cb026038f67384e5838f6c6b31cfb7  %s\n' "$work/original.zip" | sha256sum -c -
+          unzip -q "$work/original.zip" -d "$work/original"
+          python3 -B "$work/evidence/verify.py" "$work/original" "$work/evidence/results.json" | tee "$work/evidence/verification.log"
+      - name: Compile and exercise retained consumers
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/field-name-replay"
+          exec > >(tee "$work/evidence/consumers.log") 2>&1
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustc -Vv
+          export CARGO_TARGET_DIR="$work/target"
+          cargo fetch --locked
+          for cell in small-default collision-default otlp-default large-lean; do
+            dir="$work/original/consumers/$cell"
+            cmd=run
+            if [[ "$cell" == large-lean ]]; then cmd=check; fi
+            echo "FIELD_NAME_CONSUMER $cell $cmd"
+            cp Cargo.lock "$dir/Cargo.lock"
+            cargo metadata --offline --format-version 1 --manifest-path "$dir/Cargo.toml" > "$work/evidence/$cell-metadata.json"
+            cp "$dir/Cargo.lock" "$work/evidence/$cell-Cargo.lock"
+            cargo "$cmd" --locked --offline --manifest-path "$dir/Cargo.toml"
+          done
+          test -z "$(git status --porcelain)"
+      - name: Retain independent verification and consumer logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: field-name-replay-20261118
+          path: ${{ runner.temp }}/field-name-replay/evidence
+          retention-days: 90
+          if-no-files-found: warn
+  cleanup:
+    if: always()
+    needs: replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Delete exact scratch ref
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/scratch/field-name-replay-20261118
+          git push --force-with-lease="$GITHUB_REF:$GITHUB_SHA" origin ":$GITHUB_REF"
