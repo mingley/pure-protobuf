@@ -637,24 +637,23 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     let mut out = std::collections::BTreeMap::new();
     let mut raws = std::collections::BTreeMap::new();
     for f in desc.fields.values() {
-        let mut raw = field_name_with_collision_avoidance(desc, f);
-        if !raw_used.insert(raw.clone()) {
-            raw = format!("{}_{}", raw, f.number);
-            raw_used.insert(raw.clone());
+        // Share the reserved spelling with the cache used by the emitters.
+        let mut raw = Rc::<str>::from(field_name_with_collision_avoidance(desc, f));
+        if !raw_used.insert(Rc::clone(&raw)) {
+            raw = Rc::from(format!("{raw}_{}", f.number));
+            raw_used.insert(Rc::clone(&raw));
         }
-        let mut id = field_ident_base(&raw);
-        // `unknown` is reserved (unknown-fields storage); treating it as
-        // used without seeding an allocation matches the old `insert`.
-        if id == "unknown" || !used.insert(id.clone()) {
-            id = format!("{}_{}", id.trim_start_matches("r#"), f.number);
-            used.insert(id.clone());
-        }
-        let raw: Rc<str> = Rc::from(raw);
-        let id = if id == raw.as_ref() {
+        let id = field_ident_base(&raw);
+        let mut id = if id == raw.as_ref() {
             Rc::clone(&raw)
         } else {
             Rc::from(id)
         };
+        // `unknown` is reserved for unknown-fields storage.
+        if id.as_ref() == "unknown" || !used.insert(Rc::clone(&id)) {
+            id = Rc::from(format!("{}_{}", id.trim_start_matches("r#"), f.number));
+            used.insert(Rc::clone(&id));
+        }
         out.insert(f.number, id);
         raws.insert(f.number, raw);
     }
