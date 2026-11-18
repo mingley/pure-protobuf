@@ -7,6 +7,7 @@
 - Update health status in place when no snapshot is held. Repeated status and
   absent-name updates leave health watchers idle.
 - Borrow connection context until an admitted server RPC builds its request.
+- Copy the final small bytes payload directly during borrowed-slice parsing.
 - Keep the first dynamic parse table in the parse context. Leaf messages
   and recursive messages with one descriptor avoid a heap vector.
 - Encode packed booleans as a single bulk append of canonical bytes.

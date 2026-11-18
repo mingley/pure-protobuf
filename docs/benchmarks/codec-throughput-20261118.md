@@ -36,6 +36,28 @@ Samples ran in fixed codec order on a shared host. Use these results to
 choose which paths to profile. Performance qualification uses repeated pairs
 on dedicated hosts and compares equivalent work. [Benchmark contract](../benchmark-contract.md)
 
+
+## Borrowed input with a final bytes field
+
+The decoder now copies only the payload for a final bytes field up to
+4 KiB when the message has no wire backing. A private payload keeps the
+same sharing behavior. Larger fields and fields with existing backing
+follow their existing paths.
+
+Two pairs on one hosted logical CPU gave the following medians on Rust
+1.100.0. Each cell shows the two pair values.
+
+| Owned decode | Base pbrs | Candidate pbrs | upb in candidate runs | Prost in candidate runs |
+| --- | ---: | ---: | ---: | ---: |
+| 32-byte payload | 59.70 / 60.93 ns | 43.36 / 42.76 ns | 47.57 / 47.15 ns | 31.01 / 30.90 ns |
+| 4 KiB payload | 96.97 / 98.34 ns | 81.07 / 80.28 ns | 90.51 / 91.46 ns | 104.83 / 105.11 ns |
+
+The 64 KiB owned-decode control moved by 0.1–1.2%, and the mixed read-all
+control moved by less than 1% in either direction. One scalar-only
+read-all row was 3.7–3.9% slower. Its schema never calls the bytes parser.
+The raw capture includes each control and the exact source hashes.
+[Matched runs](https://github.com/mingley/pure-protobuf/actions/runs/44414741695/artifacts/14478383804)
+
 ## Run the survey
 
 Use Rustup and a C compiler. This run used protoc 3.21.12 with checked upb

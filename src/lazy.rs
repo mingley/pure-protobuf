@@ -560,7 +560,9 @@ impl LazyBytes {
     /// Spans below [`Self::SHARE_THRESHOLD`] are copied when the parent frame
     /// is shared, so a small field never pins the caller's buffer. Spans at
     /// or above the threshold window the parent. A private parent (the
-    /// copying `parse` path) is always windowed: it pins nothing foreign.
+    /// copying `parse` path) is windowed if already allocated. A final bytes
+    /// field of at most [`Self::SHARE_THRESHOLD`] bytes copies only its own
+    /// payload into private wire when the parent has no backing yet.
     /// Generated `merge_inner` calls this with the message's wire slot.
     #[inline]
     pub fn from_parse_span(
@@ -578,6 +580,11 @@ impl LazyBytes {
                 return Self::from_wire(w.window(rel_start, rel_end));
             }
             return Self::from_bytes(&data[rel_start..rel_end]);
+        }
+        if rel_end == data.len() && len <= Self::SHARE_THRESHOLD {
+            // No later field can use a parent copy. Skip allocating the parent
+            // and immediately cloning its Arc for this window.
+            return Self::Wire(Wire::from_slice(&data[rel_start..rel_end]));
         }
         Self::from_wire(Wire::ensure(slot, data).window(rel_start, rel_end))
     }
@@ -1003,6 +1010,33 @@ mod tests {
                     assert_eq!(value.as_bytes().as_ptr(), private_ptr);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn final_bytes_field_does_not_need_a_parent_copy() {
+        let data = [0x91; 36];
+        let mut slot = None;
+        let final_field = LazyBytes::from_parse_span(&mut slot, &data, 4, data.len());
+        assert_eq!(final_field.as_bytes(), &data[4..]);
+        assert!(final_field.shared_bytes().is_none());
+        assert!(slot.is_none());
+
+        let first = LazyBytes::from_parse_span(&mut slot, &data, 4, 20);
+        let second = LazyBytes::from_parse_span(&mut slot, &data, 24, data.len());
+        let parent = slot.as_ref().expect("earlier field created a parent wire");
+        assert_eq!(first.as_bytes().as_ptr(), parent.as_slice()[4..].as_ptr());
+        assert_eq!(second.as_bytes().as_ptr(), parent.as_slice()[24..].as_ptr());
+    }
+
+    #[test]
+    fn final_bytes_field_copy_limit() {
+        for len in [LazyBytes::SHARE_THRESHOLD, LazyBytes::SHARE_THRESHOLD + 1] {
+            let data = alloc::vec![0x91; len + 4];
+            let mut slot = None;
+            let field = LazyBytes::from_parse_span(&mut slot, &data, 4, data.len());
+            assert_eq!(field.as_bytes(), &data[4..]);
+            assert_eq!(slot.is_none(), len == LazyBytes::SHARE_THRESHOLD);
         }
     }
 
