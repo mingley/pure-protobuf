@@ -11,6 +11,9 @@
 //! limits; this adapter forwards existing `Bytes` without decoding or copying
 //! their payload. The channel supplies pooling, discovery, TLS, HTTP/2 tuning,
 //! authority, wait-for-ready, RPC concurrency and deadline enforcement.
+//! A trailers-only rejection exposes its status in the initial response
+//! headers and has an already-ended body. Ordinary DATA and terminal
+//! trailers are forwarded as body frames.
 //! Tonic 0.14's decoder still copies received DATA into its `BytesMut` decode
 //! buffer, as on tonic's own transport. Native prost stubs can instead slice a
 //! complete uncompressed frame directly from its DATA chunk. This adapter
@@ -551,7 +554,7 @@ mod tonic_transport {
                 .then(|| crate::wire::status_from(&parts.headers, None));
             return Ok(Response::from_parts(
                 parts,
-                tonic::body::Body::new(ResponseBody {
+                ResponseBody {
                     recv,
                     deadline: None,
                     upload_error: None,
@@ -566,7 +569,8 @@ mod tonic_transport {
                     live: Some(live),
                     rpc_permit,
                     load: Some(load),
-                }),
+                }
+                .into_tonic_body(),
             ));
         }
 
@@ -586,7 +590,7 @@ mod tonic_transport {
                 .then(|| crate::wire::status_from(&parts.headers, None));
             return Ok(Response::from_parts(
                 parts,
-                tonic::body::Body::new(ResponseBody {
+                ResponseBody {
                     recv,
                     deadline: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
                     upload_error: None,
@@ -601,7 +605,8 @@ mod tonic_transport {
                     live: Some(live),
                     rpc_permit,
                     load: Some(load),
-                }),
+                }
+                .into_tonic_body(),
             ));
         }
 
@@ -665,7 +670,7 @@ mod tonic_transport {
             .then(|| crate::wire::status_from(&parts.headers, None));
         Ok(Response::from_parts(
             parts,
-            tonic::body::Body::new(ResponseBody {
+            ResponseBody {
                 recv,
                 deadline: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
                 upload_error: upload_pending.then_some(upload_error),
@@ -680,7 +685,8 @@ mod tonic_transport {
                 live: Some(live),
                 rpc_permit,
                 load: Some(load),
-            }),
+            }
+            .into_tonic_body(),
         ))
     }
 
@@ -855,6 +861,21 @@ mod tonic_transport {
     }
 
     impl ResponseBody {
+        fn into_tonic_body(self) -> tonic::body::Body {
+            // This receive predicate requires END_STREAM and an empty frame queue.
+            if self
+                .initial_status
+                .as_ref()
+                .is_some_and(|status| status.code() != crate::Code::Ok)
+                && self.recv.is_end_stream()
+            {
+                // Drop still reports the initial status and releases the call.
+                tonic::body::Body::empty()
+            } else {
+                tonic::body::Body::new(self)
+            }
+        }
+
         fn report(&mut self, status: &crate::Status) {
             if !self.reported {
                 ingest_call_status(

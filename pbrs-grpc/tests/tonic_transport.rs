@@ -13,7 +13,7 @@ use http::{HeaderMap, Request, Response};
 use http_body::Body;
 use http_body::Frame;
 use http_body_util::Full;
-use pbrs_grpc::{Channel, ChannelConfig, Code};
+use pbrs_grpc::{Channel, ChannelConfig, Code, Server};
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -114,6 +114,175 @@ async fn preframed_data_and_terminal_trailers_pass_without_codec_changes() {
     assert_eq!(trailers.get("x-terminal").expect("metadata"), "retained");
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     peer.abort();
+}
+
+struct TerminalShapeProbe;
+
+impl pbrs_grpc::Service for TerminalShapeProbe {
+    const NAME: &'static str = "test.Outcome";
+
+    async fn call(&self, rpc: pbrs_grpc::Rpc) {
+        if rpc.method() == "Missing" {
+            let mut status =
+                pbrs_grpc::Status::with_details(Code::NotFound, "item missing", "public details");
+            status
+                .metadata_mut()
+                .insert("x-terminal", "missing")
+                .expect("terminal metadata");
+            rpc.reject(status);
+            return;
+        }
+        rpc.unary(|_: pbrs_grpc::Request<pbrs_grpc::HelloRequest>| async {
+            let mut reply = pbrs_grpc::HelloReply::new();
+            reply.set_message("hello");
+            let mut response = pbrs_grpc::Response::new(reply);
+            response
+                .metadata_mut()
+                .insert("x-initial", "ready")
+                .expect("initial metadata");
+            response
+                .trailers_mut()
+                .insert("x-terminal", "complete")
+                .expect("terminal metadata");
+            Ok(response)
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn trailers_only_response_body_ends_at_headers_like_tonic() {
+    async fn observe<S>(
+        service: S,
+        path: &'static str,
+    ) -> (bool, HeaderMap, Bytes, Option<HeaderMap>)
+    where
+        S: tower::Service<Request<TonicBody>, Response = Response<TonicBody>>,
+        S::Error: std::fmt::Debug,
+    {
+        let response = service
+            .oneshot(request(path, Bytes::from_static(b"\x00\x00\x00\x00\x00")))
+            .await
+            .expect("response");
+        let (parts, content) = response.into_parts();
+        let ended_at_headers = content.is_end_stream();
+        let (data, trailers) = body(content).await;
+        (ended_at_headers, parts.headers, data, trailers)
+    }
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let address = listener.local_addr().expect("address");
+        let peer = tokio::spawn(Server::new(TerminalShapeProbe).serve_listener(listener));
+        let native = Channel::connect_with(address, ChannelConfig::new().max_concurrent_rpcs(1))
+            .await
+            .expect("native channel");
+        let tonic = tonic::transport::Endpoint::from_shared(format!("http://{address}"))
+            .expect("endpoint")
+            .connect()
+            .await
+            .expect("tonic channel");
+
+        let normal = observe(tonic.clone(), "/test.Outcome/Found").await;
+        assert!(!normal.0);
+        assert_eq!(normal.1["x-initial"], "ready");
+        assert!(!normal.1.contains_key("grpc-status"));
+        assert_eq!(normal.2.as_ref(), b"\x00\x00\x00\x00\x07\x0a\x05hello");
+        let trailers = normal.3.as_ref().expect("trailers");
+        assert_eq!(trailers["grpc-status"], "0");
+        assert_eq!(trailers["x-terminal"], "complete");
+        assert_eq!(observe(native.clone(), "/test.Outcome/Found").await, normal);
+
+        let terminal = observe(tonic, "/test.Outcome/Missing").await;
+        assert!(terminal.0, "tonic body must be ended at initial headers");
+        assert_eq!(terminal.1["grpc-status"], "5");
+        assert_eq!(terminal.1["grpc-message"], "item missing");
+        assert_eq!(terminal.1["grpc-status-details-bin"], "cHVibGljIGRldGFpbHM");
+        assert_eq!(terminal.1["x-terminal"], "missing");
+        assert!(terminal.2.is_empty());
+        assert!(terminal.3.is_none());
+        assert_eq!(
+            observe(native.clone(), "/test.Outcome/Missing").await,
+            terminal,
+            "native trailers-only body must end at initial headers"
+        );
+
+        // The terminal response releases its RPC slot even if middleware
+        // holds the body without polling it. A deadline uses the upload pump.
+        let mut deadline_request = request(
+            "/test.Outcome/Missing",
+            Bytes::from_static(b"\x00\x00\x00\x00\x00"),
+        );
+        deadline_request
+            .headers_mut()
+            .insert("grpc-timeout", http::HeaderValue::from_static("4S"));
+        let held = native
+            .clone()
+            .oneshot(deadline_request)
+            .await
+            .expect("trailers-only response with deadline");
+        assert!(held.body().is_end_stream());
+        assert_eq!(observe(native, "/test.Outcome/Missing").await, terminal);
+        drop(held);
+        peer.abort();
+    })
+    .await
+    .expect("Tower transport parity bound");
+}
+
+#[tokio::test]
+async fn queued_empty_end_stream_data_remains_visible_after_initial_status() {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let (client, server) = tokio::io::duplex(64 * 1024);
+        let peer = tokio::spawn(async move {
+            let mut connection = h2::server::handshake(server).await.expect("handshake");
+            let (request, mut respond) = connection.accept().await.expect("call").expect("request");
+            let mut send = respond
+                .send_response(
+                    Response::builder()
+                        .header("content-type", "application/grpc")
+                        .header("grpc-status", "5")
+                        .body(())
+                        .expect("response"),
+                    false,
+                )
+                .expect("initial headers");
+            send.send_data(Bytes::new(), true)
+                .expect("empty final DATA");
+            let held = (request, respond, send);
+            while connection.accept().await.is_some() {}
+            drop(held);
+        });
+
+        let channel = Channel::from_io(client, "localhost")
+            .await
+            .expect("channel");
+        let response = channel
+            .oneshot(request(
+                "/test.Outcome/Missing",
+                Bytes::from_static(b"\x00\x00\x00\x00\x00"),
+            ))
+            .await
+            .expect("response");
+        assert_eq!(response.headers()["grpc-status"], "5");
+        assert!(!response.body().is_end_stream());
+        let mut content = response.into_body();
+        let frame = poll_fn(|cx| Pin::new(&mut content).poll_frame(cx))
+            .await
+            .expect("queued frame")
+            .expect("body frame");
+        assert!(frame.into_data().expect("final DATA").is_empty());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut content).poll_frame(cx))
+                .await
+                .is_none()
+        );
+        peer.abort();
+    })
+    .await
+    .expect("queued DATA bound");
 }
 
 #[tokio::test]
