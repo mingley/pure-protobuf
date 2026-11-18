@@ -37,8 +37,14 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The November 18 hosted report identifies cold encode, nested decode and
+server-stream allocation losses to target next. The accompanying component
+records isolate recent runtime and codegen gains.
+[Benchmark results](docs/benchmarks.md) ·
+[Hosted allocation losses](docs/benchmarks/devloop-preparation-20261118.md)
+
 The [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
-records the latest contract repairs, decoder work and component measurements.
+records the contract repairs, decoder work and component measurements.
 Keep its source-specific results separate from dedicated-host qualification.
 The handoff below describes the wider queue; its cards remain open until their
 full acceptance criteria pass.
@@ -116,8 +122,8 @@ dedicated-host leadership claims):
 2. **Track 4 — Non-xDS gRFC completion (`docs/grfc.md`, `GF-11`, `GF-12`,
    `CH-12`):**
    - Transport & security: `GF-11` RFC 9113 TLS 1.2 cipher blocklist
-     (`GOAWAY(INADEQUATE_SECURITY)`), `A18` `ChannelConfig` TCP user timeout
-     builder, `A105` `max_concurrent_streams` subchannel pool scaling, and
+     (`GOAWAY(INADEQUATE_SECURITY)`), `A18` automatic HTTP/2 keepalive coupling
+     beyond the explicit TCP user timeout, `A105` subchannel pool scaling, and
      `A97` JWT/Bearer call credentials (`XD-06c`).
    - Extensibility, fault & observability: `CH-12` (`A52`/`A110`) public
      `ResolverFactory` / `LbPolicyFactory` registries preserving zero-alloc

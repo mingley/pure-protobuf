@@ -12,9 +12,21 @@ Historical results retain their dated source and raw captures where available.
 Read the [benchmark contract](benchmark-contract.md) before making a broader
 performance claim.
 
-The [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md) groups
-current runtime repairs, decoder CPU measurements, request-extension costs and
-held packed experiments. These component results complement the comparisons below.
+The November 18 comparison guide identifies the remaining allocation losses
+against tonic and Prost in the latest complete hosted capture. It includes
+the codec preparation repair and the original counter failures.
+[Hosted comparison and commands](benchmarks/devloop-preparation-20261118.md)
+
+| Component | What to look for | Evidence |
+| --- | --- | --- |
+| Dynamic protobuf parsing | Inline first table, allocation counts and nested controls | [Record](evidence/dynamic-table-memo-20261118/README.md) |
+| Packed boolean encoding | Fresh generated encoding, reallocation counts and second-host replay | [Record](evidence/packed-bool-20261118/README.md) |
+| Generator field spellings | Allocation requests and byte-identical generated code | [Record](evidence/field-names-20261118/README.md) |
+| Generator field bindings | Removal of the second naming pass, generated storage selectors | [Record](evidence/codegen-message-bindings-20261118/README.md) |
+
+Earlier transport and codec results remain available for their recorded
+revisions. [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md)
+
 
 ## Compare pbrs with tonic and Prost
 

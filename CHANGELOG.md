@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Keep the first dynamic parse table in the parse context. Leaf messages
+  and recursive messages with one descriptor avoid a heap vector.
+- Encode packed booleans as a single bulk append of canonical bytes.
+- Share field spellings between the generator's collision checks and
+  emitters, and reuse the bindings when emitting map decoders.
+- Add a per-channel TCP user timeout for native Linux client sockets.
+- End the Tower response body at the headers for a trailers-only gRPC
+  rejection, matching tonic's body shape.
+- Prepare only the selected fresh-encode pool in the development-loop
+  benchmark, reducing unrelated setup work in instruction samples.
+
 ## 0.2.2 / 0.1.1
 
 Coordinated patch versions: `pbrs` (`0.2.2`), `pbrs-grpc` (`0.1.1`), and

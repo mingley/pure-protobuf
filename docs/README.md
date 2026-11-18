@@ -17,7 +17,7 @@ Start with a working example, then open the guide for your task.
 | Co-host with axum/Tower or serve gRPC-Web | [gRPC guide](grpc.md#message-codecs-and-tower-integration), [axum co-host example](../examples/axum-cohost/README.md) |
 | Add authentication and middleware | [Interceptors](guides/interceptors.md) |
 | Deploy and operate a service | [TLS, limits and shutdown](guides/production-service.md), [operations](guides/operations.md) |
-| Review the latest runtime work | [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md) |
+| Review runtime and generator changes | [Evidence guide](evidence/README.md) |
 | Check release readiness | [Release checklist](release-readiness.md), [recorded checks](status.md), [release policy](RELEASE.md), [changelog](../CHANGELOG.md) |
 | Compare performance | [Results](benchmarks.md), [run benchmarks](benchmarks/running.md) |
 | Follow the implementation goal | [Goal and next milestone](ROADMAP.md#goal-and-next-milestone), [current work queue](../TODO.md) |

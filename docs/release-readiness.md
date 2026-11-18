@@ -23,6 +23,19 @@ Compatible patch publication still requires the final-source CI, package,
 provenance, and signed-tag checks. The sustained campaigns below apply to
 profile promotion.
 
+The prepared patch points to commit `9061b8ee`. All 14 required CI jobs
+passed there. The hosted rehearsal produced three crate archives, a CycloneDX
+SBOM, and a release context. Independent readback matched 444 committed
+archive members and verified attestations for all five subjects.
+[Source](https://github.com/mingley/pure-protobuf/commit/9061b8ee0a75d32acb19ebf7090e4a95660012db) ·
+[CI](https://github.com/mingley/pure-protobuf/actions/runs/44054498527) ·
+[Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44061426285) ·
+[Readback](https://github.com/mingley/pure-protobuf/actions/runs/44061879051)
+
+To publish this patch, sign the release tag on that commit using the
+[release procedure](RELEASE.md#cutting-a-release). Later changes on main
+are listed under Unreleased in the [changelog](../CHANGELOG.md).
+
 At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
 the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
 packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42873027919)

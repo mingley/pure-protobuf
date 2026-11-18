@@ -5,6 +5,13 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The November 18 records cover dynamic parsing, packed boolean encoding,
+field-name reservation and one-pass generator binding.
+[Dynamic parse tables](dynamic-table-memo-20261118/README.md) ·
+[Packed booleans](packed-bool-20261118/README.md) ·
+[Field spellings](field-names-20261118/README.md) ·
+[Generator bindings](codegen-message-bindings-20261118/README.md)
+
 The [November 17 follow-up](safe-hotpaths-20261117/README.md) records runtime
 contract repairs, pooled-decoder measurements, connection-info costs and the
 held packed experiments, with raw results and reproduction scripts.
