@@ -26,6 +26,7 @@ allocation costs in codec and RPC cases.
 | Generator field bindings | Removal of the second naming pass, generated storage selectors | [Record](evidence/codegen-message-bindings-20261118/README.md) |
 | Protoc plugin responses | CPU and allocations for serializing generated files | [Record](benchmarks/codegen-response-20261118.md) |
 | Server method paths | Warmed unary and server-stream allocations and hook controls | [Record](evidence/server-path-20261118/README.md) |
+| Timed native clients | Client CPU and allocations on one ready connection | [Record](benchmarks/client-deadlines-20261118.md) |
 
 Earlier transport and codec results remain available for their recorded
 revisions. [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md)

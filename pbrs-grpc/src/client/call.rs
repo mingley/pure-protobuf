@@ -889,9 +889,14 @@ impl super::Channel {
         // A warm direct connection does not acquire. Cloning the pool, the
         // observer, and the ring hash only to drop them was an atomic pair
         // on every RPC.
-        if deadline.is_none() {
+        // A timed call can use the ready sender in a single-slot pool. In
+        // a multi-slot pool, a blocked probe would advance the picker before
+        // the timed acquire selects its slot.
+        if deadline.is_none() || self.inner.slots.len() == 1 {
             if let Some(conn) = self.inner.try_warm() {
-                return Either::Left(std::future::ready(Ok(conn)));
+                return Either::Left(std::future::ready(
+                    remaining_timeout(deadline).map(|_| conn),
+                ));
             }
         }
         let inner = Arc::clone(&self.inner);

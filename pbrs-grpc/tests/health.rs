@@ -925,6 +925,54 @@ async fn watch_unknown_is_service_unknown() {
 }
 
 #[tokio::test]
+async fn explicit_service_unknown_is_registered_until_cleared() {
+    let (addr, reporter, handle) = serve().await;
+    let _guard = ServeGuard(handle);
+    let client = client(addr).await;
+    let name = "demo.Unknown";
+    let mut stream = client
+        .watch(Request::new(req(name)))
+        .await
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::ServiceUnknown);
+
+    reporter.set_status(name, ServingStatus::ServiceUnknown);
+    let checked = client.check(Request::new(req(name))).await.expect("check");
+    assert_eq!(checked.get_ref().status(), ServingStatus::ServiceUnknown);
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list");
+    assert_eq!(
+        listed.get_ref().statuses().get(name).map(|s| s.status()),
+        Some(ServingStatus::ServiceUnknown)
+    );
+
+    reporter.set_serving(name);
+    let next = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("next")
+        .expect("msg");
+    assert_eq!(next.status(), ServingStatus::Serving);
+
+    reporter.clear(name);
+    let final_status = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("clear")
+        .expect("msg");
+    assert_eq!(final_status.status(), ServingStatus::ServiceUnknown);
+    let missing = client
+        .check(Request::new(req(name)))
+        .await
+        .expect_err("cleared service");
+    assert_eq!(missing.code(), Code::NotFound);
+}
+
+#[tokio::test]
 async fn dropping_a_watch_releases_the_subscription_without_a_status_change() {
     let (addr, reporter, _handle) = serve().await;
     let client = client(addr).await;

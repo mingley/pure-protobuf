@@ -89,10 +89,11 @@ impl HealthReporter {
     /// [`Health::list`] omits the name.
     pub fn clear(&self, name: impl AsRef<str>) {
         let name = name.as_ref();
-        self.tx.send_modify(|snap| {
-            let mut map = HashMap::clone(snap);
-            map.remove(name);
-            *snap = Arc::new(map);
+        self.tx.send_if_modified(|snap| {
+            if !snap.contains_key(name) {
+                return false;
+            }
+            Arc::make_mut(snap).remove(name).is_some()
         });
     }
 
@@ -104,7 +105,8 @@ impl HealthReporter {
     /// instead.
     #[must_use]
     pub fn status(&self, name: impl AsRef<str>) -> Option<ServingStatus> {
-        self.snapshot().get(name.as_ref()).copied()
+        let name = name.as_ref();
+        self.tx.borrow().get(name).copied()
     }
 
     /// Known service names, including the process (`""`).
@@ -154,20 +156,30 @@ impl HealthReporter {
     }
 
     fn set_all(&self, status: ServingStatus) {
-        self.tx.send_modify(|snap| {
-            let mut map = HashMap::clone(snap);
-            for value in map.values_mut() {
+        self.tx.send_if_modified(|snap| {
+            if snap.values().all(|&value| value == status) {
+                return false;
+            }
+            for value in Arc::make_mut(snap).values_mut() {
                 *value = status;
             }
-            *snap = Arc::new(map);
+            true
         });
     }
 
     fn set(&self, name: &str, status: ServingStatus) {
-        self.tx.send_modify(|snap| {
-            let mut map = HashMap::clone(snap);
-            map.insert(name.to_owned(), status);
-            *snap = Arc::new(map);
+        self.tx.send_if_modified(|snap| {
+            if snap.get(name) == Some(&status) {
+                return false;
+            }
+            // List may still be reading a snapshot outside the watch lock.
+            let map = Arc::make_mut(snap);
+            if let Some(current) = map.get_mut(name) {
+                *current = status;
+            } else {
+                map.insert(name.to_owned(), status);
+            }
+            true
         });
     }
 
@@ -199,13 +211,8 @@ impl Health for HealthService {
         &self,
         request: Request<HealthCheckRequest>,
     ) -> Result<Response<HealthCheckResponse>, Status> {
-        let name = request
-            .get_ref()
-            .service()
-            .to_str()
-            .unwrap_or("")
-            .to_owned();
-        match self.reporter.snapshot().get(&name).copied() {
+        let name = request.get_ref().service().to_str().unwrap_or("");
+        match self.reporter.status(name) {
             Some(status) => Ok(Response::new(response(status))),
             None => Err(Status::not_found(format!("unknown service {name:?}"))),
         }
@@ -287,4 +294,57 @@ pub fn service() -> (HealthServer<HealthService>, HealthReporter) {
         }),
         reporter,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reporter_name_conversion_can_update_the_reporter() {
+        struct ReporterName<'a>(&'a HealthReporter);
+
+        impl AsRef<str> for ReporterName<'_> {
+            fn as_ref(&self) -> &str {
+                self.0.set_serving("other.Service");
+                ""
+            }
+        }
+
+        let reporter = HealthReporter::new();
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let status = reporter.status(ReporterName(&reporter));
+            assert_eq!(
+                reporter.status("other.Service"),
+                Some(ServingStatus::Serving)
+            );
+            assert!(send.send(status).is_ok());
+        });
+
+        assert!(matches!(
+            receive.recv_timeout(std::time::Duration::from_secs(2)),
+            Ok(Some(ServingStatus::Serving))
+        ));
+        assert!(worker.join().is_ok());
+    }
+
+    #[test]
+    fn unchanged_updates_preserve_the_snapshot_and_watch_version() {
+        let reporter = HealthReporter::new();
+        let receiver = reporter.subscribe();
+        let snapshot = reporter.snapshot();
+
+        reporter.set_serving("");
+        reporter.clear("no.Such");
+        reporter.resume();
+
+        assert!(Arc::ptr_eq(&snapshot, &reporter.snapshot()));
+        assert!(matches!(receiver.has_changed(), Ok(false)));
+
+        reporter.shutdown();
+        assert!(matches!(receiver.has_changed(), Ok(true)));
+        assert_eq!(reporter.status(""), Some(ServingStatus::NotServing));
+        assert_eq!(snapshot.get(""), Some(&ServingStatus::Serving));
+    }
 }

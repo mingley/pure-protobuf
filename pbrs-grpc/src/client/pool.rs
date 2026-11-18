@@ -955,7 +955,7 @@ impl ChannelInner {
             return None;
         }
         let i = self.pick().ok()?;
-        let load = self.loads.get(i)?.clone();
+        let load = self.loads.get(i)?;
         let (mut handle, lease, r#gen, driver, channelz_socket) = {
             let slot_mutex = self.slot(i).ok()?;
             let slot = slot_mutex.try_lock().ok()?;

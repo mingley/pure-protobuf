@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Encode protoc plugin responses directly into a single sized buffer.
+- Reuse a ready connection for a timed RPC when the direct client has one slot.
+- Update health status in place when no snapshot is held. Repeated status and
+  absent-name updates leave health watchers idle.
 - Keep the first dynamic parse table in the parse context. Leaf messages
   and recursive messages with one descriptor avoid a heap vector.
 - Encode packed booleans as a single bulk append of canonical bytes.
