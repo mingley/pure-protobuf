@@ -776,10 +776,12 @@ where
                 };
                 let lease = track_busy.then(|| busy.start());
                 let queued_at = dispatch.observer().map(|_| std::time::Instant::now());
-                let dispatch = Arc::clone(&dispatch);
-                let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
-                let rpc_config = Arc::clone(&config);
+                // Admitted futures stay on this connection. Borrow its context
+                // until the request is built instead of capturing owned copies.
+                let dispatch = dispatch.as_ref();
+                let rpc_peer = &peer;
+                let rpc_config = &config;
                 admitted.push(async move {
                     let _lease = lease;
                     let _permit = permit;
@@ -793,8 +795,8 @@ where
                         request,
                         respond,
                         accepted_at,
-                        rpc_config,
-                        rpc_peer,
+                        Arc::clone(rpc_config),
+                        rpc_peer.clone(),
                         byte_budget,
                         channelz_server,
                         channelz_socket_id,
@@ -802,7 +804,7 @@ where
                         shared_headers,
                     );
                     let _deadline = rpc.deadline();
-                    super::deadline::serve::<R, _>(dispatch.as_ref(), rpc).await;
+                    super::deadline::serve::<R, _>(dispatch, rpc).await;
                 });
             }
         }

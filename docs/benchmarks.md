@@ -28,6 +28,7 @@ allocation costs in codec and RPC cases.
 | Server method paths | Warmed unary and server-stream allocations and hook controls | [Record](evidence/server-path-20261118/README.md) |
 | Timed native clients | Client CPU and allocations on one ready connection | [Record](benchmarks/client-deadlines-20261118.md) |
 | Health status | Check, single-service updates and shutdown at 256 services | [Record](benchmarks/health-updates-20261118.md) |
+| Server admission | Requested bytes and closed-loop TCP server throughput | [Record](benchmarks/server-admission-20261118.md) |
 
 Earlier transport and codec results remain available for their recorded
 revisions. [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md)
