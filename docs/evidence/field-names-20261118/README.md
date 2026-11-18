@@ -29,6 +29,8 @@ Rust 1.85 passed 42 generator tests and the codegen-only build. The stable lane 
 
 ## Verify the retained capture
 
+Apply [candidate.patch](candidate.patch) to the pinned baseline to reproduce `src/codegen/naming.rs` Git blob `5875b8f1e329f5896795afc012bb1d31541db126`.
+
 The [raw archive](https://github.com/mingley/pure-protobuf/actions/runs/44347412194/artifacts/14445684438) keeps the requests, exact output manifests, selected consumer sources, lockfile and build logs until 2027-02-16. The [verification archive](https://github.com/mingley/pure-protobuf/actions/runs/44348981830/artifacts/14447382144) keeps the replay results and consumer logs until 2027-02-16. The [screen workflow](screen.yml), [corpus builder](corpus.py), [comparison driver](compare.py) and [replay workflow](replay.yml) retain the commands and source pins for each run.
 
 Run from the repository root while the original archive is available.

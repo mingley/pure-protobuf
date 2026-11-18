@@ -1,0 +1,213 @@
+name: Reuse codegen message bindings
+on:
+  push:
+    branches: [scratch/codegen-message-bindings-20261118]
+permissions: {}
+env:
+  BASE: 9061b8ee0a75d32acb19ebf7090e4a95660012db
+  CANDIDATE: 8fdf4f106daa67ddb7a4187fcf7d1b430e548b9d
+  PARSE_BLOB: 2481cfb29c69a956c657fb00a8b67b2c6e9632c9
+  CARGO_BUILD_JOBS: "2"
+  CARGO_TERM_COLOR: never
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.85.0", "stable"]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test exact candidate
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/message-binding-gate"
+          mkdir -p "$report"
+          exec > >(tee "$report/gate.log") 2>&1
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test "$(git rev-parse "$GITHUB_SHA^")" = "$CANDIDATE"
+          test "$(git rev-parse "$CANDIDATE^")" = "$BASE"
+          test "$(git diff --name-only "$BASE" "$CANDIDATE")" = src/codegen/parse.rs
+          git checkout --detach "$CANDIDATE"
+          test -z "$(git status --porcelain)"
+          test "$(git hash-object src/codegen/parse.rs)" = "$PARSE_BLOB"
+          git log -1 --format='%H %s'
+          git grep -n -F -e 'emit_map_decoders(' -e 'emit_message(' -e 'bind_field_idents(' -- src/codegen
+          test "$(git grep -n -F 'emit_map_decoders(' -- src/codegen | wc -l)" = 2
+          test "$(git grep -n -F 'bind_field_idents(desc);' -- src/codegen | wc -l)" = 1
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --component rustfmt
+          rustc -Vv
+          cargo -V
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/message-binding-gate-target"
+          mkdir -p "$CARGO_TARGET_DIR"
+          ln -s "$CARGO_TARGET_DIR" target
+          cargo test --locked -p pbrs --lib --all-features codegen::
+          if [[ "$RUSTUP_TOOLCHAIN" == stable ]]; then
+            if ! command -v protoc >/dev/null || ! test -f /usr/include/google/protobuf/any.proto; then
+              bash scripts/ci-install-apt.sh protobuf-compiler libprotobuf-dev
+            fi
+            protoc --version
+            cargo fmt --all -- --check
+            cargo clippy --locked -p pbrs --lib --all-features -- -D warnings
+            cargo test --locked -p pbrs --all-features --test plugin parallel_direct_calls_with_mixed_configs_are_isolated
+            cargo test --locked -p pbrs --all-features --test plugin direct_sequential_calls_isolate_thread_locals
+          else
+            cargo check --locked -p pbrs --lib --no-default-features --features codegen
+          fi
+          test -z "$(git status --porcelain)"
+      - name: Retain exact candidate checks
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: message-binding-gate-${{ matrix.toolchain }}
+          path: ${{ runner.temp }}/message-binding-gate
+          retention-days: 90
+          if-no-files-found: warn
+  screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      PROTOC: /usr/bin/protoc
+      RUSTUP_TOOLCHAIN: "1.99.1"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify revisions and prepare source-bound requests
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/message-binding-screen"
+          mkdir -p "$work/evidence/repro" "$work/probe/src" "$work/binaries"
+          exec > >(tee "$work/evidence/inputs.log") 2>&1
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test "$(git rev-parse "$GITHUB_SHA^")" = "$CANDIDATE"
+          test "$(git rev-parse "$CANDIDATE^")" = "$BASE"
+          test "$(git diff --name-only "$BASE" "$CANDIDATE")" = src/codegen/parse.rs
+          cp .github/experiments/codegen-message-bindings/*.py "$work/evidence/repro/"
+          cp .github/workflows/scratch-codegen-message-bindings-20261118.yml "$work/evidence/repro/workflow.yml"
+          git diff --binary "$BASE" "$CANDIDATE" > "$work/evidence/repro/candidate.patch"
+          git checkout --detach "$CANDIDATE"
+          test -z "$(git status --porcelain)"
+          test "$(git hash-object src/codegen/parse.rs)" = "$PARSE_BLOB"
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          if ! "$PROTOC" --version || ! test -f /usr/include/google/protobuf/any.proto; then
+            bash scripts/ci-install-apt.sh protobuf-compiler libprotobuf-dev
+          fi
+          test "$("$PROTOC" --version)" = 'libprotoc 3.21.12'
+          {
+            rustc -Vv
+            cargo -V
+            uname -a
+            "$PROTOC" --version
+            sha256sum "$PROTOC"
+            lscpu
+          } > "$work/evidence/environment.txt"
+          git log -2 --format='%H %s' > "$work/evidence/revisions.txt"
+          cp bench/codegen/run.py "$work/evidence/repro/bench-codegen-run.py"
+          python3 -B "$work/evidence/repro/corpus.py" "$work/evidence/corpus"
+          test -z "$(git status --porcelain)"
+      - name: Build paired release and allocation probes
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/message-binding-screen"
+          exec > >(tee "$work/evidence/build.log") 2>&1
+          cp docs/evidence/codegen-target-cache-20261110/probe.rs "$work/probe/src/main.rs"
+          cat > "$work/probe/Cargo.toml" <<EOF
+          [package]
+          name = "field-name-probe"
+          version = "0.0.0"
+          edition = "2024"
+          publish = false
+
+          [workspace]
+
+          [dependencies]
+          libc = "=0.2.189"
+          pbrs = { path = "$GITHUB_WORKSPACE", default-features = false, features = ["codegen"] }
+
+          [features]
+          allocation-probe = []
+
+          [profile.release]
+          lto = "thin"
+          codegen-units = 1
+          EOF
+          cargo generate-lockfile --manifest-path "$work/probe/Cargo.toml"
+          cargo fetch --locked --manifest-path "$work/probe/Cargo.toml"
+          cp "$work/probe"/{Cargo.toml,Cargo.lock} "$work/evidence/repro/"
+          cp "$work/probe/src/main.rs" "$work/evidence/repro/probe.rs"
+          for variant in base candidate; do
+            if [[ "$variant" == base ]]; then
+              pin="$BASE"
+            else
+              pin="$CANDIDATE"
+            fi
+            git checkout --detach "$pin"
+            test "$(git rev-parse HEAD)" = "$pin"
+            test -z "$(git status --porcelain)"
+            git rev-parse HEAD:src/codegen/parse.rs > "$work/evidence/$variant-parse-blob.txt"
+            export CARGO_TARGET_DIR="$work/target-$variant"
+            cargo build --locked --offline --release --manifest-path "$work/probe/Cargo.toml" \
+              --message-format=json > "$work/evidence/$variant-build.jsonl"
+            cp "$CARGO_TARGET_DIR/release/field-name-probe" "$work/binaries/$variant"
+            cargo build --locked --offline --release --manifest-path "$work/probe/Cargo.toml" \
+              --features allocation-probe --message-format=json > "$work/evidence/$variant-alloc-build.jsonl"
+            cp "$CARGO_TARGET_DIR/release/field-name-probe" "$work/binaries/$variant-alloc"
+            test -z "$(git status --porcelain)"
+          done
+          sha256sum "$work"/binaries/* > "$work/evidence/binaries.sha256"
+      - name: Verify output bytes and measure paired generation
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/message-binding-screen"
+          exec > >(tee "$work/evidence/comparison.log") 2>&1
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          for workers in 1 2; do
+            python3 -B "$work/evidence/repro/compare.py" "$work/evidence/corpus" "$work/binaries" "$work/evidence" "$workers"
+          done
+      - name: Check generated consumers
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/message-binding-screen"
+          exec > >(tee "$work/evidence/consumers.log") 2>&1
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          export CARGO_TARGET_DIR="$work/target-consumers"
+          cargo fetch --locked
+          dir="$work/evidence/consumers/map-selectors"
+          cp Cargo.lock "$dir/Cargo.lock"
+          cargo metadata --offline --format-version 1 --manifest-path "$dir/Cargo.toml" > "$work/evidence/map-selectors-metadata.json"
+          cargo run --locked --offline --manifest-path "$dir/Cargo.toml"
+          test -z "$(git status --porcelain)"
+      - name: Retain all source, fixture and measured records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: message-binding-reuse-20261118
+          path: ${{ runner.temp }}/message-binding-screen/evidence
+          retention-days: 90
+          if-no-files-found: warn
+  cleanup:
+    if: always()
+    needs: [gate, screen]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Delete exact scratch ref
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/scratch/codegen-message-bindings-20261118
+          git push --force-with-lease="$GITHUB_REF:$GITHUB_SHA" origin ":$GITHUB_REF"
