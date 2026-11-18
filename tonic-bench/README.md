@@ -13,8 +13,19 @@ PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release --manifest-path tonic-be
 
 The checked v4 bindings avoid needing the experimental Rust generator for a
 normal run. The [binding guide](checked_v4/README.md) describes their source,
-integrity checks and regeneration procedure. The survey prints its tables to
-stdout; save the output together with the source revision and tool versions.
+integrity checks and regeneration procedure. Save the tables and raw samples
+with the source revision and tool versions. The default build uses the
+standard allocator for timing.
+
+For a separate Rust heap retention diagnostic, enable `allocation-counts`:
+
+```sh
+PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release --manifest-path tonic-bench/Cargo.toml --features allocation-counts
+```
+
+The raw report records `allocation_counts`. Use the default build for
+throughput comparisons. The opt-in build adds allocation accounting to
+the timed code.
 
 Read encode, decode and read-every-field rows separately. An owned lazy message
 can defer work until a field is read. Repeated encoding can reuse cached sizes;

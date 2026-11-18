@@ -9,6 +9,9 @@ description = "Same-process codec survey: pbrs vs prost vs protobuf 4.35.1-relea
 
 [workspace]
 
+[features]
+allocation-counts = []
+
 [dependencies]
 bytes = "1"
 pbrs = { path = ".." }

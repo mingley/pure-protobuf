@@ -11,10 +11,11 @@ use pbrs::testdata::{Address as PbrsAddress, Person as PbrsPerson};
 use pbrs::{AsView, Parse, Serialize};
 use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
-use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
+
+#[cfg(feature = "allocation-counts")]
+mod retained;
 
 mod helloworld {
     #![allow(dead_code)]
@@ -140,6 +141,10 @@ fn print_raw_block() {
     let rows = take_raw_rows();
     print!("{{\"schema\": \"tonic-raw/1\", ");
     print!(
+        "\"allocation_counts\": {}, ",
+        cfg!(feature = "allocation-counts")
+    );
+    print!(
         "\"samples\": \"fixed-order sequential in sample order, not interleaved or randomized\", "
     );
     println!("\"rows\": [");
@@ -185,70 +190,11 @@ fn bytes_sum(bytes: &[u8]) -> usize {
     bytes.iter().map(|byte| usize::from(*byte)).sum()
 }
 
-/// Process-wide Rust-heap counters (BM-03 retained-memory reporting).
-/// Only `System` (Rust) allocations are counted: the v4 upb Arena lives on
-/// the C heap and is NOT included in `v4` cells. That limit is labeled in
-/// the retained section and in docs/benchmarks.md.
-struct CountingAlloc;
-
-static ALLOC_BYTES: AtomicUsize = AtomicUsize::new(0);
-static FREE_BYTES: AtomicUsize = AtomicUsize::new(0);
-static ALLOC_CALLS: AtomicUsize = AtomicUsize::new(0);
-
-unsafe impl GlobalAlloc for CountingAlloc {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // SAFETY: forwards to System; only the accounting is added.
-        let ptr = unsafe { System.alloc(layout) };
-        if !ptr.is_null() {
-            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
-            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
-        }
-        ptr
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        // SAFETY: `ptr`/`layout` come from a matching `alloc` call.
-        unsafe { System.dealloc(ptr, layout) };
-        FREE_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
-    }
-}
-
-#[global_allocator]
-static GLOBAL_ALLOC: CountingAlloc = CountingAlloc;
-
 /// Rust heap retained while one parsed message is alive.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 struct Retained {
     bytes: u64,
     allocs: u64,
-}
-
-fn alloc_snapshot() -> (usize, usize, usize) {
-    (
-        ALLOC_BYTES.load(Ordering::SeqCst),
-        FREE_BYTES.load(Ordering::SeqCst),
-        ALLOC_CALLS.load(Ordering::SeqCst),
-    )
-}
-
-/// Parse one message from an already-owned wire buffer and report the Rust
-/// heap retained while the message is alive. `parse` must not allocate
-/// beyond the message itself; one-time per-codec initialization is warmed up
-/// by the equivalence pre-checks, which always run before this.
-fn measure_retained<M>(parse: impl FnOnce() -> M) -> (M, Retained) {
-    let (a0, f0, c0) = alloc_snapshot();
-    let msg = parse();
-    std::hint::black_box(&msg);
-    let (a1, f1, c1) = alloc_snapshot();
-    let bytes = a1.saturating_sub(a0).saturating_sub(f1.saturating_sub(f0));
-    let allocs = c1.saturating_sub(c0);
-    (
-        msg,
-        Retained {
-            bytes: bytes as u64,
-            allocs: allocs as u64,
-        },
-    )
 }
 
 #[cfg(test)]
@@ -428,9 +374,7 @@ struct Row {
     payload: usize,
     iters: u32,
     samples: usize,
-    pbrs_mem: Retained,
-    prost_mem: Retained,
-    v4_mem: Retained,
+    retained: Option<[Retained; 3]>,
     pbrs_enc: f64,       // cached encode (pre-warmed length/canonical cache)
     pbrs_fresh_enc: f64, // direct first encode after parse, before canonical cache
     first_iters: u32,
@@ -570,12 +514,15 @@ where
         touch_v4(&parsed_v4),
         "{name}: pbrs vs v4 touch"
     );
-    // Retained-memory snapshot (not timed): one parse per codec from the same
-    // wire, after the pre-checks above warmed any one-time initialization.
-    let (_, pbrs_mem) = measure_retained(|| P::parse(&pbrs_wire).expect("pbrs retained parse"));
-    let (_, prost_mem) =
-        measure_retained(|| R::decode(pbrs_wire.as_slice()).expect("prost retained parse"));
-    let (_, v4_mem) = measure_retained(|| V::parse(&pbrs_wire).expect("v4 retained parse"));
+    // Sample heap retained on the same input, after any one-time setup.
+    #[cfg(feature = "allocation-counts")]
+    let retained = Some([
+        retained::measure(|| P::parse(&pbrs_wire).expect("pbrs retained parse")),
+        retained::measure(|| R::decode(pbrs_wire.as_slice()).expect("prost retained parse")),
+        retained::measure(|| V::parse(&pbrs_wire).expect("upb retained parse")),
+    ]);
+    #[cfg(not(feature = "allocation-counts"))]
+    let retained = None;
 
     let payload = pbrs_wire.len();
     let (iters, samples) = budget.unwrap_or_else(|| timer_budget(payload));
@@ -695,9 +642,7 @@ where
         payload,
         iters,
         samples,
-        pbrs_mem,
-        prost_mem,
-        v4_mem,
+        retained,
         pbrs_enc,
         pbrs_fresh_enc,
         first_iters,
@@ -1039,15 +984,10 @@ fn print_retained(rows: &[Row]) {
     println!("| case | pbrs bytes/allocs | prost bytes/allocs | v4 bytes/allocs |");
     println!("|---|---:|---:|---:|");
     for r in rows {
+        let [pbrs, prost, upb] = r.retained.expect("retained heap was measured");
         println!(
             "| {} | {} / {} | {} / {} | {} / {} |",
-            r.name,
-            r.pbrs_mem.bytes,
-            r.pbrs_mem.allocs,
-            r.prost_mem.bytes,
-            r.prost_mem.allocs,
-            r.v4_mem.bytes,
-            r.v4_mem.allocs,
+            r.name, pbrs.bytes, pbrs.allocs, prost.bytes, prost.allocs, upb.bytes, upb.allocs,
         );
     }
     println!("v4 cells exclude the upb Arena (C heap); Rust-side only.");
@@ -2365,6 +2305,11 @@ fn main() {
     println!("# Codec survey (encode into BytesMut; v4 serialize is Arena+FFI)");
     println!("iters=40000 samples=15 except payload>=32KiB (4000x9). median. release thin-LTO.");
     println!("pbrs vs prost vs crates.io protobuf 4.35.1-release (upb).");
+    if cfg!(feature = "allocation-counts") {
+        println!("Rust allocation counters enabled. Timings include allocator instrumentation.");
+    } else {
+        println!("Rust allocation counters disabled.");
+    }
     println!("Holdout shapes are measured but never tuned against or gated.");
     println!("map_8 / rpc_mixed skip byte-equal (HashMap order); decoded values checked.");
     println!(
@@ -2416,10 +2361,12 @@ fn main() {
             person_samples
         ))
     );
-    print_retained(&published);
-    print_retained(&survey);
-    print_retained(&holdouts);
-    print_retained(&[person_rows[0], person_rows[1], extras_row]);
+    if cfg!(feature = "allocation-counts") {
+        print_retained(&published);
+        print_retained(&survey);
+        print_retained(&holdouts);
+        print_retained(&[person_rows[0], person_rows[1], extras_row]);
+    }
     println!("## Raw paired samples (schema tonic-raw/1; fixed-order sequential, not interleaved)");
     print_raw_block();
 
@@ -2483,7 +2430,7 @@ mod tests {
 
     /// Hold for the whole body of every test in this module: the
     /// retained-memory counters are process-wide, so heap churn on any
-    /// other test thread can shrink a `measure_retained` window to zero
+    /// other test thread can shrink a retained-heap measurement window to zero
     /// and fail a live-counter assertion spuriously.
     fn serial_guard() -> std::sync::MutexGuard<'static, ()> {
         SERIAL
@@ -2645,7 +2592,7 @@ mod tests {
     }
 
     #[test]
-    fn holdout_rows_measure_untuned_shapes_with_live_retained_counters() {
+    fn holdout_rows_measure_untuned_shapes() {
         let _serial = serial_guard();
         let rows = run_holdout_rows(Some((10, 3)));
         assert_eq!(
@@ -2679,11 +2626,14 @@ mod tests {
                 );
             }
         }
-        // The counting allocator must be live: prost boxes every nested Node,
-        // so decoding depth-8 must retain heap. (v4 is assert-free here: its
-        // Arena lives on the C heap, outside the counted window.)
-        assert!(rows[0].prost_mem.bytes > 0);
-        assert!(rows[0].prost_mem.allocs > 0);
+        if cfg!(feature = "allocation-counts") {
+            // Prost boxes every nested Node, so depth-8 retains heap.
+            let [_, prost, _] = rows[0].retained.expect("retained heap was measured");
+            assert!(prost.bytes > 0);
+            assert!(prost.allocs > 0);
+        } else {
+            assert!(rows.iter().all(|row| row.retained.is_none()));
+        }
     }
 
     #[test]

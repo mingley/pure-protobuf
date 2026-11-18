@@ -131,10 +131,11 @@ For owned and borrowed byte buffers, the [mixed-byte ownership diagnostic](../..
 compares construction and serialization allocations for pbrs and Prost.
 Its measured scope includes the source buffers and message drop.
 
-Use the [codec survey](../../tonic-bench/README.md) for encode, decode and
-field-access comparisons. Keep parse-only, parse-and-read, owned messages and
-borrowed views separate. Include first encode and unchanged repeated encode;
-they exercise different work.
+Use the default [codec survey](../../tonic-bench/README.md) build for encode,
+decode and field-access timings against Prost and upb. Build separately with
+`allocation-counts` to measure retained Rust heap. Keep parse-only,
+parse-and-read, owned messages and borrowed views separate. Include first
+encode and unchanged repeated encode because they exercise different work.
 
 For a quick depth-64 read-all probe using the pinned Prost harness:
 
