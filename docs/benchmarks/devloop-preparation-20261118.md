@@ -85,10 +85,38 @@ The independent warmup objects, fixture checks, measured loop, iteration
 counts and invalid-counter failure gate are preserved.
 
 On the original preparation, the detecting test found four pbrs fresh objects
-for a tiny empty encode that consumes none. The corrected harness passed its
-unit and comparison diagnostics. Both source pins built release binaries.
-The shared-runner counter probe also records A/A pairs at N and differential
-N-to-2N pairs at the existing N=2,000. [Detecting control](https://github.com/mingley/pure-protobuf/actions/runs/44348605076/artifacts/14448495027) · [Bounded probe](https://github.com/mingley/pure-protobuf/actions/runs/44349454651)
+for a tiny empty encode that consumes none. The corrected harness passed
+36 unit tests and 18 comparison diagnostics. Both source pins built release
+binaries. Direct N and 2N runs matched allocations, requested bytes, copy
+counts and reported input metadata in all 36 pairs across pbrs, Prost and
+protobuf v4. [Detecting control](https://github.com/mingley/pure-protobuf/actions/runs/44348605076/artifacts/14448495027)
+
+The shared runner used Callgrind 3.26.0. Eight cells on each source ran six
+batches at N=2,000 and 2N, with two separate N samples per batch. All 48
+differential pairs per source were monotonic. The four cells that triggered the
+official hardware-counter failures show the following instruction-reference
+counts. A/A is the largest absolute difference between two same-N samples.
+
+| Cell | N median, original → corrected | A/A, original → corrected | N-to-2N median delta, original → corrected |
+|---|---:|---:|---:|
+| pbrs empty encode | 100,770,411.5 → 973,330 | 549 → 17 | 214,116.5 → 213,996 |
+| pbrs ID encode | 100,831,787.5 → 1,034,365 | 280 → 28 | 271,825 → 271,990.5 |
+| pbrs ID decode | 100,826,998.5 → 1,030,009 | 411 → 15 | 268,114.5 → 267,997.5 |
+| Prost empty decode | 100,862,793 → 1,065,766 | 526 → 15 | 302,008.5 → 301,993 |
+
+The probe replayed the original decreasing counts through a synthetic counter
+and confirmed that the corrected collector rejects the pair before writing
+a report. The standard eight-cell aggregate stopped at its first child because
+the scratch PATH shim resolved the Valgrind launcher without its sibling
+`valgrind.bin`. The raw replay invoked the installed Valgrind directly. The
+fresh-encode controls also show that changing preparation can shift a
+whole-process differential. These results cover setup and measurement
+diagnostics. Hardware-counter recovery for the full hosted matrix remains
+open. [Raw trials and controls](https://github.com/mingley/pure-protobuf/actions/runs/44349454651/artifacts/14449156597)
+
+The raw trial ZIP has SHA-256
+`5fb4644e87f28c054f97b83cd47e36baacf1db4fc425b057beda094c551cec84`
+and expires February 16, 2027 at 16:37:55 UTC.
 
 The first automatic comparison after integration may still build a base
 revision with the original preparation. The workflow pins each revision
