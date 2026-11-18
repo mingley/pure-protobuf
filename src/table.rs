@@ -958,7 +958,9 @@ struct ResolvedNested {
 #[derive(Debug)]
 pub(crate) struct DynamicParseCtx {
     pool: Option<Arc<DescriptorPool>>,
-    /// Compiled tables by descriptor address.
+    /// Keep the first table inline. Leaf messages need no table-vector allocation.
+    first_table: Option<(usize, Arc<DynamicTable>)>,
+    /// Additional compiled tables by descriptor address.
     tables: Vec<(usize, Arc<DynamicTable>)>,
     /// Resolved nested types by (parent table address, entry index).
     resolved: Vec<ResolvedNested>,
@@ -969,6 +971,7 @@ impl DynamicParseCtx {
     pub(crate) fn new(pool: Option<Arc<DescriptorPool>>) -> Self {
         Self {
             pool,
+            first_table: None,
             tables: Vec::new(),
             resolved: Vec::new(),
         }
@@ -978,14 +981,24 @@ impl DynamicParseCtx {
     /// pool cache; foreign ones compile fresh.
     pub(crate) fn table_for(&mut self, desc: &Arc<MessageDescriptor>) -> Arc<DynamicTable> {
         let key = Arc::as_ptr(desc) as usize;
-        if let Some(hit) = self.tables.iter().find(|(k, _)| *k == key) {
+        if let Some(hit) = self
+            .first_table
+            .iter()
+            .chain(&self.tables)
+            .find(|(k, _)| *k == key)
+        {
             return hit.1.clone();
         }
         let table = match self.pool.as_ref() {
             Some(pool) => pool.parse_table_for(desc),
             None => Arc::new(compile_dynamic_table(desc)),
         };
-        self.tables.push((key, table.clone()));
+        let entry = (key, table.clone());
+        if self.first_table.is_none() {
+            self.first_table = Some(entry);
+        } else {
+            self.tables.push(entry);
+        }
         table
     }
 
