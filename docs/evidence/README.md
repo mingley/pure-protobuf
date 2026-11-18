@@ -10,7 +10,8 @@ field-name reservation and one-pass generator binding.
 [Dynamic parse tables](dynamic-table-memo-20261118/README.md) ·
 [Packed booleans](packed-bool-20261118/README.md) ·
 [Field spellings](field-names-20261118/README.md) ·
-[Generator bindings](codegen-message-bindings-20261118/README.md)
+[Generator bindings](codegen-message-bindings-20261118/README.md) ·
+[Server method paths](server-path-20261118/README.md)
 
 The [November 17 follow-up](safe-hotpaths-20261117/README.md) records runtime
 contract repairs, pooled-decoder measurements, connection-info costs and the

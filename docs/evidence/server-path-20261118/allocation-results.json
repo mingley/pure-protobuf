@@ -1,0 +1,122 @@
+[
+  {
+    "job": 134965954092,
+    "side": "before",
+    "case": "cached",
+    "rpcs": 1024,
+    "allocations": 8192,
+    "requested_bytes": 16671744
+  },
+  {
+    "job": 134965954092,
+    "side": "after",
+    "case": "cached",
+    "rpcs": 1024,
+    "allocations": 8192,
+    "requested_bytes": 16671744
+  },
+  {
+    "job": 134965954092,
+    "side": "repeat",
+    "case": "cached",
+    "rpcs": 1024,
+    "allocations": 8192,
+    "requested_bytes": 16671744
+  },
+  {
+    "job": 134965954092,
+    "side": "before",
+    "case": "owned",
+    "rpcs": 1024,
+    "allocations": 11264,
+    "requested_bytes": 16974848
+  },
+  {
+    "job": 134965954092,
+    "side": "after",
+    "case": "owned",
+    "rpcs": 1024,
+    "allocations": 10240,
+    "requested_bytes": 16937984
+  },
+  {
+    "job": 134965954092,
+    "side": "repeat",
+    "case": "owned",
+    "rpcs": 1024,
+    "allocations": 11264,
+    "requested_bytes": 16974848
+  },
+  {
+    "job": 134965954092,
+    "side": "before",
+    "case": "stream",
+    "rpcs": 1024,
+    "allocations": 19458,
+    "requested_bytes": 24197160
+  },
+  {
+    "job": 134965954092,
+    "side": "after",
+    "case": "stream",
+    "rpcs": 1024,
+    "allocations": 18434,
+    "requested_bytes": 24161320
+  },
+  {
+    "job": 134965954092,
+    "side": "repeat",
+    "case": "stream",
+    "rpcs": 1024,
+    "allocations": 19458,
+    "requested_bytes": 24197160
+  },
+  {
+    "job": 134971401948,
+    "side": "before",
+    "case": "hooked",
+    "rpcs": 1024,
+    "allocations": 41984,
+    "requested_bytes": 21453824
+  },
+  {
+    "job": 134971401948,
+    "side": "after",
+    "case": "hooked",
+    "rpcs": 1024,
+    "allocations": 41984,
+    "requested_bytes": 21453824
+  },
+  {
+    "job": 134971401948,
+    "side": "repeat",
+    "case": "hooked",
+    "rpcs": 1024,
+    "allocations": 41984,
+    "requested_bytes": 21453824
+  },
+  {
+    "job": 134971401948,
+    "side": "before",
+    "case": "observed",
+    "rpcs": 1024,
+    "allocations": 20480,
+    "requested_bytes": 17173504
+  },
+  {
+    "job": 134971401948,
+    "side": "after",
+    "case": "observed",
+    "rpcs": 1024,
+    "allocations": 20480,
+    "requested_bytes": 17173504
+  },
+  {
+    "job": 134971401948,
+    "side": "repeat",
+    "case": "observed",
+    "rpcs": 1024,
+    "allocations": 20480,
+    "requested_bytes": 17173504
+  }
+]

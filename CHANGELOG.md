@@ -8,6 +8,8 @@
 - Share field spellings between the generator's collision checks and
   emitters, and reuse the bindings when emitting map decoders.
 - Add a per-channel TCP user timeout for native Linux client sockets.
+- Move an owned RPC path into the handler when there is no outbound observer
+  or response hook, saving a copy on unary and streaming server calls.
 - End the Tower response body at the headers for a trailers-only gRPC
   rejection, matching tonic's body shape.
 - Prepare only the selected fresh-encode pool in the development-loop

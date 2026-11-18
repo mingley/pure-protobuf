@@ -1,0 +1,139 @@
+name: Measure exact server RPC allocation and layout
+on:
+  push:
+    branches: [scratch/server-path-retention-evidence-20261118]
+permissions:
+  contents: read
+env:
+  BASE_SHA: 9061b8ee0a75d32acb19ebf7090e4a95660012db
+  CANDIDATE_SHA: 46073280ab260106a3cc8c041a1d59eb711306b7
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_TERM_COLOR: never
+  EVIDENCE_DIR: /tmp/pbrs-server-path-evidence-v3
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, i686-unknown-linux-gnu]
+    env:
+      TARGET_TRIPLE: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt
+      - name: Retain helpers and validate commit scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "$CANDIDATE_SHA^")" = "$BASE_SHA"
+          test "$(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA")" = "pbrs-grpc/src/server/rpc.rs"
+          test -z "$(git status --porcelain)"
+          mkdir -p "$EVIDENCE_DIR"
+          cp .github/scratch/server-path-retention-evidence/probe.rs .github/scratch/server-path-retention-evidence/collect.py .github/scratch/server-path-retention-evidence/layout.py .github/scratch/server-path-retention-evidence/executable.py "$EVIDENCE_DIR/"
+          cp .github/workflows/scratch-server-path-retention-evidence.yml "$EVIDENCE_DIR/workflow.yml"
+          printf 'driver=%s\nbase=%s\ncandidate=%s\ntarget=%s\n' "$GITHUB_SHA" "$BASE_SHA" "$CANDIDATE_SHA" "$TARGET_TRIPLE" > "$EVIDENCE_DIR/provenance.txt"
+          git diff --binary "$BASE_SHA" "$CANDIDATE_SHA" > "$EVIDENCE_DIR/candidate.patch"
+          if ! command -v protoc >/dev/null; then
+            bash scripts/ci-install-apt.sh protobuf-compiler 2>&1 | tee "$EVIDENCE_DIR/protoc-install.log"
+          fi
+          {
+            rustc -Vv
+            cargo -V
+            protoc --version
+            uname -a
+            lscpu
+          } > "$EVIDENCE_DIR/environment.txt"
+      - name: Compare exact record and coroutine layouts and allocation counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/server-path-cargo-example"
+          example_path=pbrs-grpc/examples/server_path_probe.rs
+          test ! -e "$example_path"
+          trap 'rm -f -- "$example_path"' EXIT
+          test_compiler() {
+            if [[ "$TARGET_TRIPLE" == i686* ]]; then
+              if ! printf 'int main(void) { return 0; }\n' | cc -m32 -x c - -o "$RUNNER_TEMP/link-i686"; then
+                bash scripts/ci-install-apt.sh gcc-multilib libc6-dev-i386 2>&1 | tee "$EVIDENCE_DIR/i686-install.log"
+              fi
+            fi
+          }
+          test_compiler
+          build_probe() {
+            local source="$1"
+            local label="$2"
+            git checkout --detach "$source"
+            test "$(git rev-parse HEAD)" = "$source"
+            test -z "$(git status --porcelain)"
+            mkdir -p "$(dirname "$example_path")"
+            cp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            test "$(git status --porcelain --untracked-files=all)" = "?? $example_path"
+            test -z "$(git diff --name-only HEAD)"
+            cmp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            RUSTC_BOOTSTRAP=1 RUSTFLAGS="-Zprint-type-sizes" cargo rustc --locked --release \
+              -p pbrs-grpc --example server_path_probe --target "$TARGET_TRIPLE" \
+              --message-format=json-render-diagnostics -- --cfg allocation_counts --check-cfg 'cfg(allocation_counts)' \
+              > "$EVIDENCE_DIR/$label-layout.txt" 2> "$EVIDENCE_DIR/$label-build.log" || {
+                tail -50 "$EVIDENCE_DIR/$label-layout.txt"
+                cat "$EVIDENCE_DIR/$label-build.log"
+                return 1
+              }
+            local executable
+            executable="$(python3 -B "$EVIDENCE_DIR/executable.py" "$EVIDENCE_DIR/$label-layout.txt")"
+            cp "$executable" "$EVIDENCE_DIR/$label-alloc"
+            sha256sum "$EVIDENCE_DIR/$label-alloc" >> "$EVIDENCE_DIR/binary.sha256"
+            cmp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            rm -- "$example_path"
+            git rev-parse HEAD > "$EVIDENCE_DIR/$label.sha"
+            test -z "$(git status --porcelain)"
+          }
+          build_probe "$BASE_SHA" base
+          build_probe "$CANDIDATE_SHA" candidate
+          if [[ "$TARGET_TRIPLE" == x86_64* ]]; then
+            python3 -B "$EVIDENCE_DIR/collect.py" "$EVIDENCE_DIR" | tee "$EVIDENCE_DIR/measurement.log"
+          fi
+          python3 -B "$EVIDENCE_DIR/layout.py" "$EVIDENCE_DIR" | tee "$EVIDENCE_DIR/layout-summary.json"
+      - name: Verify final exact source
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD | tee "$EVIDENCE_DIR/final.sha"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-path-evidence-v3-${{ matrix.target }}
+          path: |
+            /tmp/pbrs-server-path-evidence-v3/
+            !/tmp/pbrs-server-path-evidence-v3/*-alloc
+          retention-days: 30
+  cleanup:
+    needs: exact-source
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove isolated driver ref with lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/scratch/server-path-retention-evidence-20261118"
+          git push --force-with-lease="$GITHUB_REF:$GITHUB_SHA" origin ":$GITHUB_REF"

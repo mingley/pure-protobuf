@@ -23,6 +23,7 @@ the codec preparation repair and the original counter failures.
 | Packed boolean encoding | Fresh generated encoding, reallocation counts and second-host replay | [Record](evidence/packed-bool-20261118/README.md) |
 | Generator field spellings | Allocation requests and byte-identical generated code | [Record](evidence/field-names-20261118/README.md) |
 | Generator field bindings | Removal of the second naming pass, generated storage selectors | [Record](evidence/codegen-message-bindings-20261118/README.md) |
+| Server method paths | Warmed unary and server-stream allocations and hook controls | [Record](evidence/server-path-20261118/README.md) |
 
 Earlier transport and codec results remain available for their recorded
 revisions. [November 17 follow-up](evidence/safe-hotpaths-20261117/README.md)

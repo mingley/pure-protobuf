@@ -1,0 +1,143 @@
+name: Replay server hook and observer controls
+on:
+  push:
+    branches: [scratch/server-path-hook-controls-20261118]
+permissions:
+  contents: read
+  actions: read
+env:
+  BASE_SHA: 9061b8ee0a75d32acb19ebf7090e4a95660012db
+  CANDIDATE_SHA: 46073280ab260106a3cc8c041a1d59eb711306b7
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_TERM_COLOR: never
+  EVIDENCE_DIR: /tmp/pbrs-server-path-hook-evidence
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TARGET_TRIPLE: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+          components: rustfmt
+      - name: Retain helpers and validate commit scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "$CANDIDATE_SHA^")" = "$BASE_SHA"
+          test "$(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA")" = "pbrs-grpc/src/server/rpc.rs"
+          test -z "$(git status --porcelain)"
+          mkdir -p "$EVIDENCE_DIR"
+          cp .github/scratch/server-path-hook-controls/probe.rs .github/scratch/server-path-hook-controls/collect.py .github/scratch/server-path-hook-controls/layout.py .github/scratch/server-path-hook-controls/executable.py "$EVIDENCE_DIR/"
+          cp .github/workflows/scratch-server-path-hook-controls.yml "$EVIDENCE_DIR/workflow.yml"
+          printf 'driver=%s\nbase=%s\ncandidate=%s\ntarget=%s\n' "$GITHUB_SHA" "$BASE_SHA" "$CANDIDATE_SHA" "$TARGET_TRIPLE" > "$EVIDENCE_DIR/provenance.txt"
+          git diff --binary "$BASE_SHA" "$CANDIDATE_SHA" > "$EVIDENCE_DIR/candidate.patch"
+          if ! command -v protoc >/dev/null; then
+            bash scripts/ci-install-apt.sh protobuf-compiler 2>&1 | tee "$EVIDENCE_DIR/protoc-install.log"
+          fi
+          {
+            rustc -Vv
+            cargo -V
+            protoc --version
+            uname -a
+            lscpu
+          } > "$EVIDENCE_DIR/environment.txt"
+      - name: Fetch exact prior x86-64 layout capture
+        uses: actions/download-artifact@v4
+        with:
+          name: server-path-evidence-v3-x86_64-unknown-linux-gnu
+          path: /tmp/pbrs-server-path-hook-evidence/prior
+          run-id: 44350911965
+          github-token: ${{ github.token }}
+      - name: Check prior compiler layout against exact sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat "$EVIDENCE_DIR/prior/base.sha")" = "$BASE_SHA"
+          test "$(cat "$EVIDENCE_DIR/prior/candidate.sha")" = "$CANDIDATE_SHA"
+          test "$(cat "$EVIDENCE_DIR/prior/final.sha")" = "$CANDIDATE_SHA"
+          grep -Fxq 'driver=6fff9cbfe14e09bfb0db9c52217c228005282278' "$EVIDENCE_DIR/prior/provenance.txt"
+          cmp "$EVIDENCE_DIR/candidate.patch" "$EVIDENCE_DIR/prior/candidate.patch"
+          python3 -B "$EVIDENCE_DIR/layout.py" "$EVIDENCE_DIR/prior" | tee "$EVIDENCE_DIR/x64-layout-summary.json"
+      - name: Replay hook and observer allocation controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/server-path-cargo-example"
+          example_path=pbrs-grpc/examples/server_path_probe.rs
+          test ! -e "$example_path"
+          trap 'rm -f -- "$example_path"' EXIT
+          build_probe() {
+            local source="$1"
+            local label="$2"
+            git checkout --detach "$source"
+            test "$(git rev-parse HEAD)" = "$source"
+            test -z "$(git status --porcelain)"
+            mkdir -p "$(dirname "$example_path")"
+            cp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            test "$(git status --porcelain --untracked-files=all)" = "?? $example_path"
+            test -z "$(git diff --name-only HEAD)"
+            cmp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            cargo rustc --locked --release \
+              -p pbrs-grpc --example server_path_probe --target "$TARGET_TRIPLE" \
+              --message-format=json-render-diagnostics -- --cfg allocation_counts --check-cfg 'cfg(allocation_counts)' \
+              > "$EVIDENCE_DIR/$label-build.jsonl" 2> "$EVIDENCE_DIR/$label-build.log" || {
+                tail -50 "$EVIDENCE_DIR/$label-build.jsonl"
+                cat "$EVIDENCE_DIR/$label-build.log"
+                return 1
+              }
+            local executable
+            executable="$(python3 -B "$EVIDENCE_DIR/executable.py" "$EVIDENCE_DIR/$label-build.jsonl")"
+            cp "$executable" "$EVIDENCE_DIR/$label-alloc"
+            sha256sum "$EVIDENCE_DIR/$label-alloc" >> "$EVIDENCE_DIR/binary.sha256"
+            cmp "$EVIDENCE_DIR/probe.rs" "$example_path"
+            rm -- "$example_path"
+            git rev-parse HEAD > "$EVIDENCE_DIR/$label.sha"
+            test -z "$(git status --porcelain)"
+          }
+          build_probe "$BASE_SHA" base
+          build_probe "$CANDIDATE_SHA" candidate
+          python3 -B "$EVIDENCE_DIR/collect.py" "$EVIDENCE_DIR" | tee "$EVIDENCE_DIR/measurement.log"
+      - name: Verify final exact source
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD | tee "$EVIDENCE_DIR/final.sha"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-path-hook-evidence
+          path: |
+            /tmp/pbrs-server-path-hook-evidence/
+            !/tmp/pbrs-server-path-hook-evidence/*-alloc
+            !/tmp/pbrs-server-path-hook-evidence/prior/*
+          retention-days: 30
+  cleanup:
+    needs: exact-source
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove isolated driver ref with lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/scratch/server-path-hook-controls-20261118"
+          git push --force-with-lease="$GITHUB_REF:$GITHUB_SHA" origin ":$GITHUB_REF"

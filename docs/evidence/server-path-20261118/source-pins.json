@@ -1,0 +1,33 @@
+{
+  "base": "9061b8ee0a75d32acb19ebf7090e4a95660012db",
+  "candidate": "46073280ab260106a3cc8c041a1d59eb711306b7",
+  "original_driver": "6fff9cbfe14e09bfb0db9c52217c228005282278",
+  "control_driver": "734c13864c0347f102096111b7c6be3ec923d3c2",
+  "original_run": 44350911965,
+  "control_run": 44352431584,
+  "correctness_run": 44350223936,
+  "artifacts": {
+    "server-raw-artifacts": [
+      {
+        "name": "server-path-evidence-v3-x86_64-unknown-linux-gnu",
+        "id": 14449535370,
+        "digest": "sha256:df4bf176f097108d205c373f1590c683b2a0b26325b788e83a284fcbf3cd5606",
+        "expires_at": "2026-12-18T16:50:46Z"
+      },
+      {
+        "name": "server-path-evidence-v3-i686-unknown-linux-gnu",
+        "id": 14449535273,
+        "digest": "sha256:fa76b132475a0dcf91d8c4cbfb3f9f88ce27872aae0c8c67d4220ee448f20919",
+        "expires_at": "2026-12-18T16:50:12Z"
+      }
+    ],
+    "server-control-artifacts": [
+      {
+        "name": "server-path-hook-evidence",
+        "id": 14448523892,
+        "digest": "sha256:c5a6ef9e83adce7ae653af008c775aa3925fa6f1fc97ccb9e5b206c609322387",
+        "expires_at": "2026-12-18T16:59:07Z"
+      }
+    ]
+  }
+}
