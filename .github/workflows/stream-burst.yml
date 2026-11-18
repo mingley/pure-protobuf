@@ -61,6 +61,7 @@ concurrency:
 env:
   CARGO_BUILD_JOBS: "2"
   PBRS_PROTOC_JOBS: "2"
+  RUSTUP_TOOLCHAIN: "1.100.0"
 
 jobs:
   stream-burst-diagnostic:
@@ -92,7 +93,7 @@ jobs:
             echo 'selected head predates the opt-in stream-burst diagnostic'
             echo 'present=false' >> "$GITHUB_OUTPUT"
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
         if: ${{ steps.probe.outputs.present == 'true' }}
         with:
           components: rustfmt

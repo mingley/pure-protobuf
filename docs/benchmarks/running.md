@@ -2,8 +2,10 @@
 
 [Results](../benchmarks.md) · [Measurement rules](../benchmark-contract.md)
 
-Run commands from the repository root with Rust, Cargo, Python 3 and `protoc`
-installed. Keep results in a new directory so older runs remain reproducible.
+Run commands from the repository root with Rustup, Python 3 and `protoc`
+installed. Rustup selects Rust 1.100.0 for this checkout. When comparing
+commits in separate worktrees, set `RUSTUP_TOOLCHAIN=1.100.0` for both builds.
+Keep results in a new directory so older runs remain reproducible.
 
 ## gRPC client and server
 

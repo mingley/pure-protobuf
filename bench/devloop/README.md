@@ -17,6 +17,9 @@ Metrics:
 
 ## Usage
 
+Rustup selects Rust 1.100.0 for this checkout. Set `RUSTUP_TOOLCHAIN=1.100.0`
+for both builds when comparing revisions in separate worktrees.
+
 ```sh
 # Full matrix, JSON report to stdout (release build).
 scripts/devloop.sh --out /tmp/now.json

@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install C++ compiler and cmake
         run: sudo apt-get update && sudo apt-get install -y cmake g++
       - name: Cache protobuf pin source
@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Cache protobuf pin source
@@ -146,6 +146,8 @@ jobs:
   # Exercises pure-protobuf core parsing and runtime under memory sanitizers.
   miri-sanitizers:
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     timeout-minutes: 45
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
@@ -222,7 +224,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: i686-unknown-linux-gnu, s390x-unknown-linux-gnu
       - name: Install 32-bit link toolchain
@@ -244,6 +246,8 @@ jobs:
   # minimized crashers upload as artifacts for triage.
   fuzz-campaign:
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     timeout-minutes: 120
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:

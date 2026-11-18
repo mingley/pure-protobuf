@@ -14,7 +14,8 @@ jobs:
     env:
       CARGO_BUILD_JOBS: "2"
       CARGO_TERM_COLOR: never
-      TOOLCHAIN_NAME: ${{ matrix.toolchain }}
+      DEVELOPMENT_TOOLCHAIN: "1.100.0"
+      TOOLCHAIN_NAME: ${{ matrix.toolchain == 'stable' && '1.100.0' || matrix.toolchain }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -25,10 +26,10 @@ jobs:
           set -euo pipefail
           timeout --kill-after=5s 180s rustup toolchain install "$TOOLCHAIN_NAME" --profile minimal
           timeout --kill-after=5s 120s rustup target add --toolchain "$TOOLCHAIN_NAME" i686-unknown-linux-gnu
-          if test "$TOOLCHAIN_NAME" != stable; then
-            timeout --kill-after=5s 180s rustup toolchain install stable --profile minimal
+          if test "$TOOLCHAIN_NAME" != "$DEVELOPMENT_TOOLCHAIN"; then
+            timeout --kill-after=5s 180s rustup toolchain install "$DEVELOPMENT_TOOLCHAIN" --profile minimal
           fi
-          timeout --kill-after=5s 120s rustup component add rustfmt --toolchain stable
+          timeout --kill-after=5s 120s rustup component add rustfmt --toolchain "$DEVELOPMENT_TOOLCHAIN"
           rustc "+$TOOLCHAIN_NAME" -Vv
           if ! printf 'int main(void){return 0;}\n' | cc -m32 -x c - -o "$RUNNER_TEMP/check32" 2>/dev/null; then
             bash scripts/ci-install-apt.sh gcc-multilib
@@ -73,18 +74,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --kill-after=5s 120s cargo +stable fmt --manifest-path pbrs-grpc/tests/portable-caller/Cargo.toml -- --check
+          timeout --kill-after=5s 120s cargo "+$DEVELOPMENT_TOOLCHAIN" fmt --manifest-path pbrs-grpc/tests/portable-caller/Cargo.toml -- --check
           timeout --kill-after=5s 600s cargo "+$TOOLCHAIN_NAME" test --locked --manifest-path pbrs-grpc/tests/portable-caller/Cargo.toml --target i686-unknown-linux-gnu -- --nocapture --test-threads=1 | tee "$RUNNER_TEMP/caller"
           grep -F 'test result: ok. 4 passed;' "$RUNNER_TEMP/caller"
-      - name: Check stable with all features
+      - name: Check all features on the development toolchain
         if: matrix.toolchain == 'stable'
         shell: bash
         run: |
           set -euo pipefail
-          timeout --kill-after=5s 120s cargo +stable tree --locked -p pbrs-grpc --all-features --target x86_64-unknown-linux-gnu -e normal,build > "$RUNNER_TEMP/supported-graph"
+          timeout --kill-after=5s 120s cargo "+$DEVELOPMENT_TOOLCHAIN" tree --locked -p pbrs-grpc --all-features --target x86_64-unknown-linux-gnu -e normal,build > "$RUNNER_TEMP/supported-graph"
           if grep -E 'ring v[0-9]' "$RUNNER_TEMP/supported-graph"; then
             echo "Unexpected ring dependency in the supported shipping graph"
             exit 1
           fi
           grep -F 'rustls-graviola v0.2.1' "$RUNNER_TEMP/supported-graph"
-          timeout --kill-after=5s 600s cargo +stable check --locked -p pbrs-grpc --all-features --target i686-unknown-linux-gnu
+          timeout --kill-after=5s 600s cargo "+$DEVELOPMENT_TOOLCHAIN" check --locked -p pbrs-grpc --all-features --target i686-unknown-linux-gnu

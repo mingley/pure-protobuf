@@ -96,7 +96,7 @@ jobs:
         run: python3 -B scripts/release-context.py --verify-context --metadata-path dist/release-context.json
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Fetch dependencies for offline package rehearsal
         if: steps.mode.outputs.mode == 'dry-run'

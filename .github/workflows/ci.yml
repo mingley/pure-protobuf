@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       # AD-03 maintainer approval was recorded on 2026-09-30. Keep the tool
       # pinned: upgrading it is a reviewed CI dependency change.
       - name: Install cargo-semver-checks
@@ -53,7 +53,7 @@ jobs:
         with:
           # Benchmark compatibility controls audit immutable historical inputs.
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: rustfmt, clippy
       - name: Check bounded apt setup
@@ -103,9 +103,9 @@ jobs:
           done
       - name: Compile and smoke the shipping HTTP/2 frame fuzz target
         run: |
-          # Explicit selection keeps subsequent workspace checks on stable.
+          # Select nightly only for the fuzz target.
           rustup toolchain install nightly --profile minimal
-          cargo +stable install cargo-fuzz --version 0.13.2 --locked
+          cargo install cargo-fuzz --version 0.13.2 --locked
           ./scripts/fuzz-h2-frame-smoke.sh
       - name: Retain HTTP/2 frame fuzz smoke evidence
         if: always()
@@ -178,7 +178,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Native gRPC-Web integration tests
         run: cargo test --locked -p pbrs-grpc --features grpc-web --lib --test grpc_web --test server_deadline_extended --test web_terminal_accounting --test web_text_ingress
 
@@ -190,7 +190,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: actions/setup-go@v5
         with:
           go-version-file: tests/interop/go/go.mod
@@ -251,7 +251,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install cmake and C++ compiler
         run: |
           bash scripts/ci-install-apt.sh cmake g++ protobuf-compiler
@@ -294,7 +294,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: rustfmt
       - name: Install cmake (not protobuf-compiler)
@@ -338,6 +338,8 @@ jobs:
   msrv-core:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: "1.85.0"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85.0
@@ -361,6 +363,8 @@ jobs:
   msrv-tonic:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: "1.88.0"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88.0
@@ -379,7 +383,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install protoc
         run: brew install protobuf
       - run: protoc --version
@@ -398,7 +402,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install protoc
         run: bash scripts/ci-install-apt.sh protobuf-compiler
       - run: cargo fetch
@@ -425,7 +429,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - run: scripts/pure-rust-audit.sh
 
   # Drift among bundled hello/WKT copies, and stub-flavour selection, must
@@ -435,7 +439,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Install protoc
         run: bash scripts/ci-install-apt.sh protobuf-compiler
       - name: Hello/WKT copies and stub flavours

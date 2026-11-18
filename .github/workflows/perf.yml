@@ -10,6 +10,7 @@ on:
       - "pbrs-grpc/src/**"
       - "protobuf-tonic/src/**"
       - "bench/devloop/**"
+      - "rust-toolchain.toml"
       - "scripts/devloop.sh"
       - "scripts/devloop-rpc-base-compat.py"
       - "scripts/devloop-rpc-input-overlay.patch"
@@ -21,6 +22,7 @@ on:
       - "pbrs-grpc/src/**"
       - "protobuf-tonic/src/**"
       - "bench/devloop/**"
+      - "rust-toolchain.toml"
       - "scripts/devloop.sh"
       - "scripts/devloop-rpc-base-compat.py"
       - "scripts/devloop-rpc-input-overlay.patch"
@@ -47,6 +49,8 @@ concurrency:
 env:
   CARGO_BUILD_JOBS: "2"
   PBRS_PROTOC_JOBS: "2"
+  # Both worktrees use the same compiler, including older checkouts.
+  RUSTUP_TOOLCHAIN: "1.100.0"
 
 jobs:
   devloop-compare:
@@ -57,7 +61,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.sha }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.100.0
       - name: Check counter-output parsers
         run: |
           rustc --edition=2024 --test bench/devloop/src/counters.rs \

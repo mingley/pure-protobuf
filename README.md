@@ -258,9 +258,12 @@ reflection, see [`examples/greeter`](examples/greeter/README.md).
 
 ## Support matrix
 
-The table lists minimum Rust versions and configured CI checks. Actual
-compiler versions and results are recorded in the [evidence guide](docs/evidence/README.md).
-Releases follow the [release guide](docs/RELEASE.md); pushes to `main` do not publish crates.
+Rustup selects Rust 1.100.0 from [`rust-toolchain.toml`](rust-toolchain.toml).
+Standard CI and benchmark jobs use the same release. The table lists minimum
+Rust versions for crate consumers and the checks that exercise them. Run
+results and compiler versions are in the [evidence guide](docs/evidence/README.md).
+Crate publication runs separately from pushes to `main`. See the
+[release guide](docs/RELEASE.md).
 
 The maintained crates and tools use **Rust language Edition 2024**, available
 from rustc 1.85. Frozen reference/comparator and discarded-experiment
