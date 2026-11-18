@@ -21,9 +21,10 @@ live task status. Use the two [task plans](plan/README.md) and
 
 ## Goal and next milestone
 
-Close the documented feature gaps, beat pinned tonic/prost in every applicable
-registered benchmark comparison, and publish qualified new versions of
-`pbrs`, `protobuf-tonic` and `pbrs-grpc`.
+Close the documented feature gaps and publish qualified new versions of
+`pbrs`, `protobuf-tonic` and `pbrs-grpc`. Beat pinned upb and Prost in the
+applicable protobuf and codegen comparisons, and beat tonic with Prost in
+the applicable client, server and end-to-end RPC comparisons.
 
 The fixed starting inventory is the five migration gaps recorded at
 [`0ae8a43d`](https://github.com/mingley/pure-protobuf/tree/0ae8a43d3d08617c249c84a3f0d30f614494d70e):
@@ -45,7 +46,7 @@ Feature work and measured losses remain tracked in the
 | Track | Evidence needed to finish |
 |---|---|
 | Feature coverage | Each gap has real behavior, a public or generated consumer, and a pinned reference comparison or deployment test. Update the parity register with the tested scope and source. |
-| Performance | Every applicable tonic/prost comparison in the [category register](../bench/scoreboard/categories.json) has matched repeated results that satisfy the [benchmark contract](benchmark-contract.md). Keep losing, blocked and unmeasured cases visible until resolved. |
+| Performance | The upb, Prost and tonic comparisons in the [category register](../bench/scoreboard/categories.json) have matched repeated results that satisfy the [benchmark contract](benchmark-contract.md). Track each loss and missing measurement. |
 | Publication | New versions of all three crates meet their applicable [release requirements](RELEASE.md), and the published versions and artifacts match the qualified release commit. |
 
 Advance in small batches: close one missing behavior or remove one measured

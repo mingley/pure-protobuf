@@ -12,10 +12,11 @@ Historical results retain their dated source and raw captures where available.
 Read the [benchmark contract](benchmark-contract.md) before making a broader
 performance claim.
 
-The November 18 comparison guide identifies the remaining allocation losses
-against tonic and Prost in the latest complete hosted capture. It includes
-the codec preparation repair and the original counter failures.
-[Hosted comparison and commands](benchmarks/devloop-preparation-20261118.md)
+The November 18 codec survey compares throughput with Prost and upb using
+Rust 1.100.0 and the standard allocator. The dev-loop report tracks remaining
+allocation costs in codec and RPC cases.
+[Codec throughput](benchmarks/codec-throughput-20261118.md) ·
+[Hosted allocation comparison](benchmarks/devloop-preparation-20261118.md)
 
 | Component | What to look for | Evidence |
 | --- | --- | --- |
@@ -23,6 +24,7 @@ the codec preparation repair and the original counter failures.
 | Packed boolean encoding | Fresh generated encoding, reallocation counts and second-host replay | [Record](evidence/packed-bool-20261118/README.md) |
 | Generator field spellings | Allocation requests and byte-identical generated code | [Record](evidence/field-names-20261118/README.md) |
 | Generator field bindings | Removal of the second naming pass, generated storage selectors | [Record](evidence/codegen-message-bindings-20261118/README.md) |
+| Protoc plugin responses | CPU and allocations for serializing generated files | [Record](benchmarks/codegen-response-20261118.md) |
 | Server method paths | Warmed unary and server-stream allocations and hook controls | [Record](evidence/server-path-20261118/README.md) |
 
 Earlier transport and codec results remain available for their recorded

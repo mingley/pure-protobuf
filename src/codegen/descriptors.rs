@@ -1189,16 +1189,33 @@ pub(crate) fn missing_import_source(
 }
 
 pub fn encode_code_generator_response(files: &[(String, String)]) -> Vec<u8> {
-    let mut out = Vec::new();
-    // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
-    encode_varint_field(&mut out, 2, 3);
-    encode_varint_field(&mut out, 3, 998); // EDITION_PROTO2
-    encode_varint_field(&mut out, 4, 1001); // EDITION_2024 (CG-14 qualified subset)
+    let file_len = |name: &str, content: &str| {
+        wire::key_len_value_len(1, name.len() as u64)
+            + wire::key_len_value_len(15, content.len() as u64)
+    };
+    let support_fields = [
+        (2, 3),    // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
+        (3, 998),  // EDITION_PROTO2
+        (4, 1001), // EDITION_2024 (CG-14 qualified subset)
+    ];
+    let support_len = support_fields
+        .iter()
+        .map(|&(number, value)| wire::tag_len(number, wire::WIRE_VARINT) + wire::varint_len(value))
+        .sum::<u64>();
+    let files_len = files
+        .iter()
+        .map(|(name, content)| wire::key_len_value_len(15, file_len(name, content)))
+        .sum::<u64>();
+    let capacity = usize::try_from(support_len + files_len).expect("response length fits usize");
+    let mut out = Vec::with_capacity(capacity);
+
+    for (number, value) in support_fields {
+        encode_varint_field(&mut out, number, value);
+    }
     for (name, content) in files {
-        let mut file = Vec::new();
-        encode_string_field(&mut file, 1, name);
-        encode_string_field(&mut file, 15, content);
-        encode_len_field(&mut out, 15, &file);
+        wire::encode_len_header(&mut out, 15, file_len(name, content));
+        encode_string_field(&mut out, 1, name);
+        encode_string_field(&mut out, 15, content);
     }
     out
 }

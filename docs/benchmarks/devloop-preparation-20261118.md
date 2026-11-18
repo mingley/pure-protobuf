@@ -1,9 +1,13 @@
 # Dev-loop codec preparation and allocation losses
 
-The latest complete main-branch dev-loop capture at the time of the recovery
-measured 1,634 cells on matched fixtures at `cc502ed2`. Its instruction counter
-was unavailable. The two later comparison attempts recorded invalid
-instruction pairs and produced zero measured cells. [Complete capture](https://github.com/mingley/pure-protobuf/actions/runs/44036005116)
+The Rust 1.100.0 main-branch run at `7b34d68c` completed 1,634 matched cells.
+It retained allocation and wall-time diagnostics without hardware instruction
+counts. The advisory comparison flagged regressions.
+[Run and artifact](https://github.com/mingley/pure-protobuf/actions/runs/44360934662/artifacts/14463202293)
+
+The historical allocation tables below use the complete recovery baseline at
+`cc502ed2`. The next two attempts on that earlier harness produced invalid
+instruction pairs and zero measured cells. [Recovery baseline](https://github.com/mingley/pure-protobuf/actions/runs/44036005116)
 
 ## Where to look first
 
@@ -57,6 +61,7 @@ the dedicated hosts, paired repetitions and uncertainty intervals in the
 
 | Head | Run | Evidence |
 |---|---|---|
+| [`7b34d68c`](https://github.com/mingley/pure-protobuf/commit/7b34d68c2ad6c8d0b12efe418106e53e0d6c454f) | [44360934662](https://github.com/mingley/pure-protobuf/actions/runs/44360934662) | 1,634 common cells on Rust 1.100.0. Instruction counts unavailable. Advisory comparison exit 1. |
 | [`9061b8ee`](https://github.com/mingley/pure-protobuf/commit/9061b8ee0a75d32acb19ebf7090e4a95660012db) | [44054498584](https://github.com/mingley/pure-protobuf/actions/runs/44054498584) | Base and head instruction pairs decreased at 2N. [Error archive](https://github.com/mingley/pure-protobuf/actions/runs/44054498584/artifacts/14314894366) |
 | [`111e7b88`](https://github.com/mingley/pure-protobuf/commit/111e7b88d70a5bcbb5137f225932330f7171e721) | [44045742672](https://github.com/mingley/pure-protobuf/actions/runs/44045742672) | Base and head instruction pairs decreased at 2N. [Error archive](https://github.com/mingley/pure-protobuf/actions/runs/44045742672/artifacts/14313857493) |
 | [`fe56a183`](https://github.com/mingley/pure-protobuf/commit/fe56a1836f47bec7554c688b988fa6fe638ad59e) | [44040440896](https://github.com/mingley/pure-protobuf/actions/runs/44040440896) | Cancelled before any job or artifact was recorded. |

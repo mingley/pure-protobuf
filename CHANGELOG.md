@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Encode protoc plugin responses directly into a single sized buffer.
 - Keep the first dynamic parse table in the parse context. Leaf messages
   and recursive messages with one descriptor avoid a heap vector.
 - Encode packed booleans as a single bulk append of canonical bytes.
