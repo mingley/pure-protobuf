@@ -93,9 +93,8 @@ impl PackedCodec for Bools {
         Ok(())
     }
     fn encode(elems: &[bool], out: &mut Vec<u8>) {
-        for e in elems {
-            encode_varint(out, u64::from(*e));
-        }
+        // Canonical booleans always occupy one byte.
+        out.extend(elems.iter().copied().map(u8::from));
     }
 }
 

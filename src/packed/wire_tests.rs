@@ -126,6 +126,25 @@ fn malformed_and_truncated_windows_keep_prior_state() {
 }
 
 #[test]
+fn packed_bools_append_canonical_bytes() {
+    let mut out = vec![0xa5];
+    Bools::encode(&[], &mut out);
+    assert_eq!(out, [0xa5]);
+    Bools::encode(&[false, true, true, false], &mut out);
+    assert_eq!(out, [0xa5, 0, 1, 1, 0]);
+
+    let mut packed = PackedBool::new();
+    packed
+        .append_bytes(&[0x80, 0, 2, 0x81, 0, 0])
+        .expect("valid bool varints");
+    assert_eq!(packed.packed_bytes(), Some([0, 1, 1, 0].as_slice()));
+    assert_eq!(
+        packed.iter().copied().collect::<Vec<_>>(),
+        [false, true, true, false]
+    );
+}
+
+#[test]
 fn appending_and_mutation_preserve_combined_values() {
     let mut packed = PackedI32::new();
     packed.append_bytes(&[1, 2]).expect("first");
