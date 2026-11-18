@@ -700,16 +700,34 @@ impl CodecCase {
         // Validate complete fixture values with preparation-only copies. No
         // getter touches a measured message or its fresh-encode pool here.
         tat_preflight::check_wire(cell, &wire);
-        let n = iters as usize;
-        let mut pbrs_fresh = Vec::with_capacity(n);
-        let mut prost_fresh = Vec::with_capacity(n);
-        let mut v4_fresh = Vec::with_capacity(n);
-        for _ in 0..n {
-            pbrs_fresh.push(PbrsTat::parse(&wire).expect("fresh pbrs"));
-            prost_fresh
-                .push(prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("fresh prost"));
-            v4_fresh.push(v4_tat::TestAllTypesProto3::parse(&wire).expect("fresh v4"));
-        }
+        // Only fresh encoding consumes pre-parsed messages. The unused
+        // parse/drop work can swamp a small whole-process instruction delta.
+        let (pbrs_fresh, prost_fresh, v4_fresh) = match cell {
+            "codec.pbrs.fresh_encode" => (
+                (0..iters)
+                    .map(|_| PbrsTat::parse(&wire).expect("fresh pbrs"))
+                    .collect(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            "codec.prost.fresh_encode" => (
+                Vec::new(),
+                (0..iters)
+                    .map(|_| {
+                        prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("fresh prost")
+                    })
+                    .collect(),
+                Vec::new(),
+            ),
+            "codec.v4.fresh_encode" => (
+                Vec::new(),
+                Vec::new(),
+                (0..iters)
+                    .map(|_| v4_tat::TestAllTypesProto3::parse(&wire).expect("fresh v4"))
+                    .collect(),
+            ),
+            _ => (Vec::new(), Vec::new(), Vec::new()),
+        };
         CodecCase {
             wire,
             pbrs_msg,
@@ -2841,6 +2859,34 @@ mod input_tests {
         ChildOutput, Duration, Metric, Report, assert_adoption_input, assert_rpc_input_bytes,
         child_json, child_json_with_input_bytes, compare_reports,
     };
+
+    #[test]
+    fn codec_preparation_builds_only_the_selected_fresh_pool() {
+        let rounds = 4;
+        for (cell, expected) in [
+            ("codec.pbrs.small_empty_encode", [0, 0, 0]),
+            ("codec.pbrs.small_id_encode", [0, 0, 0]),
+            ("codec.pbrs.small_id_decode", [0, 0, 0]),
+            ("codec.prost.small_empty_decode", [0, 0, 0]),
+            ("codec.v4.cached_encode", [0, 0, 0]),
+            ("codec.pbrs.fresh_encode", [rounds, 0, 0]),
+            ("codec.prost.fresh_encode", [0, rounds, 0]),
+            ("codec.v4.fresh_encode", [0, 0, rounds]),
+        ] {
+            let case = super::CodecCase::prepare(cell, rounds as u64);
+            let pools = [
+                (case.pbrs_fresh.len(), case.pbrs_fresh.capacity()),
+                (case.prost_fresh.len(), case.prost_fresh.capacity()),
+                (case.v4_fresh.len(), case.v4_fresh.capacity()),
+            ];
+            for ((len, capacity), expected) in pools.into_iter().zip(expected) {
+                assert_eq!(len, expected, "{cell} fresh pool length");
+                if expected == 0 {
+                    assert_eq!(capacity, 0, "{cell} unused fresh pool capacity");
+                }
+            }
+        }
+    }
 
     #[test]
     fn fresh_encode_children_report_the_object_lifecycle() {
