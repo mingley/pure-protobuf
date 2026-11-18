@@ -1101,8 +1101,8 @@ pub(crate) fn emit_map_decoders(
     edition2024: bool,
     pool: &DescriptorPool,
 ) -> Result<(), CodegenError> {
+    // emit_message already bound this descriptor's field names and storage selectors.
     let runtime = runtime_crate_path();
-    bind_field_idents(desc);
     let msg = rust_ident(&desc.full_name).replace("r#", "");
     let mut scalar_parent = None;
     for f in desc.fields.values() {
