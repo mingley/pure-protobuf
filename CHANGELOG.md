@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Plan code generation by source file so each target shares eligibility checks.
+- Shrink native server RPC state after extracting headers and context.
 - Encode protoc plugin responses directly into a single sized buffer.
 - Reuse a ready connection for a timed RPC when the direct client has one slot.
 - Update health status in place when no snapshot is held. Repeated status and

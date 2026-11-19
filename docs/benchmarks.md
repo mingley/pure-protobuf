@@ -18,6 +18,9 @@ allocation costs in codec and RPC cases.
 [Codec throughput](benchmarks/codec-throughput-20261118.md) ·
 [Hosted allocation comparison](benchmarks/devloop-preparation-20261118.md)
 
+The November 19 record covers generator scaling, native RPC memory and
+owned-result codec comparisons. [Scaling results](benchmarks/scaling-20261119.md)
+
 | Component | What to look for | Evidence |
 | --- | --- | --- |
 | Dynamic protobuf parsing | Inline first table, allocation counts and nested controls | [Record](evidence/dynamic-table-memo-20261118/README.md) |

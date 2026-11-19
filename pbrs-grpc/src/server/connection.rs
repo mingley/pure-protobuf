@@ -371,6 +371,10 @@ pub(crate) fn incoming_rpc(
     } else {
         crate::wire::timeout_from_headers(metadata.all_headers())
     };
+    // Native call shapes only need the URI and body. Metadata owns the
+    // admitted headers, and the optional tonic bridge uses the HTTP parts.
+    #[cfg(not(feature = "tonic"))]
+    let request = super::rpc::NativeRequest::from_http(request);
     Rpc {
         accepted_at,
         accepted_peer_timeout,

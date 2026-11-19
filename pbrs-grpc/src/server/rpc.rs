@@ -37,6 +37,31 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(not(feature = "tonic"))]
+pub(crate) struct NativeRequest {
+    uri: http::Uri,
+    recv: RecvStream,
+}
+
+#[cfg(not(feature = "tonic"))]
+impl NativeRequest {
+    pub(crate) fn from_http(request: http::Request<RecvStream>) -> Self {
+        let (parts, recv) = request.into_parts();
+        Self {
+            uri: parts.uri,
+            recv,
+        }
+    }
+
+    fn uri(&self) -> &http::Uri {
+        &self.uri
+    }
+
+    fn into_body(self) -> RecvStream {
+        self.recv
+    }
+}
+
 /// One inbound RPC, before its call shape has been chosen.
 ///
 /// Consume it with exactly one of [`Self::unary`],
@@ -52,7 +77,10 @@ pub struct Rpc {
     pub(crate) accepted_at: tokio::time::Instant,
     pub(crate) accepted_peer_timeout: Option<Duration>,
     pub(crate) call_cancel: Arc<super::drain::CancelFlag>,
+    #[cfg(feature = "tonic")]
     pub(crate) request: http::Request<RecvStream>,
+    #[cfg(not(feature = "tonic"))]
+    pub(crate) request: NativeRequest,
     pub(crate) respond: SendResponse,
     pub(crate) config: Arc<ServerConfig>,
     pub(crate) remote_addr: Option<SocketAddr>,

@@ -116,12 +116,11 @@ pub(crate) fn emit_public_uses(
     src: &mut String,
     pool: &DescriptorPool,
     pub_files: &[String],
-    targets: &[String],
+    all_targets: &FileMatcher,
 ) {
     let mut sorted_pub = pub_files.to_vec();
     sorted_pub.sort();
     sorted_pub.dedup();
-    let all_targets = FileMatcher::for_slice(targets);
     for p in &sorted_pub {
         let in_targets = all_targets.matches(p);
         let pkg = pool

@@ -378,22 +378,37 @@ pub fn generate_from_code_generator_request(
     // literal avoids one Rust expression node per descriptor byte.
     let fds_block =
         (!resolved.no_reflect && !resolved.shared_pool).then(|| fds_byte_string_block(&fds));
-    // File-level facts shared by every target: each unique file's stem and
-    // whether it matches any target. The emission loops below used to
-    // re-derive these per (target, type) with fresh normalizations.
-    let services_all: Vec<Arc<ServiceDescriptor>> = pool.collect_services();
+    // Source-file eligibility is shared by all declarations from that file.
+    // Group once so each target evaluates its rules per file.
+    let services_all = pool.collect_services();
     let all_matcher = FileMatcher::for_slice(&targets);
-    let mut file_memo: std::collections::BTreeMap<String, FileFacts> =
-        std::collections::BTreeMap::new();
-    for file in msg_facts
+    let mut file_plans = std::collections::BTreeMap::new();
+    for facts in msg_facts
         .iter()
-        .map(|facts| facts.file.as_str())
-        .chain(enum_facts.iter().map(|facts| facts.file.as_str()))
-        .chain(services_all.iter().map(|svc| svc.file_name.as_str()))
+        .filter(|facts| !facts.is_map_entry && !facts.is_extern)
     {
-        file_memo
-            .entry(file.to_string())
-            .or_insert_with_key(|file| FileFacts::for_file(file, &all_matcher));
+        file_plans
+            .entry(facts.file.as_str())
+            .or_insert_with(|| FilePlan::new(&facts.file, &all_matcher))
+            .messages
+            .push(facts);
+    }
+    for facts in enum_facts.iter().filter(|facts| !facts.is_extern) {
+        file_plans
+            .entry(facts.file.as_str())
+            .or_insert_with(|| FilePlan::new(&facts.file, &all_matcher))
+            .enums
+            .push(facts);
+    }
+    for svc in services_all
+        .iter()
+        .filter(|svc| !is_extern_type(&svc.full_name))
+    {
+        file_plans
+            .entry(svc.file_name.as_str())
+            .or_insert_with(|| FilePlan::new(&svc.file_name, &all_matcher))
+            .services
+            .push(svc);
     }
     // One target's emission as a pure closure over shared-immutable inputs
     // (plus thread-local codegen state): this lets multi-target requests
@@ -482,70 +497,33 @@ use {runtime}::prelude::*;\n\
         let transitive_pub_files = transitive_public_imports(&pool, target);
         let pub_matcher = FileMatcher::for_slice(&transitive_pub_files);
         let mut emit_names = Vec::new();
-        {
-            let mut scratch = None;
-            for facts in &msg_facts {
-                if facts.is_map_entry {
-                    continue;
-                }
-                if facts.is_extern {
-                    continue;
-                }
-                let emit_deps = resolved.emit_deps;
-                let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
-                let emit_wkt =
-                    facts.is_wkt && !target_is_wkt && !resolved.no_wkt && !ff.in_any_target;
-                let is_target_file = target_matcher.matches(&facts.file);
-                let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
-                let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
-                if !(is_target_file
-                    || emit_wkt
-                    || (emit_deps && !facts.is_wkt)
-                    || is_pub_import
-                    || is_same_stem_non_target)
-                {
-                    continue;
-                }
-                // Folded from the post-pass `retain` below it: drop a pub-import
-                // type whose file is itself generated, unless WKT emission
-                // keeps it. Same inputs, same outcome, one pass instead of two.
-                if !emit_deps && is_pub_import && ff.in_any_target && !emit_wkt {
-                    continue;
-                }
-                emit_names.push(facts.name.clone());
+        let mut emit_enums = Vec::new();
+        let mut services = Vec::new();
+        for (file, plan) in &file_plans {
+            let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(file);
+            let selected = target_matcher.matches(file)
+                || is_pub_import
+                || (plan.stem == target_stem && !plan.in_any_target);
+            if selected {
+                services.extend(plan.services.iter().copied().cloned());
+            }
+            // A public import emitted by a requested target is re-exported,
+            // except when dependency emission explicitly keeps it here.
+            let reexported = !resolved.emit_deps && is_pub_import && plan.in_any_target;
+            let emit_types = !reexported && (selected || resolved.emit_deps);
+            let emit_wkt = (selected && !reexported)
+                || (!target_is_wkt && !resolved.no_wkt && !plan.in_any_target);
+            if emit_types || emit_wkt {
+                let name = |facts: &&TypeFacts| {
+                    let emit = if facts.is_wkt { emit_wkt } else { emit_types };
+                    emit.then(|| facts.name.clone())
+                };
+                emit_names.extend(plan.messages.iter().filter_map(name));
+                emit_enums.extend(plan.enums.iter().filter_map(name));
             }
         }
         emit_names.sort();
         emit_names.dedup();
-        let mut emit_enums = Vec::new();
-        {
-            let mut scratch = None;
-            for facts in &enum_facts {
-                if facts.is_extern {
-                    continue;
-                }
-                let emit_deps = resolved.emit_deps;
-                let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
-                let emit_wkt =
-                    facts.is_wkt && !target_is_wkt && !resolved.no_wkt && !ff.in_any_target;
-                let is_target_file = target_matcher.matches(&facts.file);
-                let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
-                let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
-                if !(is_target_file
-                    || emit_wkt
-                    || (emit_deps && !facts.is_wkt)
-                    || is_pub_import
-                    || is_same_stem_non_target)
-                {
-                    continue;
-                }
-                // Folded post-pass `retain`, mirroring the message loop.
-                if !emit_deps && is_pub_import && ff.in_any_target && !emit_wkt {
-                    continue;
-                }
-                emit_enums.push(facts.name.clone());
-            }
-        }
         emit_enums.sort();
         emit_enums.dedup();
         let mut ident_names = emit_names.clone();
@@ -590,7 +568,7 @@ use {runtime}::prelude::*;\n\
             }
         }
         if !resolved.emit_deps {
-            emit_public_uses(&mut src, &pool, &direct_pub_files, &targets);
+            emit_public_uses(&mut src, &pool, &direct_pub_files, &all_matcher);
         }
         for name in &emit_enums {
             let ed = pool.get_enum(name).expect("emit enum");
@@ -644,23 +622,6 @@ use {runtime}::prelude::*;\n\
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
         if !typed_extensions.is_empty() {
             emit_typed_extensions(&mut src, &typed_extensions, &norm_target);
-        }
-        let mut services: Vec<Arc<ServiceDescriptor>> = Vec::new();
-        {
-            let mut scratch = None;
-            for svc in &services_all {
-                if is_extern_type(&svc.full_name) {
-                    continue;
-                }
-                let ff = file_facts(&file_memo, &svc.file_name, &all_matcher, &mut scratch);
-                let same_stem = ff.stem == target_stem && !ff.in_any_target;
-                if target_matcher.matches(&svc.file_name)
-                    || (!pub_matcher.is_empty() && pub_matcher.matches(&svc.file_name))
-                    || same_stem
-                {
-                    services.push(Arc::clone(svc));
-                }
-            }
         }
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
         if !typed_extensions.is_empty() {
@@ -922,23 +883,25 @@ struct TypeFacts {
     is_wkt: bool,
 }
 
-/// Per-file emission inputs shared by every target of a request.
-struct FileFacts {
-    /// `Path::file_stem` of the proto path, computed once per unique file.
-    stem: String,
-    /// Whether the file matches any request target.
+/// Declarations and shared selection facts for one source file.
+#[derive(Default)]
+struct FilePlan<'a> {
+    stem: &'a str,
     in_any_target: bool,
+    messages: Vec<&'a TypeFacts>,
+    enums: Vec<&'a TypeFacts>,
+    services: Vec<&'a Arc<ServiceDescriptor>>,
 }
 
-impl FileFacts {
-    fn for_file(file: &str, all_targets: &FileMatcher) -> Self {
+impl<'a> FilePlan<'a> {
+    fn new(file: &'a str, all_targets: &FileMatcher) -> Self {
         Self {
             stem: Path::new(file)
                 .file_stem()
                 .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or(""),
             in_any_target: all_targets.matches(file),
+            ..Self::default()
         }
     }
 }
@@ -946,23 +909,6 @@ impl FileFacts {
 /// One target's emission result paired with its index in `targets`, so
 /// parallel workers can be re-sequenced deterministically.
 type TargetEmission = (usize, Result<Vec<(String, String)>, CodegenError>);
-
-/// Look up a file's [`FileFacts`], computing them into `scratch` when the
-/// file was not enumerated up front (defensive; every pool file is).
-fn file_facts<'memo, 'out>(
-    memo: &'memo std::collections::BTreeMap<String, FileFacts>,
-    file: &str,
-    all_targets: &FileMatcher,
-    scratch: &'out mut Option<FileFacts>,
-) -> &'out FileFacts
-where
-    'memo: 'out,
-{
-    if let Some(facts) = memo.get(file) {
-        return facts;
-    }
-    scratch.insert(FileFacts::for_file(file, all_targets))
-}
 
 /// Pre-normalized `wanted` set for repeated file-membership tests.
 ///
