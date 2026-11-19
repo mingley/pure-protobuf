@@ -170,7 +170,10 @@ pub fn generate_from_code_generator_request(
 
     for target in &targets {
         let norm_target = normalize_proto_path_str(target);
-        if norm_target == "generated.proto" || norm_target == "generated" {
+        if norm_target == "generated.proto"
+            || norm_target == "generated"
+            || file_packages.contains_key(target)
+        {
             continue;
         }
         let wanted: std::collections::BTreeSet<String> = std::iter::once(target.clone()).collect();

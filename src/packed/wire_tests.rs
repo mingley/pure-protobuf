@@ -92,6 +92,39 @@ fn normalization_matches_legacy_for_all_varint_codecs() {
     }
 }
 
+#[test]
+fn wide_varint_reuse_checks_block_boundaries_and_mutation() {
+    for prefix in 0..16 {
+        let mut bytes = vec![0; prefix];
+        bytes.extend_from_slice(&[0x80, 1, 0]);
+        let wire = Wire::from_slice(&bytes);
+        let mut packed = PackedI64::new();
+        packed.append_wire(wire.clone()).expect("canonical wire");
+        let encoded = packed.packed_bytes().expect("nonempty");
+        assert_eq!(encoded, bytes);
+        assert_eq!(encoded.as_ptr(), wire.as_slice().as_ptr());
+        assert_eq!(packed.iter().nth(prefix), Some(&128));
+        assert_eq!(
+            packed.packed_bytes().expect("cache hit").as_ptr(),
+            wire.as_slice().as_ptr()
+        );
+        let mut clone = packed.clone();
+        clone.push(127);
+        bytes.push(127);
+        assert_eq!(clone.packed_bytes().expect("mutated"), bytes);
+        assert_eq!(
+            packed.packed_bytes().expect("original"),
+            &bytes[..bytes.len() - 1]
+        );
+
+        bytes.truncate(prefix);
+        bytes.extend_from_slice(&[0x80, 0]);
+        check_wire::<VarintI64>(&bytes);
+        check_wire::<VarintU64>(&bytes);
+        check_wire::<ZigZag64>(&bytes);
+    }
+}
+
 fn check_invalid<C: PackedCodec>() {
     let mut packed = Packed::<C>::new();
     packed.append_bytes(&[1]).expect("initial valid run");

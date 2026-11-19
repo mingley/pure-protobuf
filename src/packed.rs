@@ -24,6 +24,11 @@ pub trait PackedCodec: Sized {
     type Elem: Copy + Default + PartialEq;
     /// Fixed-width packing has a unique encoding; varints must be recoded canonical.
     const MEMCPY_SAFE: bool = false;
+    /// A validated full-width varint run can be borrowed if its encodings are minimal.
+    /// Opting in requires decode and encode to preserve every varint value and
+    /// produce nonempty output for all nonempty input accepted by validation.
+    #[doc(hidden)]
+    const REUSE_CANONICAL_VARINTS: bool = false;
     fn validate(buf: &[u8]) -> Result<(), ParseError>;
     fn decode(buf: &[u8], out: &mut Vec<Self::Elem>) -> Result<(), ParseError>;
     fn encode(elems: &[Self::Elem], out: &mut Vec<u8>);
@@ -39,11 +44,12 @@ fn packed_byte_len(elems_len: usize, width: usize) -> usize {
 }
 
 macro_rules! varint_codec {
-    ($name:ident, $elem:ty, $from:expr_2021, $to:expr_2021) => {
+    ($name:ident, $elem:ty, $from:expr_2021, $to:expr_2021, $reuse:literal) => {
         #[derive(Clone, Copy, Debug)]
         pub enum $name {}
         impl PackedCodec for $name {
             type Elem = $elem;
+            const REUSE_CANONICAL_VARINTS: bool = $reuse;
             fn validate(buf: &[u8]) -> Result<(), ParseError> {
                 crate::wire::validate_varints(buf)
             }
@@ -68,12 +74,57 @@ macro_rules! varint_codec {
     };
 }
 
-varint_codec!(VarintI32, i32, |v| v as i32, |e: i32| e as u64);
-varint_codec!(VarintU32, u32, |v| v as u32, |e: u32| e as u64);
-varint_codec!(VarintI64, i64, |v| v as i64, |e: i64| e as u64);
-varint_codec!(VarintU64, u64, |v| v, |e: u64| e);
-varint_codec!(ZigZag32, i32, decode_zigzag32, encode_zigzag32);
-varint_codec!(ZigZag64, i64, decode_zigzag64, encode_zigzag64);
+varint_codec!(VarintI32, i32, |v| v as i32, |e: i32| e as u64, false);
+varint_codec!(VarintU32, u32, |v| v as u32, |e: u32| e as u64, false);
+varint_codec!(VarintI64, i64, |v| v as i64, |e: i64| e as u64, true);
+varint_codec!(VarintU64, u64, |v| v, |e: u64| e, false);
+varint_codec!(ZigZag32, i32, decode_zigzag32, encode_zigzag32, false);
+varint_codec!(ZigZag64, i64, decode_zigzag64, encode_zigzag64, false);
+
+/// Find the first redundant terminal byte in an already validated varint run.
+fn first_overlong_terminator(buf: &[u8]) -> Option<usize> {
+    const HIGH_BITS: u64 = 0x8080_8080_8080_8080;
+    const LOW_BITS: u64 = 0x7f7f_7f7f_7f7f_7f7f;
+    let mut previous = 0;
+    let mut chunks = buf.chunks_exact(8);
+    for (index, chunk) in (&mut chunks).enumerate() {
+        let word = u64::from_le_bytes(chunk.try_into().unwrap());
+        // Low seven bits plus 127 cannot carry between lanes. The only
+        // bytes that still have a clear high bit in both words are zero.
+        let zeros = !(word | ((word & LOW_BITS) + LOW_BITS)) & HIGH_BITS;
+        let overlong = zeros & ((word << 8) | previous);
+        if overlong != 0 {
+            return Some(index * 8 + overlong.trailing_zeros() as usize / 8);
+        }
+        previous = (word >> 56) & 0x80;
+    }
+    let tail = chunks.remainder();
+    for (index, &byte) in tail.iter().enumerate() {
+        if previous != 0 && byte == 0 {
+            return Some(buf.len() - tail.len() + index);
+        }
+        previous = u64::from(byte & 0x80);
+    }
+    None
+}
+
+/// An empty Vec records that we can borrow the original nonempty wire run.
+#[inline(never)]
+fn normalize_wide_varints(buf: &[u8]) -> Vec<u8> {
+    let Some(terminator) = first_overlong_terminator(buf) else {
+        return Vec::new();
+    };
+    let prefix = buf.split_at(terminator).0;
+    let continuation = prefix.iter().rev().take_while(|&&byte| byte >= 0x80);
+    let mut pos = terminator - continuation.count();
+    let mut out = Vec::with_capacity(buf.len());
+    out.extend_from_slice(buf.split_at(pos).0);
+    while pos < buf.len() {
+        let value = decode_varint(buf, &mut pos).expect("validated packed varint");
+        encode_varint(&mut out, value);
+    }
+    out
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Bools {}
@@ -239,6 +290,9 @@ impl<C: PackedCodec> Packed<C> {
     }
 
     pub fn packed_bytes(&self) -> Option<&[u8]> {
+        if C::REUSE_CANONICAL_VARINTS {
+            return self.packed_wide_varint_bytes();
+        }
         if self.is_empty() {
             return None;
         }
@@ -258,6 +312,29 @@ impl<C: PackedCodec> Packed<C> {
         Some(i.encoded.get_or_init(|| {
             let mut out = Vec::new();
             C::encode(elems, &mut out);
+            out
+        }))
+    }
+
+    #[inline(never)]
+    fn packed_wide_varint_bytes(&self) -> Option<&[u8]> {
+        let inner = self.inner.as_ref()?;
+        if let Some(wire) = inner.wire.as_ref() {
+            let bytes = wire.as_slice();
+            if bytes.len() == 1 {
+                // The validator established that the one byte is a terminator.
+                return Some(bytes);
+            }
+            let encoded = inner.encoded.get_or_init(|| normalize_wide_varints(bytes));
+            return Some(if encoded.is_empty() { bytes } else { encoded });
+        }
+        let values = inner.decoded.get()?;
+        if values.is_empty() {
+            return None;
+        }
+        Some(inner.encoded.get_or_init(|| {
+            let mut out = Vec::new();
+            C::encode(values, &mut out);
             out
         }))
     }

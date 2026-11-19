@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reuse validated canonical wire bytes for packed `int64` fields.
+- Check exact generator target names through the existing file index.
 - Reuse frame sizes and send buffers for fully queued client uploads.
 - Plan code generation by source file so each target shares eligibility checks.
 - Shrink native server RPC state after extracting headers and context.
