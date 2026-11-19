@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Stream uploads, replies and trailers through the Tower server adapter.
+- Allow Tonic mounts with middleware that returns a non-cloneable service.
 - Reuse validated canonical wire bytes for packed `int64` fields.
 - Check exact generator target names through the existing file index.
 - Reuse frame sizes and send buffers for fully queued client uploads.

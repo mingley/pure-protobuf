@@ -3,18 +3,20 @@
 //! The adapter is feature-gated behind `tower` and routes each HTTP/2 request
 //! through the existing native server path, so health, reflection, interceptors,
 //! limits, and every RPC shape keep the same behavior as `serve_connection`.
+//! The two bodies progress independently under HTTP/2 flow control.
 
 use crate::{Router, Status};
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use http::header::{CONTENT_TYPE, HeaderValue};
 use http::{HeaderMap, Request, Response, Uri};
 use http_body::{Body, Frame};
 use std::convert::Infallible;
-use std::future::Future;
+use std::future::{Future, pending, poll_fn};
 #[cfg(feature = "tonic")]
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tokio::task::JoinHandle;
 use tower::Service;
 
 /// A [`Router`] exposed as `tower::Service<http::Request<B>>`.
@@ -62,10 +64,17 @@ impl Router {
 /// response bodies are tonic's own [`tonic::body::Body`], while payload chunks
 /// remain `Bytes` throughout the bridge.
 #[cfg(feature = "tonic")]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct TonicService<N> {
     inner: RouterService,
     service: PhantomData<fn() -> N>,
+}
+
+#[cfg(feature = "tonic")]
+impl<N> Clone for TonicService<N> {
+    fn clone(&self) -> Self {
+        Self::new(self.inner.clone())
+    }
 }
 
 #[cfg(feature = "tonic")]
@@ -147,6 +156,27 @@ where
     }
 }
 
+struct AbortOnDrop<T>(JoinHandle<T>);
+
+impl<T> std::fmt::Debug for AbortOnDrop<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("AbortOnDrop").field(&self.0.id()).finish()
+    }
+}
+
+impl<T> Drop for AbortOnDrop<T> {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+struct UploadFailure {
+    status: Status,
+    // Keep the paused connection alive until the caller reads the local
+    // failure. A transport EOF could otherwise hide that status.
+    _connection: h2::client::Connection<tokio::io::DuplexStream>,
+}
+
 async fn call_router<B>(
     router: Router,
     request: Request<B>,
@@ -159,75 +189,120 @@ where
 {
     let (mut parts, body) = request.into_parts();
     parts.uri = bridge_uri(&parts.uri)?;
-    let payload = collect_body(body).await?;
 
     let (client_io, server_io) = tokio::io::duplex(duplex_buffer);
-    let server = tokio::spawn(async move {
-        router.serve_connection(server_io).await.ok();
-    });
-
+    let server = AbortOnDrop(tokio::spawn(router.serve_connection(server_io)));
     let (mut send_request, connection) = h2::client::handshake(client_io)
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-    let driver = tokio::spawn(async move {
-        connection.await.ok();
-    });
+        .map_err(bridge_error)?;
 
-    let end_stream = payload.is_empty();
-    let request = Request::from_parts(parts, ());
-    let (response, mut send_stream) = send_request
-        .send_request(request, end_stream)
-        .map_err(|e| Status::internal(e.to_string()))?;
-    if !end_stream {
-        send_stream
-            .send_data(payload, true)
-            .map_err(|e| Status::internal(e.to_string()))?;
-    }
+    let end_stream = body.is_end_stream();
+    let (mut response, send) = send_request
+        .send_request(Request::from_parts(parts, ()), end_stream)
+        .map_err(bridge_error)?;
+    drop(send_request);
 
-    let response = response
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-    let (parts, mut body) = response.into_parts();
-    let mut data = BytesMut::new();
-    while let Some(chunk) = body
-        .data()
-        .await
-        .transpose()
-        .map_err(|e| Status::internal(e.to_string()))?
-    {
-        data.extend_from_slice(&chunk);
-    }
-    let trailers = body
-        .trailers()
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-    driver.abort();
-    server.abort();
-    Ok(Response::from_parts(
-        parts,
-        TowerBody::new(data.freeze(), trailers),
-    ))
+    // Drive h2 even while the upstream body waits for the next reply.
+    let mut driver = AbortOnDrop(tokio::spawn(async move {
+        let _server = server;
+        let mut connection = connection;
+        let upload = async move {
+            if !end_stream {
+                forward_body(body, send).await?;
+            }
+            pending::<Result<(), Status>>().await
+        };
+        tokio::select! {
+            biased;
+            result = upload => result.err().map(|status| UploadFailure {
+                status,
+                _connection: connection,
+            }),
+            // The response future and RecvStream carry h2 errors.
+            _ = &mut connection => None,
+        }
+    }));
+
+    let (response, driver) = tokio::select! {
+        biased;
+        result = &mut driver.0 => {
+            if let Some(failure) = result.map_err(bridge_error)? {
+                return Err(failure.status);
+            }
+            (response.await, None)
+        }
+        result = &mut response => (result, Some(driver)),
+    };
+    let (parts, recv) = response.map_err(bridge_error)?.into_parts();
+    let body = (!recv.is_end_stream()).then_some(BridgeBody { recv, driver });
+    Ok(Response::from_parts(parts, TowerBody(body)))
 }
 
-async fn collect_body<B>(mut body: B) -> Result<Bytes, Status>
+async fn forward_body<B>(mut body: B, mut send: h2::SendStream<Bytes>) -> Result<(), Status>
 where
     B: Body + Unpin,
     B::Data: Buf,
     B::Error: std::fmt::Display,
 {
-    let mut out = BytesMut::new();
-    while let Some(frame) = std::future::poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
-        let frame = frame.map_err(|e| Status::internal(e.to_string()))?;
-        if let Ok(mut data) = frame.into_data() {
-            while data.has_remaining() {
-                let chunk = data.chunk();
-                out.extend_from_slice(chunk);
-                let len = chunk.len();
-                data.advance(len);
+    // Convert while polling so generic source buffers need not be Send.
+    while let Some(frame) = poll_fn(|cx| {
+        let frame = match Pin::new(&mut body).poll_frame(cx) {
+            Poll::Ready(frame) => frame,
+            Poll::Pending if send.poll_reset(cx).is_ready() => return Poll::Ready(Ok(None)),
+            Poll::Pending => return Poll::Pending,
+        };
+        let frame = frame.transpose().map_err(bridge_error)?;
+        Poll::Ready(Ok::<_, Status>(frame.map(|frame| {
+            frame.map_data(|mut data| {
+                let len = data.remaining();
+                data.copy_to_bytes(len)
+            })
+        })))
+    })
+    .await?
+    {
+        match frame.into_data() {
+            Ok(mut data) => {
+                let end_stream = body.is_end_stream();
+                if data.is_empty() && end_stream {
+                    break;
+                }
+                while !data.is_empty() {
+                    // Reserve a bounded chunk even when the source frame is large.
+                    let wanted = data.len().min(64 * 1024);
+                    send.reserve_capacity(wanted);
+                    if send.capacity() == 0
+                        && !matches!(poll_fn(|cx| send.poll_capacity(cx)).await, Some(Ok(_)))
+                    {
+                        // A reset can accompany an early terminal response.
+                        // Let the receive side report the peer's outcome.
+                        return Ok(());
+                    }
+                    let size = wanted.min(send.capacity());
+                    let end = end_stream && size == data.len();
+                    if send.send_data(data.split_to(size), end).is_err() {
+                        return Ok(());
+                    }
+                }
+                if end_stream {
+                    return Ok(());
+                }
+            }
+            Err(frame) => {
+                if let Ok(trailers) = frame.into_trailers() {
+                    send.send_trailers(trailers).ok();
+                    return Ok(());
+                }
             }
         }
+        tokio::task::consume_budget().await;
     }
-    Ok(out.freeze())
+    send.send_data(Bytes::new(), true).ok();
+    Ok(())
+}
+
+fn bridge_error(error: impl std::fmt::Display) -> Status {
+    Status::internal(error.to_string())
 }
 
 fn bridge_uri(uri: &Uri) -> Result<Uri, Status> {
@@ -245,36 +320,57 @@ fn bridge_uri(uri: &Uri) -> Result<Uri, Status> {
         .map_err(|e| Status::internal(e.to_string()))
 }
 
+fn status_headers(status: &Status) -> HeaderMap {
+    crate::wire::grpc_trailers(status).unwrap_or_else(|_| {
+        let mut headers = HeaderMap::new();
+        headers.insert("grpc-status", HeaderValue::from_static("13"));
+        headers
+    })
+}
+
 fn status_response(status: Status) -> Response<TowerBody> {
-    let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/grpc"));
-    if let Ok(value) = HeaderValue::from_str(&status.code().to_i32().to_string()) {
-        headers.insert("grpc-status", value);
-    }
-    if !status.message().is_empty() {
-        if let Ok(value) = HeaderValue::from_str(status.message()) {
-            headers.insert("grpc-message", value);
-        }
-    }
-    Response::builder()
-        .status(http::StatusCode::OK)
-        .header(CONTENT_TYPE, HeaderValue::from_static("application/grpc"))
-        .body(TowerBody::new(Bytes::new(), Some(headers)))
-        .unwrap_or_else(|_| Response::new(TowerBody::new(Bytes::new(), None)))
+    let mut response = Response::new(TowerBody(None));
+    *response.headers_mut() = status_headers(&status);
+    response
+        .headers_mut()
+        .insert(CONTENT_TYPE, HeaderValue::from_static("application/grpc"));
+    response
 }
 
 /// Response body returned by [`RouterService`].
 #[derive(Debug)]
-pub struct TowerBody {
-    data: Option<Bytes>,
-    trailers: Option<HeaderMap>,
+pub struct TowerBody(Option<BridgeBody>);
+
+#[derive(Debug)]
+struct BridgeBody {
+    recv: h2::RecvStream,
+    driver: Option<AbortOnDrop<Option<UploadFailure>>>,
 }
 
-impl TowerBody {
-    fn new(data: Bytes, trailers: Option<HeaderMap>) -> Self {
-        Self {
-            data: (!data.is_empty()).then_some(data),
-            trailers,
+impl BridgeBody {
+    fn poll_frame(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Frame<Bytes>>, Status>> {
+        if let Some(driver) = &mut self.driver {
+            if let Poll::Ready(result) = Pin::new(&mut driver.0).poll(cx) {
+                self.driver = None;
+                if let Some(failure) = result.map_err(bridge_error)? {
+                    return Poll::Ready(Err(failure.status));
+                }
+            }
+        }
+        match std::task::ready!(self.recv.poll_data(cx)) {
+            Some(data) => {
+                let data = data.map_err(bridge_error)?;
+                self.recv
+                    .flow_control()
+                    .release_capacity(data.len())
+                    .map_err(bridge_error)?;
+                Poll::Ready(Ok(Some(Frame::data(data))))
+            }
+            None => {
+                let trailers =
+                    std::task::ready!(self.recv.poll_trailers(cx)).map_err(bridge_error)?;
+                Poll::Ready(Ok(trailers.map(Frame::trailers)))
+            }
         }
     }
 }
@@ -285,19 +381,27 @@ impl Body for TowerBody {
 
     fn poll_frame(
         self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = self.get_mut();
-        if let Some(data) = this.data.take() {
-            return Poll::Ready(Some(Ok(Frame::data(data))));
+        let Some(body) = &mut this.0 else {
+            return Poll::Ready(None);
+        };
+        match std::task::ready!(body.poll_frame(cx)) {
+            Ok(frame) => {
+                if body.recv.is_end_stream() {
+                    this.0 = None;
+                }
+                Poll::Ready(frame.map(Ok))
+            }
+            Err(status) => {
+                this.0 = None;
+                Poll::Ready(Some(Ok(Frame::trailers(status_headers(&status)))))
+            }
         }
-        if let Some(trailers) = this.trailers.take() {
-            return Poll::Ready(Some(Ok(Frame::trailers(trailers))));
-        }
-        Poll::Ready(None)
     }
 
     fn is_end_stream(&self) -> bool {
-        self.data.is_none() && self.trailers.is_none()
+        self.0.is_none()
     }
 }

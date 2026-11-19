@@ -181,9 +181,10 @@ pbrs-grpc = { version = "0.1", features = ["tower"] }
 ```
 
 - `Router::into_tower_service()` exposes a native router as
-  `tower::Service<http::Request<B>>`, suitable for axum/hyper co-hosting next
-  to REST routes. The same adapter serves regular handlers, health, and
-  reflection; see `examples/axum-cohost`.
+  `tower::Service<http::Request<B>>` for co-hosting gRPC and REST routes.
+  Request and response bodies stream independently through a flow-controlled
+  HTTP/2 bridge. The adapter serves regular handlers, health and reflection.
+  [Axum co-host example](../examples/axum-cohost/README.md)
 - `Channel::tower_unary()`, `tower_server_streaming()`,
   `tower_client_streaming()` and `tower_bidi()` expose individual methods as
   Tower services. Apply caller-selected balancing, timeouts, concurrency

@@ -146,6 +146,75 @@ async fn generated_service_mounts_in_tonic_and_exposes_tonic_connect_info() {
     server.abort();
 }
 
+#[tokio::test]
+async fn tonic_client_exchanges_bidi_messages_before_closing_the_request() {
+    tokio::time::timeout(std::time::Duration::from_secs(8), async {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("address");
+        let service = pbrs_grpc::ServiceExt::on_response(
+            GreeterServer::new(Echo),
+            |parts: &mut pbrs_grpc::ResponseParts| {
+                parts.metadata_mut().set("x-bridge-head", "first")?;
+                parts.trailers_mut().set("x-bridge-tail", "last")
+            },
+        );
+        let server = tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(service.into_tonic_service())
+                .serve_with_incoming(TcpListenerStream::new(listener))
+                .await
+                .expect("tonic server");
+        });
+        let channel = tonic::transport::Endpoint::from_shared(format!("http://{addr}"))
+            .expect("endpoint")
+            .connect()
+            .await
+            .expect("tonic client");
+        let mut client = tonic::client::Grpc::new(channel);
+        let (upload, receiver) = tokio::sync::mpsc::channel(1);
+        upload.send(req("first")).await.expect("first upload");
+        client.ready().await.expect("ready");
+        let response = client
+            .streaming(
+                tonic::Request::new(tokio_stream::wrappers::ReceiverStream::new(receiver)),
+                http::uri::PathAndQuery::from_static("/helloworld.Greeter/StreamHello"),
+                PbrsCodec::<HelloRequest, HelloReply>::default(),
+            )
+            .await
+            .expect("bidi headers before request closes");
+        assert_eq!(
+            response.metadata().get("x-bridge-head").expect("header"),
+            "first"
+        );
+        let mut replies = response.into_inner();
+        let first = replies
+            .message()
+            .await
+            .expect("first reply")
+            .expect("message");
+        assert_eq!(name_of(&first), "first");
+
+        upload.send(req("second")).await.expect("second upload");
+        let second = replies
+            .message()
+            .await
+            .expect("second reply")
+            .expect("message");
+        assert_eq!(name_of(&second), "second");
+        drop(upload);
+        assert!(replies.message().await.expect("final status").is_none());
+        let trailers = replies
+            .trailers()
+            .await
+            .expect("final trailers")
+            .expect("metadata");
+        assert_eq!(trailers.get("x-bridge-tail").expect("trailer"), "last");
+        server.abort();
+    })
+    .await
+    .expect("bidirectional request and reply turn-taking completes");
+}
+
 #[test]
 fn tonic_tls_connect_info_keeps_peer_certificate_api_available() {
     fn assert_peer_certs_api(
