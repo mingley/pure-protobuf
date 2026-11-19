@@ -148,6 +148,12 @@ high-water, kernel socket memory, TLS reset/GOAWAY injection, dedicated-host
 performance and other release gates were not covered. This preview does not
 establish a memory bound or release qualification.
 
+A 600-second release-mode run on `f0c6259f` passed the campaign validator
+on Rust 1.100.0. It exercised overload, cancellation, recovery and shutdown
+with plaintext and TLS, identity and gzip, and finite process limits.
+The hosted result remains `qualified=false`.
+[Campaign artifact](https://github.com/mingley/pure-protobuf/actions/runs/44610415551/artifacts/14573366608)
+
 An [earlier 600-second preview](https://github.com/mingley/pure-protobuf/actions/runs/42803320936)
 on source `cab0e580` completed 186 cycles in 601.3 seconds. Its
 [independent readback](https://github.com/mingley/pure-protobuf/actions/runs/42805486784)

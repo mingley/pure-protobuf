@@ -781,33 +781,37 @@ fn write_closed_upload<T: CodecMessage>(
                 return Err(upload_failure_status(*error, tap.as_ref(), false));
             }
         };
-        let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits) {
+        let encoded_len = item.message.encoded_len();
+        let frame_len = match checked_budget_frame_len(encoded_len, wire.limits) {
             Ok(len) => len,
             Err(status) => return Err(fail(send, status)),
         };
-        match budget.acquire(frame_len) {
-            Ok(acquired) => permit.merge(acquired),
-            Err(status) => return Err(fail(send, status)),
+        if let Err(status) = budget.acquire_into(&mut permit, frame_len) {
+            return Err(fail(send, status));
         }
-        if let Err(status) = batch.encode_ready(item, ready_messages) {
+        if let Err(status) = batch.encode_ready_with_len(item, encoded_len, ready_messages) {
             return Err(fail(send, status));
         }
         if let Some(entry) = &channelz_entry {
             entry.add_messages(true, 1);
         }
-        if batch.is_full() {
+        if batch.is_full() && ready.len() != 0 {
             if let Some(frame) = batch.take_frame() {
                 queued.extend(frame.into_segments());
             }
         }
     }
     drop(ready);
-    if let Some(frame) = batch.take_frame() {
-        queued.extend(frame.into_segments());
-    }
+    // The common single batch can be sent without flattening its segments
+    // into another allocation. Preserve the full upload validation above.
+    let last = batch.take_frame();
+    let segment_count = queued.len() + last.as_ref().map_or(0, SegFrame::seg_count);
     drop(batch);
-    let mut remaining = queued.into_iter();
-    while let Some(seg) = remaining.next() {
+    let mut remaining = queued
+        .into_iter()
+        .chain(last.into_iter().flat_map(SegFrame::into_segments))
+        .enumerate();
+    while let Some((sent_segments, seg)) = remaining.next() {
         match send.try_send_data(seg, false) {
             Ok(Ok(())) => {}
             Ok(Err(err)) => {
@@ -822,9 +826,9 @@ fn write_closed_upload<T: CodecMessage>(
             Err(seg) => {
                 // Rebuild the unsent suffix once, only when the send buffer
                 // blocks. Consuming the queued prefix never shifts segments.
-                let mut rest = Vec::with_capacity(1 + remaining.len());
+                let mut rest = Vec::with_capacity(segment_count - sent_segments);
                 rest.push(seg);
-                rest.extend(remaining);
+                rest.extend(remaining.map(|(_, segment)| segment));
                 return Ok(ClosedUpload::Rest(EncodedUpload {
                     segments: rest,
                     permit,
