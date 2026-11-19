@@ -152,6 +152,7 @@ jobs:
         run: |
           cargo test --locked --manifest-path rpc-bench/Cargo.toml --bin rpc-bench --test worker --test fairness --test tonic_fairness
           cargo test --locked --manifest-path tonic-bench/Cargo.toml --bin tonic-bench
+          cargo test --locked --manifest-path tonic-bench/Cargo.toml --features owned-output --bin tonic-bench
           cargo test --locked --manifest-path tonic-bench/Cargo.toml --features allocation-counts --bin tonic-bench -- --test-threads=1
         env:
           CARGO_TARGET_DIR: target

@@ -36,6 +36,14 @@ To publish this patch, sign the release tag on that commit using the
 [release procedure](RELEASE.md#cutting-a-release). Later changes on main
 are listed under Unreleased in the [changelog](../CHANGELOG.md).
 
+Commit [`f0c6259`](https://github.com/mingley/pure-protobuf/commit/f0c6259fc238aed4edc489d5bb3cb0b72f885095)
+also passed all 14 required CI jobs. The November 19 readback checked 444
+committed source members across the three crate archives and verified
+attestations for the archives, SBOM and release context.
+[CI](https://github.com/mingley/pure-protobuf/actions/runs/44417357682) ·
+[Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44422977147) ·
+[Readback](https://github.com/mingley/pure-protobuf/actions/runs/44609908929/artifacts/14572167567)
+
 At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
 the [hosted dry run](https://github.com/mingley/pure-protobuf/actions/runs/42882110957)
 packaged all three crates after its [exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/42873027919)

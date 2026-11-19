@@ -11,6 +11,7 @@ description = "Same-process codec survey: pbrs vs prost vs protobuf 4.35.1-relea
 
 [features]
 allocation-counts = []
+owned-output = []
 
 [dependencies]
 bytes = "1"

@@ -133,7 +133,8 @@ Its measured scope includes the source buffers and message drop.
 
 Use the default [codec survey](../../tonic-bench/README.md) build for encode,
 decode and field-access timings against Prost and upb. Build separately with
-`allocation-counts` to measure retained Rust heap. Keep parse-only,
+`allocation-counts` to measure retained Rust heap. Use `owned-output` to
+compare first and repeated encodes that return owned bytes. Keep parse-only,
 parse-and-read, owned messages and borrowed views separate. Include first
 encode and unchanged repeated encode because they exercise different work.
 

@@ -1,6 +1,6 @@
-//! Codec survey: `Serialize::encode` into `BytesMut` vs prost `Message::encode`
-//! vs v4 `Serialize::serialize` (Arena+FFI, no EncodeBuf). Same-process, no
-//! transport. Not kernel `./bench`. Timing is not in CI; correctness tests are.
+//! Same-process codec survey for pbrs, Prost and upb.
+//! Survey encodes can use owned output for every codec, or reuse a buffer
+//! for pbrs and Prost. CI exercises correctness.
 //!
 //! `hello` / `hello_4kib` stay the published 1-string rows. Common unary
 //! shapes come from `proto/codec_cases.proto` (specialized gencode, not
@@ -13,6 +13,9 @@ use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
 use std::cell::RefCell;
 use std::time::Instant;
+
+const OWNED_OUTPUT: bool = cfg!(feature = "owned-output");
+const RUST_ENCODE_OUTPUT: &str = if OWNED_OUTPUT { "owned" } else { "reused" };
 
 #[cfg(feature = "allocation-counts")]
 mod retained;
@@ -144,6 +147,8 @@ fn print_raw_block() {
         "\"allocation_counts\": {}, ",
         cfg!(feature = "allocation-counts")
     );
+    print!("\"pbrs_prost_encode_output\": \"{RUST_ENCODE_OUTPUT}\", ");
+    print!("\"pbrs_prost_mutation_output\": \"reused\", ");
     print!(
         "\"samples\": \"fixed-order sequential in sample order, not interleaved or randomized\", "
     );
@@ -458,8 +463,7 @@ where
     let prost = build_prost();
     let v4 = build_v4();
     let pbrs_wire = Serialize::serialize(&pbrs).expect("pbrs wire");
-    let mut prost_wire = Vec::new();
-    prost::Message::encode(&prost, &mut prost_wire).expect("prost wire");
+    let prost_wire = prost::Message::encode_to_vec(&prost);
     let v4_wire = V4Serialize::serialize(&v4).expect("v4 wire");
     let parsed_pbrs = P::parse(&pbrs_wire).expect("pbrs parses pbrs wire");
     let parsed_prost = R::decode(pbrs_wire.as_slice()).expect("prost parses pbrs wire");
@@ -475,21 +479,35 @@ where
     assert_same_output(name, "v4", &v4_wire, &pbrs_wire, &parsed_pbrs, check_wire);
     let mut dst = BytesMut::new();
     let first_pbrs = P::parse(&pbrs_wire).expect("pbrs first precheck parse");
-    Serialize::encode(&first_pbrs, &mut dst).expect("pbrs first wire");
+    let pbrs_first_owned;
+    let pbrs_first_wire = if OWNED_OUTPUT {
+        pbrs_first_owned = Serialize::serialize(&first_pbrs).expect("pbrs first wire");
+        pbrs_first_owned.as_slice()
+    } else {
+        Serialize::encode(&first_pbrs, &mut dst).expect("pbrs first wire");
+        dst.as_ref()
+    };
     assert_same_output(
         name,
         "pbrs first",
-        &dst,
+        pbrs_first_wire,
         &pbrs_wire,
         &parsed_pbrs,
         check_wire,
     );
     dst.clear();
-    prost::Message::encode(&parsed_prost, &mut dst).expect("prost first wire");
+    let prost_first_owned;
+    let prost_first_wire = if OWNED_OUTPUT {
+        prost_first_owned = prost::Message::encode_to_vec(&parsed_prost);
+        prost_first_owned.as_slice()
+    } else {
+        prost::Message::encode(&parsed_prost, &mut dst).expect("prost first wire");
+        dst.as_ref()
+    };
     assert_same_output(
         name,
         "prost first",
-        &dst,
+        prost_first_wire,
         &pbrs_wire,
         &parsed_pbrs,
         check_wire,
@@ -531,46 +549,63 @@ where
         "benchmark needs a positive budget"
     );
     let first_iters = first_encode_budget::<P, R, V>(iters, payload);
-    let (pbrs_enc, raw_pbrs_enc) = median_ns_raw(samples, iters, || {
-        dst.clear();
-        Serialize::encode(&pbrs, &mut dst).expect("pbrs encode");
-        std::hint::black_box(&dst[..]);
-    });
+    let (pbrs_enc, raw_pbrs_enc) = if OWNED_OUTPUT {
+        median_ns_raw(samples, iters, || {
+            Serialize::serialize(&pbrs).expect("pbrs encode")
+        })
+    } else {
+        median_ns_raw(samples, iters, || {
+            dst.clear();
+            Serialize::encode(&pbrs, &mut dst).expect("pbrs encode");
+            std::hint::black_box(&dst[..]);
+        })
+    };
     let (pbrs_dec, raw_pbrs_dec) =
         median_ns_raw(samples, iters, || P::parse(&pbrs_wire).expect("pbrs parse"));
-    let (pbrs_fresh_enc, raw_pbrs_fresh) = median_first_encode_ns_raw(
-        samples,
-        first_iters,
-        || P::parse(&pbrs_wire).expect("pbrs first parse"),
-        |message| {
+    let pbrs_first_parse = || P::parse(&pbrs_wire).expect("pbrs first parse");
+    let (pbrs_fresh_enc, raw_pbrs_fresh) = if OWNED_OUTPUT {
+        median_first_encode_ns_raw(samples, first_iters, pbrs_first_parse, |message| {
+            Serialize::serialize(message).expect("pbrs first encode")
+        })
+    } else {
+        median_first_encode_ns_raw(samples, first_iters, pbrs_first_parse, |message| {
             dst.clear();
             Serialize::encode(message, &mut dst).expect("pbrs first encode");
             std::hint::black_box(&dst[..]);
-        },
-    );
+        })
+    };
     let (pbrs_touch, raw_pbrs_touch) = median_ns_raw(samples, iters, || {
         let msg = P::parse(&pbrs_wire).expect("pbrs parse");
         touch_pbrs(&msg)
     });
     let (pbrs_construct, raw_pbrs_construct) = median_ns_raw(samples, iters, || build_pbrs());
-    let (prost_enc, raw_prost_enc) = median_ns_raw(samples, iters, || {
-        dst.clear();
-        prost::Message::encode(&prost, &mut dst).expect("prost encode");
-        std::hint::black_box(&dst[..]);
-    });
+    let (prost_enc, raw_prost_enc) = if OWNED_OUTPUT {
+        median_ns_raw(samples, iters, || prost::Message::encode_to_vec(&prost))
+    } else {
+        median_ns_raw(samples, iters, || {
+            dst.clear();
+            prost::Message::encode(&prost, &mut dst).expect("prost encode");
+            std::hint::black_box(&dst[..]);
+        })
+    };
     let (prost_dec, raw_prost_dec) = median_ns_raw(samples, iters, || {
         R::decode(pbrs_wire.as_slice()).expect("prost decode")
     });
-    let (prost_first_enc, raw_prost_first) = median_first_encode_ns_raw(
-        samples,
-        first_iters,
-        || R::decode(pbrs_wire.as_slice()).expect("prost first parse"),
-        |message| {
+    let prost_first_parse = || R::decode(pbrs_wire.as_slice()).expect("prost first parse");
+    let (prost_first_enc, raw_prost_first) = if OWNED_OUTPUT {
+        median_first_encode_ns_raw(
+            samples,
+            first_iters,
+            prost_first_parse,
+            prost::Message::encode_to_vec,
+        )
+    } else {
+        median_first_encode_ns_raw(samples, first_iters, prost_first_parse, |message| {
             dst.clear();
             prost::Message::encode(message, &mut dst).expect("prost first encode");
             std::hint::black_box(&dst[..]);
-        },
-    );
+        })
+    };
     let (prost_touch, raw_prost_touch) = median_ns_raw(samples, iters, || {
         let msg = R::decode(pbrs_wire.as_slice()).expect("prost decode");
         touch_prost(&msg)
@@ -627,8 +662,7 @@ where
         "{name}: pbrs rebuilt wire"
     );
     if check_wire {
-        let mut rebuilt_prost = Vec::new();
-        prost::Message::encode(&build_prost(), &mut rebuilt_prost).expect("prost rebuild wire");
+        let rebuilt_prost = prost::Message::encode_to_vec(&build_prost());
         assert_eq!(rebuilt_prost, pbrs_wire, "{name}: prost rebuilt wire");
         assert_eq!(
             V4Serialize::serialize(&build_v4()).expect("v4 rebuild wire"),
@@ -2302,7 +2336,9 @@ fn main() {
         ),
     ];
 
-    println!("# Codec survey (encode into BytesMut; v4 serialize is Arena+FFI)");
+    println!("# Codec survey");
+    println!("pbrs and Prost survey encode output: {RUST_ENCODE_OUTPUT}. upb returns owned bytes.");
+    println!("The separate mutation rows use reused output for pbrs and Prost.");
     println!("iters=40000 samples=15 except payload>=32KiB (4000x9). median. release thin-LTO.");
     println!("pbrs vs prost vs crates.io protobuf 4.35.1-release (upb).");
     if cfg!(feature = "allocation-counts") {

@@ -23,9 +23,22 @@ For a separate Rust heap retention diagnostic, enable `allocation-counts`:
 PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release --manifest-path tonic-bench/Cargo.toml --features allocation-counts
 ```
 
-The raw report records `allocation_counts`. Use the default build for
-throughput comparisons. The opt-in build adds allocation accounting to
-the timed code.
+The raw report records `allocation_counts`. The opt-in build includes
+allocation accounting in the timed code.
+
+## Compare owned output
+
+Use `owned-output` to include allocation and drop of the encoded result
+for first and repeated encodes on all three codecs:
+
+~~~sh
+PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release \
+  --manifest-path tonic-bench/Cargo.toml --features owned-output
+~~~
+
+The raw report records `pbrs_prost_encode_output` as `owned` or `reused`.
+The upb binding returns owned bytes in both modes. The separate mutation
+rows use reused buffers for pbrs and Prost.
 
 Read encode, decode and read-every-field rows separately. An owned lazy message
 can defer work until a field is read. Repeated encoding can reuse cached sizes;
