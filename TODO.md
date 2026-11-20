@@ -37,17 +37,41 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The November 18 hosted report identifies cold encode, nested decode and
-server-stream allocation losses to target next. The accompanying component
-records isolate recent runtime and codegen gains.
-[Benchmark results](docs/benchmarks.md) ·
-[Hosted allocation losses](docs/benchmarks/devloop-preparation-20261118.md)
+Use Rust 1.100.0. The codec survey covers 28 fixtures and five operations.
+Run `python3 tonic-bench/summary.py survey.txt --losses` to see each slower
+fixture. Retain the raw samples, including ties and losses.
+[Workload index](docs/benchmarks.md) · [Run the survey](docs/benchmarks/running.md#message-codecs)
 
-The [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
-records the contract repairs, decoder work and component measurements.
-Keep its source-specific results separate from dedicated-host qualification.
-The handoff below describes the wider queue; its cards remain open until their
-full acceptance criteria pass.
+1. **Full reads and first encode.** Profile materializing a recursive child
+   at depths four and eight. A specialization cut depth-eight full reads by
+   4.5% across four pairs, but raised parse-only time by 1.3% there and by
+   4.4% on a 32-byte blob. Keep both controls and the generated binary size
+   in the comparison. Use the survey to select the remaining first encodes.
+   [Focused read](https://github.com/mingley/pure-protobuf/actions/runs/44676444591/artifacts/14601979831) ·
+   [Repeat and size](https://github.com/mingley/pure-protobuf/actions/runs/44676803807/artifacts/14602394883)
+2. **Live client uploads.** Measure 64 messages of 512 bytes on a fixed
+   server with the same codec. A larger first buffer saved 24% of requested
+   allocation bytes per RPC. Interactive eight-message bidi lost 2.45% in
+   throughput in the paired median and slowed in all six pairs. Keep
+   interactive, pipelined and already-closed streams in the next comparison.
+   [Upload and bidi samples](https://github.com/mingley/pure-protobuf/actions/runs/44676257278/artifacts/14603755339)
+3. **Multiplexed server streams.** Hold the client and Prost codec fixed.
+   Collapsing ready-handler polls changed throughput by −0.65% and +0.45%
+   on two hosts. Measure server CPU per RPC and end-to-end p99 alongside
+   throughput, with unary and single-stream controls. Profile per-call
+   allocations before changing the connection scheduler again.
+   [Host one](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14602583169) ·
+   [Host two](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14603406558)
+4. **Generate large schemas.** Time both the public descriptor-set API and
+   the protoc plugin. Skipping a temporary request saved 1.9–3.3% CPU on
+   two 1,000-message descriptor sets with two workers, but raised plugin CPU
+   by 13% on source-heavy lean generation. Retain the 512-file, large and
+   small controls, compare every output path and byte, and time downstream
+   builds separately.
+   [Generator samples](https://github.com/mingley/pure-protobuf/actions/runs/44677471464/artifacts/14603116892)
+
+[Earlier allocation measurements](docs/benchmarks/devloop-preparation-20261118.md) ·
+[Earlier runtime and generator checks](docs/evidence/safe-hotpaths-20261117/README.md)
 
 ### Handoff snapshot & remaining TODO queue
 
