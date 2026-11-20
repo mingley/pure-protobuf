@@ -1,11 +1,12 @@
 # Benchmarks
 
+[v0.2.2 codec and RPC results](benchmarks/release-v0.2.2.md) ·
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
 | Workload | Recorded results | Run it |
 | --- | --- | --- |
-| Message encode, decode and full read | [28-shape comparison with Prost and upb](benchmarks/scaling-20261119.md#owned-output-codec-survey) | [Codec survey and slower fixtures](benchmarks/running.md#message-codecs) |
+| Message encode, decode and full read | [28-shape comparison with Prost and upb](benchmarks/release-v0.2.2.md#owned-message-codecs) | [Codec survey and slower fixtures](benchmarks/running.md#message-codecs) |
 | Protoc code generation | [Generator CPU and output checks](benchmarks/scaling-20261119.md#generate-source-by-file) | [Codegen benchmarks](benchmarks/running.md#code-generation-and-consumer-builds) |
 | Native gRPC client | [Queued and live uploads](benchmarks/scaling-20261119.md#fully-queued-client-uploads) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
 | Native gRPC server | [Request memory and streaming throughput](benchmarks/scaling-20261119.md#native-rpc-storage) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
