@@ -1,8 +1,9 @@
 # Implementation status
 
-The source patch candidates are `pbrs 0.2.2`, `pbrs-grpc 0.1.1`, and
-`protobuf-tonic` (`0.1.1`). The last published versions are `pbrs 0.2.1` and
-adapters `0.1.0`; the candidates keep the same qualification boundaries.
+The `v0.2.2` release published `pbrs 0.2.2`, `pbrs-grpc 0.1.1` and
+`protobuf-tonic 0.1.1` from `7ff91e36`. Newer features on `main` are
+listed under Unreleased. [Release record](release-readiness.md) ·
+[Changelog](../CHANGELOG.md#unreleased)
 
 `pbrs` provides Protocol Buffers messages, code generation, reflection,
 ProtoJSON (including `FieldMask` and `Any`), and text format. `pbrs-grpc`

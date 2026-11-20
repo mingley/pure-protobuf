@@ -9,8 +9,7 @@ four RPC shapes, generated [`pbrs`](https://crates.io/crates/pbrs) messages,
 TLS/mTLS, gRPC-Web over HTTP/2, and optional Prost, Tower, and Tonic
 integration. The transport uses an embedded `h2` backend and Tokio.
 
-Source version `0.1.1` pairs with `pbrs` (`0.2.2`) and keeps the existing
-qualification boundaries.
+The `0.1.1` release pairs with `pbrs 0.2.2`.
 See [implementation status](https://github.com/mingley/pure-protobuf/blob/main/docs/status.md)
 for tested features, the [scoreboard](https://github.com/mingley/pure-protobuf/blob/main/docs/scoreboard.md)
 for measurements, and the [support policy](https://github.com/mingley/pure-protobuf/blob/main/docs/support-policy.md)

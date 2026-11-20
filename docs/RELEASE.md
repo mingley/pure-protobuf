@@ -53,12 +53,10 @@ the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
 [qualified subset](edition-2024.md); full conformance must not be inferred
 from the Cargo manifests.
 
-Source patch candidates (check `Cargo.toml` before tagging): `pbrs` `0.2.2`;
-`pbrs-grpc` and `protobuf-tonic` `0.1.1`. The last published versions are
-`pbrs` `0.2.1` and adapters `0.1.0`. Candidate versions are not published
-until the verified release workflow completes. This patch keeps the existing
-qualification boundaries; it does not promote a production profile.
-See [the changelog](../CHANGELOG.md).
+The release record lists the published versions, their source commit and
+package verification. The changelog tracks later additions.
+[Release record](release-readiness.md) · [Changelog](../CHANGELOG.md)
+
 A `v1.0.0` tag does not promote the adapters. From the older `0.1.0-alpha.2`
 release on, both adapters build from checked
 descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still

@@ -151,17 +151,17 @@ generation, reflection, JSON, text format, and bundled WKT bindings.
 
 <a id="workspace-crates"></a>
 
-| Need | Use | Source version | Status |
+| Need | Use | Published version | Status |
 |---|---|---|---|
 | Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](README.md) | `0.2.2` | Core runtime and generator |
 | Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc/README.md) | `0.1.1` | Supported `0.1.x` line |
 | tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic/README.md) | `0.1.1` | Supported `0.1.x` line |
 | Runnable service with health and reflection | [`examples/greeter`](examples/greeter/README.md) | — | Workspace example (`publish = false`) |
 
-The table describes source versions. Check the crate badges and
-[release readiness](docs/release-readiness.md) for publication evidence.
-The patch keeps the existing qualification boundaries. Dependency examples
-use compatible minor requirements.
+These versions shipped from `v0.2.2`. Dependency examples use compatible
+minor requirements. See the release record for package verification and the
+changelog for additions since the tag.
+[Release record](docs/release-readiness.md) · [Unreleased changes](CHANGELOG.md#unreleased)
 
 ## Code generation options
 
@@ -172,7 +172,7 @@ build.
 | Task | Needs `protoc`? | Notes |
 |---|---|---|
 | Build the core `pbrs` crate | No | The crate uses a bundled `FileDescriptorSet`. |
-| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0`, or older `0.1.0-alpha.2` / `0.1.0-alpha.3` previews) | No | They build from checked descriptor sets. |
+| Build the current `pbrs-grpc` or `protobuf-tonic` release | No | They build from checked descriptor sets. |
 | Build the older `pbrs-grpc` / `protobuf-tonic` `0.1.0-alpha.1` crates | Yes | Those alphas predate the checked-descriptor change. |
 | Run `compile_protos` or `protoc-gen-pbrs` on application `.proto` files | Yes | `protoc` must be on `PATH`. |
 | Run `Config::compile_descriptor_set` from a checked descriptor set | No during the app build | Creating or updating the descriptor set still needs `protoc`. |

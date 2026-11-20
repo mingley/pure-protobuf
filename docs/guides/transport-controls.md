@@ -67,6 +67,8 @@ authority is rejected when an RPC starts, before hooks, encoding or headers.
 transport scheme. A later `Channel::origin(authority)` replaces only the
 authority on that clone and preserves the logical scheme. Static and watched
 balance helpers validate origins as part of admitting an endpoint list.
+Per-endpoint origins for balanced channels are available on `main` after the
+`pbrs-grpc 0.1.1` release. That release supports origins on direct channels.
 
 The [endpoint-origin tests](../../pbrs-grpc/tests/endpoint_origin.rs) cover all
 four call shapes, eager/lazy/custom connections, TLS/SNI, clone overrides and

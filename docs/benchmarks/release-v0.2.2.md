@@ -30,8 +30,10 @@ Five fresh processes on an AMD EPYC 9V45 repeated the full survey. The
 first host used an Intel Xeon 6975P-C. Across the AMD runs, pbrs led upb on
 133–135 of 140 comparisons and on 23–24 of 28 owned decodes. The 11-byte
 `rpc_sparse_path` took 5.5–17.3% longer to decode with pbrs in the five
-runs. The 30-byte `envelope` also favored upb in all five. Every process
-exited successfully. [Raw repeat](https://github.com/mingley/pure-protobuf/actions/runs/44679443902/artifacts/14603633381) ·
+runs. The 30-byte `envelope` also favored upb in all five. Every benchmark
+process exited successfully. The first summary omitted three measured Person
+fixtures. The independent readback recovered all 28 from the saved samples.
+[Raw repeat](https://github.com/mingley/pure-protobuf/actions/runs/44679443902/artifacts/14603633381) ·
 [Verified summary](https://github.com/mingley/pure-protobuf/actions/runs/44680507802/artifacts/14603054506)
 
 ## gRPC over TCP
