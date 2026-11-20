@@ -137,8 +137,8 @@ jobs:
         run: python3 -B -m unittest discover -s bench/codegen -p 'test_run.py' -q
       - name: Checked Edition 2024 CLOSED-enum oracle integrity (no protoc)
         run: python3 -B -m unittest discover -s tests/fixtures/edition2024 -p 'test_reference.py' -q
-      - name: Checked v4 codec-survey binding integrity (no Rust protoc generator)
-        run: python3 -B -m unittest discover -s tonic-bench -p 'test_checked_v4.py' -q
+      - name: Check codec survey bindings and result summaries
+        run: python3 -B -m unittest discover -s tonic-bench -p 'test_*.py' -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
       - name: Build workspace binaries and examples (DX-07 documentation contract)

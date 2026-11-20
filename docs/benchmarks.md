@@ -3,23 +3,22 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-Choose a result by the operation you need to improve. Each record names its
-source, workload, controls and remaining losses. These local diagnostics do not
-establish wins on every benchmark, complete feature parity or an overall
-ranking.
+| Workload | Recorded results | Run it |
+| --- | --- | --- |
+| Message encode, decode and full read | [28-shape comparison with Prost and upb](benchmarks/scaling-20261119.md#owned-output-codec-survey) | [Codec survey and slower fixtures](benchmarks/running.md#message-codecs) |
+| Protoc code generation | [Generator CPU and output checks](benchmarks/scaling-20261119.md#generate-source-by-file) | [Codegen benchmarks](benchmarks/running.md#code-generation-and-consumer-builds) |
+| Native gRPC client | [Queued and live uploads](benchmarks/scaling-20261119.md#fully-queued-client-uploads) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
+| Native gRPC server | [Request memory and streaming throughput](benchmarks/scaling-20261119.md#native-rpc-storage) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
 
-Historical results retain their dated source and raw captures where available.
-Read the [benchmark contract](benchmark-contract.md) before making a broader
-performance claim.
+Each result applies to its dated source, workload and host. Follow the raw captures
+for individual cases and the [benchmark contract](benchmark-contract.md) for
+qualification requirements.
 
 The November 18 codec survey compares throughput with Prost and upb using
 Rust 1.100.0 and the standard allocator. The dev-loop report tracks remaining
 allocation costs in codec and RPC cases.
 [Codec throughput](benchmarks/codec-throughput-20261118.md) ·
 [Hosted allocation comparison](benchmarks/devloop-preparation-20261118.md)
-
-The November 19 record covers generator scaling, native RPC memory and
-owned-result codec comparisons. [Scaling results](benchmarks/scaling-20261119.md)
 
 | Component | What to look for | Evidence |
 | --- | --- | --- |

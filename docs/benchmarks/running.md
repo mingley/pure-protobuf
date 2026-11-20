@@ -138,6 +138,19 @@ compare first and repeated encodes that return owned bytes. Keep parse-only,
 parse-and-read, owned messages and borrowed views separate. Include first
 encode and unchanged repeated encode because they exercise different work.
 
+To see which fixtures still take longer than each peer, save the survey
+and summarize its raw samples. This command uses a C compiler for upb.
+
+```sh
+bench_output=$(mktemp -d)
+PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release \
+  --manifest-path tonic-bench/Cargo.toml --features owned-output > "$bench_output/survey.txt"
+python3 tonic-bench/summary.py "$bench_output/survey.txt" --losses
+```
+
+The summary includes holdout fixtures. Timings for mutation have a separate
+table in the full report.
+
 For a quick depth-64 read-all probe using the pinned Prost harness:
 
 ```sh

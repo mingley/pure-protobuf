@@ -33,7 +33,16 @@ for first and repeated encodes on all three codecs:
 
 ~~~sh
 PURE_PROTOBUF_CHECKED_V4=1 cargo run --locked --release \
-  --manifest-path tonic-bench/Cargo.toml --features owned-output
+  --manifest-path tonic-bench/Cargo.toml --features owned-output > survey.txt
+~~~
+
+Save the survey's standard output to a file to count faster, tied and slower
+medians for each operation. The same command accepts `raw.json` from the
+hosted survey artifact. Add `--losses` to list each slower fixture and its
+timings in nanoseconds.
+
+~~~sh
+python3 tonic-bench/summary.py survey.txt --losses
 ~~~
 
 The raw report records `pbrs_prost_encode_output` as `owned` or `reused`.
