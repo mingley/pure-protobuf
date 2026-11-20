@@ -286,6 +286,7 @@ thread_local! {
     pub(crate) static DISABLE_COMMENTS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static COMMENT_SELECTORS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
     pub(crate) static SKIP_DEBUG: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static DEBUG_SELECTORS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
     pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
     // Imported type paths depend on the target's local identifier set. Keep
     // their formatting work once per target, separate from local identifiers.
@@ -498,6 +499,65 @@ mod runtime_path_tests {
     }
 
     #[test]
+    fn debug_selectors_replace_escape_and_reset() {
+        let mut config = Config::new();
+        config.skip_debug_for(["old"]);
+        let paths = [".pkg.Parent", "State", " trailing ", "a,b", "a:b", "a=b"];
+        config.skip_debug_for(paths).skip_debug(false);
+        let params = config.to_parameter_string();
+        assert!(params.contains("skip_debug_for=.pkg.Parent"));
+        assert!(params.contains("skip_debug_for_hex=612c62"));
+        let parsed = parse_plugin_parameter(&params).expect("selector options");
+        assert_eq!(parsed.debug_selectors, paths);
+        let guard = CodegenStateGuard::new();
+        apply_resolved_config(&resolve_options(&parsed));
+        assert!(skip_message_debug("pkg.Parent.Nested"));
+        assert!(skip_selected_debug("other.State"));
+        assert!(!skip_message_debug("pkg.Parentish"));
+        assert!(!skip_selected_debug("other.OtherState"));
+        assert!(!skip_selected_debug("other.State.VALUE"));
+        std::thread::scope(|scope| {
+            scope.spawn(|| assert!(!skip_selected_debug("other.State")));
+        });
+        config.skip_debug(true);
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("global debug switch"),
+        ));
+        assert!(skip_message_debug("other.Message"));
+        assert!(!skip_selected_debug("other.Enum"));
+        config
+            .skip_debug(false)
+            .skip_debug_for(core::iter::empty::<&str>());
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("empty selector list"),
+        ));
+        assert!(!skip_message_debug("pkg.Parent"));
+        assert!(!skip_selected_debug("other.State"));
+        config.skip_debug_for(["."]);
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("root selector"),
+        ));
+        assert!(skip_message_debug("other.Message"));
+        assert!(skip_selected_debug("other.Enum"));
+        drop(guard);
+        assert!(!skip_selected_debug("other.Enum"));
+        for parameter in [
+            "skip_debug_for",
+            "skip_debug_for_hex",
+            "skip_debug_for_hex=xz",
+            "skip_debug_for_hex=ff",
+            "skip_debug_for_hex=0",
+        ] {
+            match parse_plugin_parameter(parameter) {
+                Err(CodegenError::InvalidParameter { key, .. }) => {
+                    assert_eq!(key, parameter.split('=').next().expect("parameter key"));
+                }
+                other => panic!("expected invalid selector, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
     fn alloc_output_profile_paths_options_and_reset() {
         let mut config = Config::new();
         config.alloc_only(true);
@@ -672,6 +732,7 @@ impl CodegenStateGuard {
         DISABLE_COMMENTS.with(|c| c.set(false));
         COMMENT_SELECTORS.with(|c| c.borrow_mut().clear());
         SKIP_DEBUG.with(|c| c.set(false));
+        DEBUG_SELECTORS.with(|c| c.borrow_mut().clear());
         CURRENT_TARGET.with(|c| c.borrow_mut().clear());
         TYPE_PATHS.with(|c| c.borrow_mut().clear());
         TYPE_FILES.with(|c| *c.borrow_mut() = None);
@@ -772,6 +833,7 @@ pub(crate) struct ExplicitOptions {
     disable_comments: Option<bool>,
     comment_selectors: Vec<String>,
     skip_debug: Option<bool>,
+    debug_selectors: Vec<String>,
     include_file: Option<String>,
     pub(crate) extern_paths: Vec<(String, String)>,
     pub(crate) runtime_crate: Option<String>,
@@ -814,6 +876,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) disable_comments: bool,
     pub(crate) comment_selectors: Vec<String>,
     pub(crate) skip_debug: bool,
+    pub(crate) debug_selectors: Vec<String>,
     pub(crate) include_file: String,
     pub(crate) extern_paths: Vec<(String, String)>,
     pub(crate) runtime_crate: Option<String>,
@@ -1104,6 +1167,19 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "disable_comments" => {
                 explicit.disable_comments = Some(parse_bool_param("disable_comments", val)?);
+            }
+            "skip_debug_for" | "skip_debug_for_hex" => {
+                let invalid = || CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: "expected a protobuf path selector".into(),
+                };
+                let value = val.ok_or_else(invalid)?;
+                let selector = if key == "skip_debug_for_hex" {
+                    decode_parameter_hex(value).map_err(|_| invalid())?
+                } else {
+                    value.to_owned()
+                };
+                explicit.debug_selectors.push(selector);
             }
             "skip_debug" => {
                 explicit.skip_debug = Some(parse_bool_param("skip_debug", val)?);
@@ -1466,6 +1542,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         disable_comments,
         comment_selectors: explicit.comment_selectors.clone(),
         skip_debug,
+        debug_selectors: explicit.debug_selectors.clone(),
         include_file,
         extern_paths: explicit.extern_paths.clone(),
         runtime_crate,
@@ -1535,8 +1612,17 @@ pub(crate) fn emit_text_enabled() -> bool {
     EMIT_TEXT.with(Cell::get)
 }
 
-pub(crate) fn skip_debug() -> bool {
-    SKIP_DEBUG.with(Cell::get)
+pub(crate) fn skip_message_debug(path: &str) -> bool {
+    SKIP_DEBUG.with(Cell::get) || skip_selected_debug(path)
+}
+
+pub(crate) fn skip_selected_debug(path: &str) -> bool {
+    DEBUG_SELECTORS.with(|selectors| {
+        selectors
+            .borrow()
+            .iter()
+            .any(|rule| protobuf_path_matches(rule, path))
+    })
 }
 
 pub(crate) fn alloc_only_enabled() -> bool {
@@ -1808,6 +1894,7 @@ pub struct Config {
     disable_comments: Option<bool>,
     comment_selectors: Vec<String>,
     skip_debug: Option<bool>,
+    debug_selectors: Vec<String>,
     include_file: Option<String>,
     file_descriptor_set_path: Option<PathBuf>,
     emit_rerun_if_changed: Option<bool>,
@@ -2287,9 +2374,37 @@ impl Config {
         self
     }
 
-    /// Do not derive `Debug` for generated message storage where possible.
+    /// Suppress the automatic `Debug` derive for all generated message storage.
+    ///
+    /// Native messages still implement `Message: Debug`. Supply a custom
+    /// `Debug` implementation for each affected public message type.
     pub fn skip_debug(&mut self, enable: bool) -> &mut Self {
         self.skip_debug = Some(enable);
+        self
+    }
+
+    /// Suppress the generated `Debug` implementation for matching messages and enums.
+    ///
+    /// Replaces the previous paths. A leading dot selects a qualified prefix,
+    /// relative paths select suffixes, and `.` selects every type. An empty
+    /// list resets the selectors. Matching uses protobuf names.
+    ///
+    /// Supply a custom `Debug` implementation for each selected message, as
+    /// required by `Message: Debug`. Selected enums also need `Debug` when
+    /// another type's generated derive requires it. Native oneofs are stored
+    /// as message fields and have no separate type to select.
+    ///
+    /// The plugin accepts repeated `skip_debug_for=path` parameters.
+    /// The existing global [`Self::skip_debug`] switch also applies to messages.
+    pub fn skip_debug_for<I, S>(&mut self, paths: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.debug_selectors = paths
+            .into_iter()
+            .map(|path| path.as_ref().to_owned())
+            .collect();
         self
     }
 
@@ -2586,6 +2701,13 @@ impl Config {
         }
         if let Some(disable_comments) = self.disable_comments {
             opts.push(format!("disable_comments={disable_comments}"));
+        }
+        for selector in &self.debug_selectors {
+            if selector.contains([',', ':', '=']) || selector.trim() != selector {
+                opts.push(format!("skip_debug_for_hex={}", parameter_hex(selector)));
+            } else {
+                opts.push(format!("skip_debug_for={selector}"));
+            }
         }
         if let Some(skip_debug) = self.skip_debug {
             opts.push(format!("skip_debug={skip_debug}"));

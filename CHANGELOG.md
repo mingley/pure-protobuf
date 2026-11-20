@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `Config::skip_debug_for` and the matching plugin option for custom
+  `Debug` implementations on selected generated messages and enums.
 - Support per-endpoint request origins in static and watched gRPC channels.
   A watched origin change reuses the existing connection to the same endpoint.
 

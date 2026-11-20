@@ -17,7 +17,7 @@ pub(crate) fn emit_fields_struct<'a>(
     if safe_defaults {
         let _ = writeln!(src, "#[derive(::core::default::Default)]");
     }
-    if skip_debug() {
+    if skip_message_debug(message) {
         let _ = writeln!(
             src,
             "#[derive(::core::clone::Clone, ::core::cmp::PartialEq)]"
@@ -591,7 +591,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     if safe_defaults {
         let _ = writeln!(src, "#[derive(::core::default::Default)]");
     }
-    if skip_debug() {
+    if skip_message_debug(&desc.full_name) {
         let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     } else {
         let _ = writeln!(src, "#[derive(::core::clone::Clone, ::core::fmt::Debug)]");
@@ -1391,20 +1391,22 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     );
     let _ = writeln!(src, "    fn default() -> Self {{ Self({first}) }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(
-        src,
-        "{impl_deprecation_allowance}impl {fmt}::Debug for {name} {{"
-    );
-    let _ = writeln!(
-        src,
-        "    fn fmt(&self, f: &mut {fmt}::Formatter<'_>) -> {fmt}::Result {{"
-    );
-    let _ = writeln!(
-        src,
-        "        if let ::core::option::Option::Some(n) = self.constant_name() {{ write!(f, \"{name}::{{n}}\") }} else {{ write!(f, \"{name}::from({{}})\", self.0) }}"
-    );
-    let _ = writeln!(src, "    }}");
-    let _ = writeln!(src, "}}");
+    if !skip_selected_debug(&ed.full_name) {
+        let _ = writeln!(
+            src,
+            "{impl_deprecation_allowance}impl {fmt}::Debug for {name} {{"
+        );
+        let _ = writeln!(
+            src,
+            "    fn fmt(&self, f: &mut {fmt}::Formatter<'_>) -> {fmt}::Result {{"
+        );
+        let _ = writeln!(
+            src,
+            "        if let ::core::option::Option::Some(n) = self.constant_name() {{ write!(f, \"{name}::{{n}}\") }} else {{ write!(f, \"{name}::from({{}})\", self.0) }}"
+        );
+        let _ = writeln!(src, "    }}");
+        let _ = writeln!(src, "}}");
+    }
     let _ = writeln!(
         src,
         "{impl_deprecation_allowance}impl {runtime}::__internal::SealedInternal for {name} {{}}"

@@ -553,7 +553,7 @@ follows the sharing rule above; explicit external mappings remain available.
 | `extern_path` | `Config::extern_path` / `--pbrs_opt=extern_path=.pkg=crate::pkg` | Supported with longest-prefix matching. |
 | `compile_well_known_types` | `Config::compile_well_known_types`; inverse of `Config::no_wkt` | Supported. Default is to generate pbrs WKTs. |
 | `disable_comments(paths)` | `Config::disable_comments_for(paths)` / `--pbrs_opt=disable_comments_for=.pkg.Type` | Selective source-comment suppression; the existing `disable_comments(bool)` remains the global switch. |
-| `skip_debug(paths)` | Global `Config::skip_debug(bool)` / `--pbrs_opt=skip_debug=true` | Per-symbol selection is unavailable. Native `Message` still requires `Debug`; custom implementations can replace the storage derive. |
+| `skip_debug(paths)` | `Config::skip_debug_for(paths)` / `--pbrs_opt=skip_debug_for=.pkg.Type` | Suppresses generated `Debug` implementations on matching messages and enums. The existing `skip_debug(bool)` switches off message derives globally. |
 | `service_generator` | Built-in stub modes | Arbitrary generator callbacks and their lifecycle hooks are unavailable. |
 | `default_package_filename` | Input-file-based names for package-less schemas | No filename override. Package-less schemas are supported. |
 | `format(bool)` | Ordinary generated source | No optional formatting control. |
@@ -586,6 +586,19 @@ descriptors must contain comments: enable `include_source_info(true)` when
 compiling `.proto` files. The [consumer proof](../../tests/proof/comment_selectors/README.md)
 compares 15 compiled consumers with Prost; RPC checks cover generated source
 in three modes.
+
+The per-type option is available on `main` after the `pbrs 0.2.2` tag.
+Use `skip_debug_for([".pkg.Internal", "Status"])` to replace the list of types
+whose generated `Debug` implementation is suppressed. An empty list resets it.
+Matching uses protobuf names, including qualified prefixes, relative suffixes,
+and `.` for all messages and enums. The plugin accepts repeated
+`skip_debug_for=path` options. Native `Message: Debug` requires a custom
+`Debug` implementation on each selected message, including when using the
+global `skip_debug(true)` switch. Provide `Debug` on a selected enum if another
+type's derived implementation needs it, for example, your own struct with
+a field of that enum type. Prost checks a generated oneof enum against its parent message path.
+Native pbrs oneofs use separate fields on the message and have no oneof enum to
+select.
 
 Attribute selectors use protobuf names, before Rust identifier conversion.
 `.` matches every item, `.pkg.Msg` matches that fully qualified name and its
