@@ -17,6 +17,7 @@ promised.
 
 The table lists the versions published from `v0.2.2`. The proposed policy
 covers the latest published version of each crate. [Release record](release-readiness.md)
+
 Pre-release versions are supported only as the newest alpha of that
 crate. MSRV floors are enforced by the CI jobs above; raising a floor
 is a maintainer-level decision and must update the manifest, this

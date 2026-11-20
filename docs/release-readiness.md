@@ -6,35 +6,51 @@ the [release policy](RELEASE.md) when cutting a tag, and see the
 [promotion matrix](ROADMAP.md#product-scope-and-promotion) for per-profile
 promotion gates.
 
-## Candidate versions
+<a id="candidate-versions"></a>
+
+## Published versions
 
 | Crate | Version | Scope |
-|---|---|---|
-| `pbrs` | `0.2.2` | Core protobuf runtime and generator |
-| `pbrs-grpc` | `0.1.1` | Native gRPC client and server (`0.1.x` line) |
-| `protobuf-tonic` | `0.1.1` | Tonic 0.14+ adapter (`0.1.x` line) |
+| --- | --- | --- |
+| `pbrs` | `0.2.2` | Protobuf runtime and generator |
+| `pbrs-grpc` | `0.1.1` | Native gRPC client and server |
+| `protobuf-tonic` | `0.1.1` | Tonic adapter |
 
-These are coordinated patch candidates, not published versions. The last
-published versions are `pbrs 0.2.1`, `pbrs-grpc 0.1.0`, and
-`protobuf-tonic 0.1.0`. Both candidate adapters require `pbrs 0.2.2` at
-runtime and build time. This release keeps the existing profiles and known gaps;
-it does not promote production support or make a performance ranking claim.
-Compatible patch publication still requires the final-source CI, package,
-provenance, and signed-tag checks. The sustained campaigns below apply to
-profile promotion.
+The signed `v0.2.2` tag points to `7ff91e36`. The publisher passed all
+14 required jobs and uploaded these three versions. Both adapters use
+`pbrs 0.2.2` at build time and runtime.
+[Release](https://github.com/mingley/pure-protobuf/releases/tag/v0.2.2) ·
+[Publisher](https://github.com/mingley/pure-protobuf/actions/runs/44676649564) ·
+[pbrs](https://crates.io/crates/pbrs/0.2.2) ·
+[pbrs-grpc](https://crates.io/crates/pbrs-grpc/0.1.1) ·
+[protobuf-tonic](https://crates.io/crates/protobuf-tonic/0.1.1)
 
-The prepared patch candidate points to commit `65b81bf8`. All 14 required CI
-jobs and the hosted rehearsal passed there, producing three crate archives, a
-CycloneDX SBOM, and a release context.
-[Source](https://github.com/mingley/pure-protobuf/commit/65b81bf818f6437196bbe28bd2d8eb56139f43b8) ·
-[CI](https://github.com/mingley/pure-protobuf/actions/runs/44618528084) ·
-[Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44628944680)
+A separate verifier downloaded all three packages from crates.io and checked
+the registry digests, source commit and byte-for-byte agreement with the
+GitHub release assets. It verified provenance for the three archives, the
+CycloneDX SBOM and the release context.
+[Registry and provenance verification](https://github.com/mingley/pure-protobuf/actions/runs/44681293242/artifacts/14604830822)
 
-To publish this patch, sign the release tag on the final release commit using
-the [release procedure](RELEASE.md#cutting-a-release); tagged publication always
-re-verifies exact-SHA required CI on the tagged commit.
+A clean Rust 1.100.0 consumer pinned all three registry versions, generated
+bindings, round-tripped a message and ran a native gRPC call. A Tonic HTTP/2
+client using `ProtobufCodec` called the same native server. The artifact
+contains its lockfile, source and commands.
+[Published consumer](https://github.com/mingley/pure-protobuf/actions/runs/44681190597/artifacts/14604232598)
+
+The rehearsal on the tagged source compared 444 package members with committed
+source and verified all five provenance subjects. The sustained campaigns in
+the checklist below apply to profile promotion.
+[Exact-source CI](https://github.com/mingley/pure-protobuf/actions/runs/44670285602) ·
+[Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44676462608/artifacts/14601978848) ·
+[Readback](https://github.com/mingley/pure-protobuf/actions/runs/44676716107/artifacts/14602483255)
+
+### Earlier rehearsals
 
 Earlier candidate rehearsals on
+[`65b81bf8`](https://github.com/mingley/pure-protobuf/commit/65b81bf818f6437196bbe28bd2d8eb56139f43b8)
+([CI](https://github.com/mingley/pure-protobuf/actions/runs/44618528084) ·
+[Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44628944680) ·
+[Readback](https://github.com/mingley/pure-protobuf/actions/runs/44675958284/artifacts/14601847821)),
 [`f0c6259`](https://github.com/mingley/pure-protobuf/commit/f0c6259fc238aed4edc489d5bb3cb0b72f885095)
 ([CI](https://github.com/mingley/pure-protobuf/actions/runs/44417357682) ·
 [Rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44422977147) ·
@@ -131,6 +147,14 @@ successful native send can release its charge after HTTP/2 queues data, before
 the data is written or freed. Native receive buffers are not charged, and a
 zero charge does not mean the transport has no retained buffers. See
 [resource budgets](resource-budgets.md) for the accounting scope.
+
+On the tagged source `7ff91e36`, a release-mode preview completed 187 cycles
+in 601.31 seconds. It exercised overload, cancellation, recovery and shutdown
+with plaintext and TLS, each with identity and gzip. The process had a 1 GiB
+address-space limit and 128 file descriptors. An independent validator
+reported zero failures. This ten-minute run recorded `qualified=false`.
+[Resource campaign](https://github.com/mingley/pure-protobuf/actions/runs/44677403612/artifacts/14603382170) ·
+[Validated report](https://github.com/mingley/pure-protobuf/actions/runs/44678906016/artifacts/14603991598)
 
 A [one-hour release-mode preview](https://github.com/mingley/pure-protobuf/actions/runs/42872166447)
 on source `d02cf609` completed 1,117 cycles in 3,601.6 seconds (3,600

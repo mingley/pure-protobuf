@@ -1,7 +1,7 @@
 # Implementation status
 
-The `v0.2.2` release published `pbrs 0.2.2`, `pbrs-grpc 0.1.1` and
-`protobuf-tonic 0.1.1` from `7ff91e36`. Newer features on `main` are
+The `v0.2.2` release published version `0.2.2` of `pbrs` and version
+`0.1.1` of both adapters from `7ff91e36`. Newer features on `main` are
 listed under Unreleased. [Release record](release-readiness.md) ·
 [Changelog](../CHANGELOG.md#unreleased)
 
