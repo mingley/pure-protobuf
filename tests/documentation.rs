@@ -1690,7 +1690,9 @@ pub fn find_tonic_versions(content: &str) -> Vec<(usize, usize, String)> {
     let mut i = 0;
     while i + "tonic ".len() < bytes.len() {
         let is_tonic = bytes[i..].starts_with(b"tonic ") || bytes[i..].starts_with(b"Tonic ");
-        if !is_tonic {
+        let inside_name =
+            i > 0 && (bytes[i - 1].is_ascii_alphanumeric() || matches!(bytes[i - 1], b'-' | b'_'));
+        if !is_tonic || inside_name {
             i += 1;
             continue;
         }
@@ -2407,6 +2409,11 @@ fn test_tonic_support_boundary_matches_manifest() {
         None
     );
 
+    assert!(find_tonic_versions("protobuf-tonic 0.1.1, monotonic 1.2 and my_tonic 0.3").is_empty());
+    assert_eq!(
+        check_tonic_mentions("doc.md", "protobuf-tonic 0.1.1 needs Tonic 0.13", "0.14").len(),
+        1
+    );
     assert!(check_tonic_mentions("doc.md", "needs tonic 0.14+ today", "0.14").is_empty());
     assert!(check_tonic_mentions("doc.md", "ports of Tonic 0.14.6 examples", "0.14").is_empty());
     assert!(
