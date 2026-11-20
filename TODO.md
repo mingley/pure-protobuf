@@ -46,8 +46,9 @@ fixture. Retain the raw samples, including ties and losses.
    at depths four and eight. A specialization cut depth-eight full reads by
    4.5% across four pairs, but raised parse-only time by 1.3% there and by
    4.4% on a 32-byte blob. Keep both controls and the generated binary size
-   in the comparison. Also track the release's sparse-path owned decode
-   against upb and use the survey to select the remaining first encodes.
+   in the comparison. Profile `rpc_sparse_path` and `envelope` owned decode,
+   which both trailed upb in five AMD runs. Use the release scorecard to
+   select the remaining first encodes.
    [Focused read](https://github.com/mingley/pure-protobuf/actions/runs/44676444591/artifacts/14601979831) ·
    [Repeat and size](https://github.com/mingley/pure-protobuf/actions/runs/44676803807/artifacts/14602394883)
 2. **Live client uploads.** Measure 64 messages of 512 bytes on a fixed
