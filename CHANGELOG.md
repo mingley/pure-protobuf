@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Support per-endpoint request origins in static and watched gRPC channels.
+  A watched origin change reuses the existing connection to the same endpoint.
+
 ## 0.2.2 / 0.1.1
 
 Coordinated patch versions: `pbrs` (`0.2.2`), `pbrs-grpc` (`0.1.1`), and

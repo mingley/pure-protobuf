@@ -65,8 +65,8 @@ authority is rejected when an RPC starts, before hooks, encoding or headers.
 `Channel::request_scheme()` reports that logical wire scheme.
 `Channel::scheme()` and client interceptor security context keep their
 transport scheme. A later `Channel::origin(authority)` replaces only the
-authority on that clone and preserves the logical scheme. Static balance
-helpers reject endpoints with configured origins.
+authority on that clone and preserves the logical scheme. Static and watched
+balance helpers validate origins as part of admitting an endpoint list.
 
 The [endpoint-origin tests](../../pbrs-grpc/tests/endpoint_origin.rs) cover all
 four call shapes, eager/lazy/custom connections, TLS/SNI, clone overrides and
@@ -109,30 +109,33 @@ entry for an identical URI wins. The helpers' `config` argument supplies the
 shared connection settings.
 
 The watched helper processes full snapshots directly. Unchanged endpoint
-clones retain their connections; a changed executor for the same URI replaces
-its connection lazily. Existing RPCs drain within `max_connection_age_grace`.
+clones retain their connections. An origin-only update also retains the
+connection. A changed executor for the same URI replaces its connection lazily.
+Existing RPCs drain within `max_connection_age_grace`.
 An empty update removes every peer. An invalid update leaves the previous
 valid list active and emits a channelz warning. This differs from tonic's
 keyed `Change` API: tonic may use a previous ready entry once while its
 replacement becomes ready; native snapshots stop selecting that entry when
 the update is processed.
 
-Balanced RPCs use the acquired connection's endpoint authority. Each retry or
-hedge follows the connection chosen for that attempt. `Channel::origin` pins
-authority for requests from that clone, including when the supplied value
-equals its existing configured authority. Other clones keep selecting endpoint
-authorities. Per-connection health Watches use their endpoint authority rather
-than a caller clone's override.
+Balanced RPCs use the selected endpoint's logical origin when configured.
+The endpoint URI supplies the authority and the transport supplies the scheme
+when the origin is unset. Each retry or hedge uses the routing of the selected
+connection. `Channel::origin` pins authority for requests from that clone,
+including when the supplied value equals its existing configured authority.
+The selected endpoint's logical scheme still applies. Health Watches use the
+selected dial URI's authority and transport scheme.
 
 `Channel::authority()`, generated client getters, `Outgoing::authority()` and
 client `CallLabels::authority()` expose the configured channel context before
 a peer is selected. They can differ from a balanced RPC's wire authority.
 Server `Request::authority()` and client binary-log headers expose the selected
-wire value. The logical request scheme keeps its existing channel policy.
+wire authority. `Channel::request_scheme()` reports the configured scheme
+before selection, which is the transport scheme on a balanced channel.
 
 Connection settings remain shared. These helpers still support only plaintext
-IP endpoints and reject per-endpoint origins, TLS and hostname lookup. Use
-resolver channels for the existing DNS, Unix and TLS routing APIs.
+IP endpoints. Use resolver channels for the existing DNS, Unix and TLS
+routing APIs.
 
 See the [executor tests](../../pbrs-grpc/tests/custom_executor.rs),
 [balanced executor tests](../../pbrs-grpc/tests/balance_executors.rs), and

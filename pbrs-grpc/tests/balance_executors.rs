@@ -780,7 +780,7 @@ async fn invalid_full_update_is_atomic_and_empty_removal_can_repopulate() {
         .send(vec![
             endpoint.clone().executor(b.clone()),
             peer.endpoint("invalid")
-                .origin("http://virtual.invalid".parse().unwrap()),
+                .origin("/missing-origin-authority".parse().unwrap()),
         ])
         .unwrap();
     tokio::time::timeout(BOUND, async {
@@ -818,6 +818,61 @@ async fn invalid_full_update_is_atomic_and_empty_removal_can_repopulate() {
     drop(client);
     drop(channel);
     count(&b.0.finished, 1).await;
+    peer.stop().await;
+}
+
+#[tokio::test]
+async fn changed_watched_origin_keeps_socket_and_transport_health_watch() {
+    let peer = Peer::start("ORIGIN", false).await;
+    peer.require_health_authority.store(true, Ordering::SeqCst);
+    let executor = Recording::default();
+    let endpoint = peer.endpoint("same").executor(executor.clone());
+    let (publish, endpoints) = watch::channel(vec![
+        endpoint
+            .clone()
+            .origin("http://first.example".parse().unwrap()),
+    ]);
+    let channel = Endpoint::balance_channel(endpoints, ChannelConfig::new().health_checking(true))
+        .await
+        .unwrap()
+        .service_config(r#"{"healthCheckConfig":{"serviceName":"transport"}}"#)
+        .unwrap();
+    let client = GreeterClient::new(channel.clone());
+    assert_eq!(unary(&client).await.unwrap(), "ORIGIN:1");
+    assert_eq!(
+        *peer.authorities.lock().await,
+        [peer.addr.to_string(), "first.example".to_owned()]
+    );
+
+    let id = channel_id_for_peer(peer.addr).await;
+    // Duplicate keys keep the last endpoint's origin and reuse the original
+    // socket. The new authority's spelling reaches the wire unchanged.
+    publish
+        .send(vec![
+            endpoint
+                .clone()
+                .origin("http://ignored.example".parse().unwrap()),
+            endpoint.origin("http://Second.example:00080".parse().unwrap()),
+        ])
+        .unwrap();
+    tokio::time::timeout(BOUND, async {
+        while !trace_contains(id, "Endpoint list updated: 1 URI entries").await {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(unary(&client).await.unwrap(), "ORIGIN:1");
+    assert_eq!(
+        peer.authorities.lock().await.last().unwrap(),
+        "Second.example:00080"
+    );
+    assert_eq!(peer.health.load(Ordering::SeqCst), 1);
+    assert_eq!(peer.accepted.load(Ordering::SeqCst), 1);
+    assert_eq!(executor.0.scheduled.load(Ordering::SeqCst), 1);
+    drop(client);
+    drop(channel);
+    count(&executor.0.finished, 1).await;
     peer.stop().await;
 }
 

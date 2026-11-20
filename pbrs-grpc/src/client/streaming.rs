@@ -1855,7 +1855,7 @@ impl super::Channel {
                         .and_then(|budget| deadline_from(Some(budget)))
                         .map(|capped| deadline.map_or(capped, |overall| overall.min(capped)))
                         .or(deadline);
-                    let routing = channel.local.for_attempt(route.authority());
+                    let routing = channel.local.for_attempt(route.balanced());
                     let mut response_committed = false;
                     match run_server_stream_frame(
                         live.send,

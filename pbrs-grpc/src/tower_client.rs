@@ -369,7 +369,7 @@ mod tonic_transport {
     ) -> Result<Response<tonic::body::Body>, Status> {
         let (mut parts, mut body) = request.into_parts();
         check_policies(&channel, parts.uri.path())?;
-        let scheme = channel.local.request_scheme().map_err(status)?.clone();
+        channel.local.request_scheme().map_err(status)?;
         let rpc_permit = channel
             .local
             .rpc_slots
@@ -393,9 +393,9 @@ mod tonic_transport {
             .map_err(status)?;
         let load =
             track_least_request(&channel.inner.endpoint, live.route.resolved_address()).await;
-        let routing = channel.local.for_attempt(live.route.authority());
+        let routing = channel.local.for_attempt(live.route.balanced());
         let mut uri_parts = http::uri::Parts::default();
-        uri_parts.scheme = Some(scheme);
+        uri_parts.scheme = Some(routing.request_scheme().map_err(status)?.clone());
         uri_parts.authority = Some(routing.authority().clone());
         uri_parts.path_and_query =
             Some(parts.uri.path_and_query().cloned().ok_or_else(|| {

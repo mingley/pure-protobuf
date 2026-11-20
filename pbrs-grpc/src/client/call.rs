@@ -975,7 +975,7 @@ impl super::Channel {
                 live.channelz_socket,
             );
             let load = live.load;
-            let routing = self.local.for_attempt(route.authority());
+            let routing = self.local.for_attempt(route.balanced());
             match open_in::<R>(
                 live.send,
                 &routing,

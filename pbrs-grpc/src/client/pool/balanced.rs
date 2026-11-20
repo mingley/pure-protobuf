@@ -4,13 +4,32 @@ use super::*;
 use crate::client::channel::{Endpoint as ClientEndpoint, balance_inputs};
 use crate::lb::{KeyedPick, KeyedRoundRobin};
 
+#[derive(Clone)]
 pub(crate) struct Route {
     id: usize,
     uri: http::Uri,
     /// Preserve the URI spelling, including a leading-zero port.
-    pub(crate) authority: Authority,
+    authority: Authority,
+    origin: Option<Arc<http::Uri>>,
     address: ResolvedAddress,
     executor: crate::executor::TaskExecutor,
+}
+
+impl Route {
+    pub(crate) fn request_authority(&self) -> &Authority {
+        self.origin
+            .as_deref()
+            .and_then(http::Uri::authority)
+            .unwrap_or(&self.authority)
+    }
+
+    pub(crate) fn origin_scheme(&self) -> Option<&http::uri::Scheme> {
+        self.origin.as_deref().and_then(http::Uri::scheme)
+    }
+}
+
+fn origin_identity(origin: Option<&http::Uri>) -> Option<(&str, &str)> {
+    origin.and_then(|uri| Some((uri.scheme_str()?, uri.authority()?.as_str())))
 }
 
 #[derive(Default)]
@@ -70,7 +89,16 @@ fn snapshot(
             Some(route)
                 if route.address == address && route.executor.same_instance(&input.executor) =>
             {
-                Arc::clone(route)
+                if origin_identity(route.origin.as_deref())
+                    == origin_identity(input.origin.as_deref())
+                {
+                    Arc::clone(route)
+                } else {
+                    Arc::new(Route {
+                        origin: input.origin,
+                        ..route.as_ref().clone()
+                    })
+                }
             }
             _ => {
                 let id = *next_id;
@@ -83,6 +111,7 @@ fn snapshot(
                         Status::invalid_argument("balanced endpoint URI needs an authority")
                     })?,
                     uri: input.uri,
+                    origin: input.origin,
                     address,
                     executor: input.executor,
                 })
@@ -199,8 +228,13 @@ async fn update_loop(
                 continue;
             }
         };
-        let ids = next.ids();
-        if ids == previous.ids() {
+        if next.ordered.len() == previous.ordered.len()
+            && next
+                .ordered
+                .iter()
+                .zip(&previous.ordered)
+                .all(|(next, previous)| Arc::ptr_eq(next, previous))
+        {
             continue;
         }
         // Publish immutable routing metadata before making its identities
@@ -209,17 +243,20 @@ async fn update_loop(
         if publish.send(Arc::clone(&next)).is_err() {
             return;
         }
-        policy.update(ids).await;
-        let removed = {
-            let mut slots = entries.lock().await;
-            let old: Vec<_> = slots
-                .keys()
-                .filter(|id| !next.by_id.contains_key(id))
-                .copied()
-                .collect();
-            old.into_iter().filter_map(|id| slots.remove(&id)).collect()
-        };
-        drain_entries(removed, grace).await;
+        let ids = next.ids();
+        if ids != previous.ids() {
+            policy.update(ids).await;
+            let removed = {
+                let mut slots = entries.lock().await;
+                let old: Vec<_> = slots
+                    .keys()
+                    .filter(|id| !next.by_id.contains_key(id))
+                    .copied()
+                    .collect();
+                old.into_iter().filter_map(|id| slots.remove(&id)).collect()
+            };
+            drain_entries(removed, grace).await;
+        }
         crate::channelz::Registry::global().trace_channel(
             channel,
             crate::channelz::TraceSeverity::Info,

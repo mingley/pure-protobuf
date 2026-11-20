@@ -305,22 +305,85 @@ async fn invalid_origins_fail_calls_before_hooks_encoding_or_request_headers() {
     }
 }
 
+fn balanced_endpoints(a: &Peer, b: &Peer) -> [Endpoint; 2] {
+    [
+        a.endpoint()
+            .origin(Uri::from_static("https://first.example:07443/ignored?a=1")),
+        b.endpoint()
+            .origin(Uri::from_static("custom://second.example/ignored?b=2")),
+    ]
+}
+
 #[tokio::test]
-async fn static_and_watched_balance_helpers_reject_origins_explicitly() {
-    let endpoint = Endpoint::from_static("http://127.0.0.1:1")
+async fn balanced_native_origins_follow_both_peers_for_all_call_shapes() {
+    for watched in [false, true] {
+        let mut a = Peer::start(None).await;
+        let mut b = Peer::start(None).await;
+        let endpoints = balanced_endpoints(&a, &b);
+        let (_publisher, updates) = tokio::sync::watch::channel(endpoints.to_vec());
+        let channel = if watched {
+            Endpoint::balance_channel(updates, ChannelConfig::new()).await
+        } else {
+            Endpoint::balance_list(endpoints, ChannelConfig::new()).await
+        }
         .unwrap()
-        .origin("https://virtual.example".parse().unwrap());
-    let error = Endpoint::balance_list([endpoint.clone()], ChannelConfig::default())
-        .await
-        .unwrap_err();
-    assert_eq!(error.code(), Code::InvalidArgument);
-    assert!(error.message().contains("origins"));
-    let (_updates, endpoints) = tokio::sync::watch::channel(vec![endpoint]);
-    let error = Endpoint::balance_channel(endpoints, ChannelConfig::default())
-        .await
-        .unwrap_err();
-    assert_eq!(error.code(), Code::InvalidArgument);
-    assert!(error.message().contains("origins"));
+        .intercept(require_plain_transport);
+        assert_eq!(channel.scheme(), "http");
+        assert_eq!(channel.request_scheme().unwrap(), "http");
+
+        let overridden = channel.clone().origin("clone.example:81").unwrap();
+        for (client, first, second) in [
+            (&channel, "first.example:07443", "second.example"),
+            (&overridden, "clone.example:81", "clone.example:81"),
+            (&channel, "first.example:07443", "second.example"),
+        ] {
+            for _ in 0..2 {
+                all_native_shapes(client).await;
+                tokio::time::timeout(
+                    BOUND,
+                    client
+                        .unary::<HelloRequest, HelloReply>(PATH, Request::new(HelloRequest::new())),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            }
+            a.assert_requests("https", first, 5).await;
+            b.assert_requests("custom", second, 5).await;
+        }
+        drop(overridden);
+        drop(channel);
+        a.stop().await;
+        b.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn balanced_origin_validation_rejects_invalid_initial_lists() {
+    let mut peer = Peer::start(None).await;
+    for (origin, message) in [
+        ("/relative", "origin URI needs an authority"),
+        ("authority.example:80", "origin URI needs a scheme"),
+    ] {
+        let endpoint = peer.endpoint().origin(origin.parse().unwrap());
+        let static_error = Endpoint::balance_list([endpoint.clone()], ChannelConfig::new())
+            .await
+            .unwrap_err();
+        let (_publisher, updates) = tokio::sync::watch::channel(vec![endpoint]);
+        let watched_error = Endpoint::balance_channel(updates, ChannelConfig::new())
+            .await
+            .unwrap_err();
+        for error in [static_error, watched_error] {
+            assert_eq!(error.code(), Code::InvalidArgument);
+            assert_eq!(error.message(), message);
+        }
+    }
+    assert!(
+        tokio::time::timeout(Duration::from_millis(25), peer.received.recv())
+            .await
+            .is_err()
+    );
+    peer.stop().await;
 }
 
 fn tls_configs() -> (Arc<rustls::ServerConfig>, Arc<rustls::ClientConfig>) {
@@ -551,6 +614,34 @@ mod tonic_origin {
             drop(client);
             peer.stop().await;
         }
+    }
+
+    #[tokio::test]
+    async fn balanced_opaque_tonic_origins_survive_direct_and_buffered_dispatch() {
+        let mut a = Peer::start(None).await;
+        let mut b = Peer::start(None).await;
+        let channel = Endpoint::balance_list(balanced_endpoints(&a, &b), ChannelConfig::new())
+            .await
+            .unwrap();
+
+        let mut direct = tonic::client::Grpc::new(channel.clone());
+        all_shapes(&mut direct).await;
+        all_shapes(&mut direct).await;
+        a.assert_requests("https", "first.example:07443", 4).await;
+        b.assert_requests("custom", "second.example", 4).await;
+
+        let overridden = channel.origin("opaque-clone.example:81").unwrap();
+        let mut buffered = tonic::client::Grpc::new(tower::buffer::Buffer::new(overridden, 2));
+        all_shapes(&mut buffered).await;
+        all_shapes(&mut buffered).await;
+        a.assert_requests("https", "opaque-clone.example:81", 4)
+            .await;
+        b.assert_requests("custom", "opaque-clone.example:81", 4)
+            .await;
+        drop(direct);
+        drop(buffered);
+        a.stop().await;
+        b.stop().await;
     }
 
     #[tokio::test]

@@ -2,7 +2,7 @@
 
 Current source supports selected eager boxed fields, ordered maps and shared byte storage,
 an opt-in generated forbid-unsafe policy, explicit alloc-only native messages,
-and direct endpoint URI origins.
+and endpoint URI origins for direct and balanced channels.
 The consumer controls below establish those features' tested scope; remaining
 gaps and measured costs stay open.
 
@@ -38,8 +38,8 @@ their own source pins, controls, failures and full measured rows.
 | Selected boxed fields | Selected, default and global-owned consumers each pass eight groups; 18 message-field selector placement controls compare with Prost 0.14.4. |
 | Selected bytes storage | [Consumer controls](../tests/proof/codegen_parity/bytes.md) compare selectors, values and shared/borrowed input with Prost 0.14.4 in selected, owned and forbid-unsafe profiles. Old eager-parent copying and format-generation limits remain explicit. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
-| Endpoint URI origins | [Eight public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. Static balance helpers reject per-endpoint origins. |
-| Balanced endpoint authority | [23 public tests](../pbrs-grpc/tests/balance_executors.rs) cover selected URI authority, all four native and opaque Tonic call shapes, clone overrides, retries, hedges, health, binary logs and endpoint replacement. Per-endpoint origins, TLS and hostname lookup remain unsupported. |
+| Endpoint URI origins | [Public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct and balanced native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. |
+| Balanced endpoint authority | [Public tests](../pbrs-grpc/tests/balance_executors.rs) cover selected URI authority, all four native and opaque Tonic call shapes, clone overrides, retries, hedges, health, binary logs and endpoint replacement. TLS and hostname lookup remain unsupported for balanced endpoints. |
 | Embedded, alloc-only runtime | The [concrete consumer](../tests/proof/alloc_runtime/README.md) builds five native profiles and Prost 0.14.4 messages for `thumbv7em-none-eabi`, with separate std host codegen. Host functional checks explicitly enable std; firmware execution remains unverified. |
 | gRPC message presence against tonic 0.14.6 | All 18 raw-wire comparisons pass after the repair. |
 | Existing mixed-peer suite | All 41 tests pass after restoring native connection information in the tonic service adapter. |
@@ -63,14 +63,16 @@ keepalive policy and custom connection-driver executors. The
 Executor selection does not replace Tokio I/O, timers or helper tasks. Static
 and watched balance helpers preserve per-URI executors, including URI aliases
 of one socket, and drain replaced connections. Their update API remains a
-full snapshot. Each RPC attempt uses its acquired connection's endpoint
-authority unless `Channel::origin` explicitly pins the clone's authority.
-Background health Watches use their own connection's endpoint authority;
+full snapshot. Each RPC attempt uses the selected endpoint's logical origin
+when configured. Otherwise it uses the endpoint URI's authority and the
+transport scheme. `Channel::origin` pins the clone's authority while preserving
+the selected scheme. Background health Watches use the endpoint's dial
+authority and transport scheme;
 channel getters and client call labels retain the configured channel context.
 `Endpoint::origin(Uri)` sets logical request scheme and authority while
 preserving dialing, TLS and interceptor security context. Its path and query
-are ignored. `Channel::request_scheme()` exposes the logical scheme; a later
-`Channel::origin(authority)` changes only that clone's authority.
+are ignored. `Channel::request_scheme()` reports the configured scheme before
+selection, which is the transport scheme for balanced channels.
 
 Code generation supports `enable_type_names`, `type_name_domain` and
 `retain_enum_prefix`, with configured behavior checked against Prost. Shared

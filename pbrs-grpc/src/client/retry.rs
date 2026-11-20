@@ -568,7 +568,7 @@ fn spawn_hedge_attempt<Resp>(
             // Channelz: the hedged attempt's stream starts here
             // (past setup rejects, so every start pairs with an end).
             let mut stream_accounting = HedgeStreamAccounting::start(live_socket);
-            let routing = channel.local.for_attempt(route.authority());
+            let routing = channel.local.for_attempt(route.balanced());
             match run_unary_frame(
                 live.send,
                 &routing,

@@ -43,10 +43,12 @@ use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, watch};
 use tokio::task::JoinSet;
 
 mod balanced;
+pub(crate) use balanced::Route as BalancedRoute;
 pub(super) use balanced::connect as connect_balanced;
 
 pub(super) struct BalanceInput {
     pub(super) uri: http::Uri,
+    pub(super) origin: Option<Arc<http::Uri>>,
     pub(super) address: std::net::SocketAddr,
     pub(super) executor: crate::executor::TaskExecutor,
 }
@@ -154,9 +156,9 @@ impl ConnectionRoute {
     }
 
     #[inline]
-    pub(crate) fn authority(&self) -> Option<&Authority> {
+    pub(crate) fn balanced(&self) -> Option<&BalancedRoute> {
         match self {
-            Self::Balanced(route) => Some(&route.authority),
+            Self::Balanced(route) => Some(route),
             Self::Slot | Self::Resolved(_) => None,
         }
     }

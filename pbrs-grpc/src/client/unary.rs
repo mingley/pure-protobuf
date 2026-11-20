@@ -811,7 +811,7 @@ impl super::Channel {
                     if let Some(socket) = live_socket {
                         crate::channelz::Registry::global().note_stream_started(socket, true);
                     }
-                    let routing = channel.local.for_attempt(route.authority());
+                    let routing = channel.local.for_attempt(route.balanced());
                     let result = run_unary_frame(
                         live.send,
                         &routing,

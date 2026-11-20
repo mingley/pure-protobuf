@@ -294,8 +294,9 @@ impl Endpoint {
     /// [`Channel::scheme`] and client interceptor security context continue to
     /// describe the transport. [`Channel::origin`] can replace the authority
     /// again on a connected clone without changing this scheme override.
-    /// [`Channel::request_scheme`] reports the logical wire scheme. Static
-    /// balance helpers reject endpoints with origins.
+    /// [`Channel::request_scheme`] reports the logical wire scheme before
+    /// endpoint selection. Balanced helpers validate origins when admitting
+    /// each endpoint list.
     #[must_use]
     pub fn origin(mut self, origin: Uri) -> Self {
         self.origin = Some(Arc::new(origin));
@@ -374,13 +375,15 @@ impl Endpoint {
     /// Static round-robin balance over endpoint URIs.
     ///
     /// Supports plaintext TCP `http://IP:port` endpoints. Each RPC attempt uses
-    /// its selected URI authority, preserving its spelling; URI paths and
-    /// queries do not replace the method path. [`Channel::origin`] pins request
-    /// authority on that clone while other clones retain endpoint selection.
+    /// the logical scheme and authority of its selected endpoint's origin.
+    /// Without an origin, it uses the transport scheme and selected URI
+    /// authority. The method path is independent of endpoint and origin paths
+    /// and queries. [`Channel::origin`] pins request authority on that clone
+    /// while preserving each selected endpoint's logical scheme.
     /// Health watches use the selected target without caller-clone overrides.
     ///
-    /// Connection settings are shared through `config`. Per-endpoint origins,
-    /// TLS, and hostname lookup remain unsupported by this helper.
+    /// Connection settings are shared through `config`. TLS and hostname
+    /// lookup remain unsupported by this helper.
     pub async fn balance_list(
         endpoints: impl IntoIterator<Item = Endpoint>,
         config: ChannelConfig,
@@ -398,8 +401,9 @@ impl Endpoint {
     /// entries, even when they dial the same socket. A changed executor for
     /// an existing URI replaces that connection lazily; existing RPCs drain
     /// within the configured connection-age grace. Unchanged cloned endpoints
-    /// retain their connections. Invalid later lists retain the last valid
-    /// list and emit a channelz warning; an empty later list removes all peers.
+    /// retain their connections, including when only their origin changes.
+    /// Invalid later lists retain the last valid list and emit a channelz
+    /// warning; an empty later list removes all peers.
     ///
     /// This is a full-snapshot API, not tonic's keyed `Change` sender. It stops
     /// picking a replaced entry when the new snapshot is processed; tonic can
@@ -462,10 +466,8 @@ impl Endpoint {
 pub(super) fn balance_inputs(endpoints: &[Endpoint]) -> Result<Vec<pool::BalanceInput>, Status> {
     let mut out = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
-        if endpoint.origin.is_some() {
-            return Err(Status::invalid_argument(
-                "balance_list/balance_channel do not support per-endpoint origins",
-            ));
+        if let Some(origin) = &endpoint.origin {
+            origin_scheme(origin)?;
         }
         if endpoint.is_https() {
             return Err(Status::invalid_argument(
@@ -478,6 +480,7 @@ pub(super) fn balance_inputs(endpoints: &[Endpoint]) -> Result<Vec<pool::Balance
         })?;
         out.push(pool::BalanceInput {
             uri: endpoint.uri.clone(),
+            origin: endpoint.origin.clone(),
             address,
             executor: endpoint.executor.clone(),
         });
@@ -520,28 +523,20 @@ impl ChannelLocal {
     /// Resolve routing from the connection actually picked for this attempt.
     /// The borrowed metadata cannot change when a balance snapshot is replaced.
     #[inline]
-    pub(crate) fn for_attempt<'a>(&'a self, selected: Option<&'a Authority>) -> AttemptRouting<'a> {
+    pub(crate) fn for_attempt<'a>(
+        &'a self,
+        selected: Option<&'a pool::BalancedRoute>,
+    ) -> AttemptRouting<'a> {
         AttemptRouting {
             local: self,
-            authority: if self.authority_override {
-                None
-            } else {
-                selected
-            },
+            selected,
         }
     }
 
     #[inline]
     pub(crate) fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
         match &self.origin {
-            Some(origin) => {
-                if origin.authority().is_none() {
-                    return Err(Status::invalid_argument("origin URI needs an authority"));
-                }
-                origin
-                    .scheme()
-                    .ok_or_else(|| Status::invalid_argument("origin URI needs a scheme"))
-            }
+            Some(origin) => origin_scheme(origin),
             None => Ok(if self.https {
                 &http::uri::Scheme::HTTPS
             } else {
@@ -549,6 +544,15 @@ impl ChannelLocal {
             }),
         }
     }
+}
+
+fn origin_scheme(origin: &Uri) -> Result<&http::uri::Scheme, Status> {
+    if origin.authority().is_none() {
+        return Err(Status::invalid_argument("origin URI needs an authority"));
+    }
+    origin
+        .scheme()
+        .ok_or_else(|| Status::invalid_argument("origin URI needs a scheme"))
 }
 
 /// Request routing is independent of the transport's security context.
@@ -571,25 +575,28 @@ impl RequestRouting for ChannelLocal {
 /// No endpoint metadata is allocated or retained for ordinary direct/RR pools.
 pub(crate) struct AttemptRouting<'a> {
     local: &'a ChannelLocal,
-    authority: Option<&'a Authority>,
+    selected: Option<&'a pool::BalancedRoute>,
 }
 
 impl RequestRouting for AttemptRouting<'_> {
     fn authority(&self) -> &Authority {
-        self.authority.unwrap_or(&self.local.authority)
+        match self.selected {
+            Some(route) if !self.local.authority_override => route.request_authority(),
+            _ => &self.local.authority,
+        }
     }
 
     fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
-        // Balanced inputs are plaintext HTTP. Preserve explicit clone scheme
-        // overlays and direct Endpoint origins, independently of TLS identity.
-        self.local.request_scheme()
+        match self.selected.and_then(pool::BalancedRoute::origin_scheme) {
+            Some(scheme) => Ok(scheme),
+            None => self.local.request_scheme(),
+        }
     }
 }
 
 /// Maintenance watches use the shared transport target: resolver health and
 /// load watches retain their resolver authority; balanced health watches use
 /// their selected endpoint authority. Caller-clone overlays do not affect them.
-/// Balanced endpoints still reject per-endpoint origins.
 pub(crate) struct DirectRouting<'a> {
     pub(crate) authority: &'a Authority,
     pub(crate) https: bool,
@@ -1089,7 +1096,8 @@ impl super::Channel {
     /// Override the HTTP/2 `:authority` this clone sends.
     ///
     /// On a balanced channel, this pins every selected endpoint to the same
-    /// request authority. Other clones continue using their selected URI.
+    /// request authority while keeping each endpoint's logical scheme. Other
+    /// clones retain their selected endpoint's authority.
     /// Shared health watches retain their selected transport target.
     ///
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
@@ -1828,7 +1836,7 @@ impl super::Channel {
     /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
     /// such as `localhost` separately). Unix sockets send `localhost`
     /// until [`Self::origin`]. Balanced channels expose their diagnostic target
-    /// before endpoint selection; their requests use the selected URI authority
+    /// before endpoint selection; requests use the selected endpoint's authority
     /// unless this clone has an explicit [`Self::origin`] override. Interceptor
     /// and call-start labels retain this preselection channel context.
     /// Distinct from [`Self::origin`], which sets it.
@@ -1853,7 +1861,9 @@ impl super::Channel {
     /// Defaults to [`Self::scheme`]. An [`Endpoint::origin`] overrides it
     /// without changing transport security, dialing or TLS verification.
     /// Returns [`Code::InvalidArgument`] when that origin lacks a scheme or
-    /// authority, matching the error returned when an RPC starts.
+    /// authority, matching the error returned when an RPC starts. Balanced
+    /// channels report their transport scheme here because each attempt picks
+    /// its endpoint independently.
     pub fn request_scheme(&self) -> Result<&str, Status> {
         self.local.request_scheme().map(http::uri::Scheme::as_str)
     }
