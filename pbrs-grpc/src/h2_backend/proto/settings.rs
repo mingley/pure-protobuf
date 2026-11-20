@@ -1,6 +1,7 @@
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::error::Reason;
 use crate::h2_backend::proto::*;
+use crate::h2_backend::tracing;
 use std::task::{Context, Poll};
 
 #[derive(Debug)]

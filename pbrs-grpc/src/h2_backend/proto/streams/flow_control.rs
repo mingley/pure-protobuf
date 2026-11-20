@@ -1,5 +1,6 @@
 use crate::h2_backend::frame::Reason;
 use crate::h2_backend::proto::{MAX_WINDOW_SIZE, WindowSize};
+use crate::h2_backend::tracing;
 
 use std::fmt;
 

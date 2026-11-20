@@ -2,6 +2,7 @@ use super::{StreamDependency, StreamId, util};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame::{Error, Frame, Head, Kind};
 use crate::h2_backend::hpack::{self, BytesStr};
+use crate::h2_backend::tracing;
 
 use http::header::{self, HeaderName, HeaderValue};
 use http::{HeaderMap, Method, Request, StatusCode, Uri, uri};

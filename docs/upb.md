@@ -64,7 +64,8 @@ They are not applicable and are not vendored.
 | `proto!` `#[cfg(bzl)]` `::crate::Type` | Skipped. | Bazel-qualified `proto!` paths are not supported. |
 | Map representation | Last-wins pairs; maps with at least 16 entries can build a sorted index for reads. upb uses a hash table. | Measure parse, first access, and repeated lookup separately. Official rust_out raw maps use a different representation. |
 | Arena lifetime | Plugin messages own their Rust allocations; `parse_bytes` can retain shared `Bytes`. | Sharing a buffer is supported, but caller-managed arena lifetimes and independent borrowed message roots are not the plugin API. |
-| cpp kernel, lite runtime, no_std | None. | Not offered. |
+| cpp kernel, lite runtime | None. | Not offered. |
+| `no_std` | `default-features = false` with `alloc-only` (`Config::alloc_only(true)`). | Supported on `target_os = "none"` with pointer and 32-bit CAS atomics; reflection, JSON/text, transports, and `rust_out` remain `std`-only. See the [alloc-only guide](guides/alloc-only.md). |
 | Cargo swap for `protobuf` 4.x | Different package name, gencode, and `__internal`. | Application traits match. Rebuild. |
 | Fuzzing | In-tree `fuzz/` targets exercise wire data, descriptors, formats, varints, and gRPC frames. | A checked corpus and smoke test are not a sustained campaign; see the [recorded fuzz run](evidence/fuzz-2026-09-28.md). |
 | 2 GiB cap | `MAX_MESSAGE_BYTES = 2^31 - 1`. | Same order as C++. |

@@ -4,7 +4,7 @@
 //! Google's `protoc --rust_out` output uses the separate compatibility runtime.
 //!
 //! ```ignore
-//! pbrs = { git = "https://github.com/mingley/pure-protobuf" }
+//! pbrs = "0.2"
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]

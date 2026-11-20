@@ -1,6 +1,7 @@
 use crate::h2_backend::codec::Codec;
 use crate::h2_backend::frame::Ping;
 use crate::h2_backend::proto::{self, PingPayload};
+use crate::h2_backend::tracing;
 
 use atomic_waker::AtomicWaker;
 use bytes::Buf;

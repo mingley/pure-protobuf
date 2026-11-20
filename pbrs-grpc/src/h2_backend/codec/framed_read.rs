@@ -5,6 +5,7 @@ use crate::h2_backend::frame::{
 use crate::h2_backend::proto::Error;
 
 use crate::h2_backend::hpack;
+use crate::h2_backend::tracing;
 
 use futures_core::Stream;
 

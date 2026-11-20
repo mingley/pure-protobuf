@@ -5,6 +5,7 @@ use super::{
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::frame::{self, Reason};
 use crate::h2_backend::proto::{self, Error, Initiator};
+use crate::h2_backend::tracing;
 
 use bytes::Buf;
 use tokio::io::AsyncWrite;

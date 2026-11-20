@@ -2,6 +2,7 @@ use crate::h2_backend::codec::UserError;
 use crate::h2_backend::codec::UserError::*;
 use crate::h2_backend::frame::{self, Frame, FrameSize};
 use crate::h2_backend::hpack;
+use crate::h2_backend::tracing;
 
 use bytes::{Buf, BufMut, BytesMut};
 use std::pin::Pin;

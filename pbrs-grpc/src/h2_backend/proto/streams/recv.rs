@@ -2,6 +2,7 @@ use super::*;
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::frame::{DEFAULT_INITIAL_WINDOW_SIZE, PushPromiseHeaderError, Reason};
 use crate::h2_backend::proto;
+use crate::h2_backend::tracing;
 
 use http::{HeaderMap, Request, Response};
 

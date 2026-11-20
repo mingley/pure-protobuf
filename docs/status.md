@@ -12,6 +12,14 @@ working examples and task guides.
 
 ## Current source and release-rehearsal records
 
+- At [`65b81bf8`](https://github.com/mingley/pure-protobuf/commit/65b81bf818f6437196bbe28bd2d8eb56139f43b8),
+  all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/44618528084),
+  five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/44618528070),
+  the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/44618527988),
+  all seven [Miri kernel jobs](https://github.com/mingley/pure-protobuf/actions/runs/44618528026),
+  and the [release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/44628944680)
+  passed (see the [release checklist](release-readiness.md#candidate-versions)).
+  The final release commit/tag still re-verifies exact-SHA CI.
 - At [`d02cf609`](https://github.com/mingley/pure-protobuf/commit/d02cf609ac1b0ccd142fad7790b1d6bc2416936c),
   all 14 [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027919),
   five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42873027747),

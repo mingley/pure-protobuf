@@ -1,7 +1,34 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 / 0.1.1
 
+Coordinated patch versions: `pbrs` (`0.2.2`), `pbrs-grpc` (`0.1.1`), and
+`protobuf-tonic` (`0.1.1`). Both adapters require the new core at runtime and
+build time. Existing public API compatibility and qualification boundaries
+remain intact, with additive public APIs (`ChannelConfig::tcp_user_timeout`
+/ `ChannelConfig::tcp_user_timeout_duration` and streaming `TowerBody`) and
+the Rust `1.100.0` toolchain pin (`rust-toolchain.toml`, while MSRV remains
+`1.85` for `pbrs` / `pbrs-grpc` and `1.88` for `protobuf-tonic`).
+
+- Reduce client and server per-call work with shared load-balancer snapshots,
+  lazy request context, inline cancellation guards, fewer clock reads, and
+  simpler Tonic/Tower dispatch.
+- Add direct slice decoding and shared-byte encoding paths for messages.
+  Encode the gRPC prefix and payload into one buffer where supported.
+- Batch stream output and improve large-message framing and HTTP/2 staging.
+- Pool gzip and deflate engines and remove redundant decoder resets while
+  retaining reset-on-return, later gzip-member resets, and bounded pools.
+- Avoid allocating storage for an empty repeated field's mutable slice while
+  preserving existing buffers and reserved capacity.
+- Avoid unused parent backing for owned maps of scalar-only messages when the
+  enclosing schema is limited to singular scalars and such maps. Mixed
+  schemas keep their shared backing for eager descendants.
+- Preserve Rust 1.85 compatibility, the documented copy policy for unselected
+  shared byte fields smaller than 4096 bytes, and TLS connection metadata
+  across the new paths. Explicitly selected `ProtoBytes` fields keep sharing
+  input, and application metadata overrides remain authoritative.
+- Align `protobuf-tonic` with the new core dependency; its public adapter API
+  is unchanged.
 - Stream uploads, replies and trailers through the Tower server adapter.
 - Allow Tonic mounts with middleware that returns a non-cloneable service.
 - Reuse validated canonical wire bytes for packed `int64` fields.
@@ -27,32 +54,10 @@
   rejection, matching tonic's body shape.
 - Prepare only the selected fresh-encode pool in the development-loop
   benchmark, reducing unrelated setup work in instruction samples.
-
-## 0.2.2 / 0.1.1
-
-Coordinated patch versions: `pbrs` (`0.2.2`), `pbrs-grpc` (`0.1.1`), and
-`protobuf-tonic` (`0.1.1`). Both adapters require the new core at runtime and
-build time. Public API compatibility and qualification boundaries remain unchanged.
-
-- Reduce client and server per-call work with shared load-balancer snapshots,
-  lazy request context, inline cancellation guards, fewer clock reads, and
-  simpler Tonic/Tower dispatch.
-- Add direct slice decoding and shared-byte encoding paths for messages.
-  Encode the gRPC prefix and payload into one buffer where supported.
-- Batch stream output and improve large-message framing and HTTP/2 staging.
-- Pool gzip and deflate engines and remove redundant decoder resets while
-  retaining reset-on-return, later gzip-member resets, and bounded pools.
-- Avoid allocating storage for an empty repeated field's mutable slice while
-  preserving existing buffers and reserved capacity.
-- Avoid unused parent backing for owned maps of scalar-only messages when the
-  enclosing schema is limited to singular scalars and such maps. Mixed
-  schemas keep their shared backing for eager descendants.
-- Preserve Rust 1.85 compatibility, the documented copy policy for unselected
-  shared byte fields smaller than 4096 bytes, and TLS connection metadata
-  across the new paths. Explicitly selected `ProtoBytes` fields keep sharing
-  input, and application metadata overrides remain authoritative.
-- Align `protobuf-tonic` with the new core dependency; its public adapter API
-  is unchanged.
+- Remove `tracing/release_max_level_debug` from `pbrs-grpc` (gating `h2_backend`
+  `trace!` / `trace_span!` logs behind the opt-in `h2-trace` feature instead)
+  and relax exact `=` patch pins on `pbrs-grpc` dependencies to standard semver
+  caret ranges.
 
 See the [November 17 follow-up](docs/evidence/safe-hotpaths-20261117/README.md)
 and [benchmark results](docs/benchmarks.md) for

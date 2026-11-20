@@ -1,5 +1,6 @@
 use super::table::{Index, Table};
 use super::{huffman, Header};
+use crate::h2_backend::tracing;
 
 use bytes::{BufMut, BytesMut};
 use std::cell::Cell;

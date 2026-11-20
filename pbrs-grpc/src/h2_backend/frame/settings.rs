@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::h2_backend::frame::{util, Error, Frame, FrameSize, Head, Kind, StreamId};
+use crate::h2_backend::tracing;
 use bytes::{BufMut, BytesMut};
 
 #[derive(Clone, Default, Eq, PartialEq)]

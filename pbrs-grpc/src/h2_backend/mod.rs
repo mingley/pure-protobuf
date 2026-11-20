@@ -118,12 +118,58 @@
 //#![cfg_attr(test, feature(test))]
 #![cfg_attr(test, deny(warnings))]
 
+/// Internal `tracing` facade for `h2_backend` that gates `trace!` and
+/// `trace_span!` behind the `h2-trace` Cargo feature instead of setting a
+/// process-wide `tracing/release_max_level_*` compile-time filter.
+#[allow(unused_imports, reason = "re-exports ::tracing alongside gated trace macros")]
+pub(crate) mod tracing {
+    pub(crate) use ::tracing::{
+        debug, debug_span, error, error_span, info, info_span, instrument, warn, warn_span,
+        Instrument, Span,
+    };
+
+    #[cfg(not(feature = "h2-trace"))]
+    macro_rules! trace {
+        ($($tt:tt)*) => {{
+            if false {
+                ::tracing::trace!($($tt)*);
+            }
+        }};
+    }
+
+    #[cfg(feature = "h2-trace")]
+    macro_rules! trace {
+        ($($tt:tt)*) => {
+            ::tracing::trace!($($tt)*)
+        };
+    }
+
+    #[cfg(not(feature = "h2-trace"))]
+    macro_rules! trace_span {
+        ($($tt:tt)*) => {{
+            if false {
+                let _ = ::tracing::trace_span!($($tt)*);
+            }
+            ::tracing::Span::none()
+        }};
+    }
+
+    #[cfg(feature = "h2-trace")]
+    macro_rules! trace_span {
+        ($($tt:tt)*) => {
+            ::tracing::trace_span!($($tt)*)
+        };
+    }
+
+    pub(crate) use {trace, trace_span};
+}
+
 macro_rules! proto_err {
     (conn: $($msg:tt)+) => {
-        tracing::debug!("connection error PROTOCOL_ERROR -- {};", format_args!($($msg)+))
+        crate::h2_backend::tracing::debug!("connection error PROTOCOL_ERROR -- {};", format_args!($($msg)+))
     };
     (stream: $($msg:tt)+) => {
-        tracing::debug!("stream error PROTOCOL_ERROR -- {};", format_args!($($msg)+))
+        crate::h2_backend::tracing::debug!("stream error PROTOCOL_ERROR -- {};", format_args!($($msg)+))
     };
 }
 

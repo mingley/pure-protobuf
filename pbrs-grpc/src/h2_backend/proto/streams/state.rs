@@ -4,6 +4,7 @@ use std::io;
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::frame::{self, Reason, StreamId};
 use crate::h2_backend::proto::{self, Error, Initiator, PollReset};
+use crate::h2_backend::tracing;
 
 use self::Inner::*;
 use self::Peer::*;

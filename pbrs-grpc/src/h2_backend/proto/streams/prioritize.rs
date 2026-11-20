@@ -5,6 +5,7 @@ use crate::h2_backend::frame::Reason;
 
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::codec::UserError::*;
+use crate::h2_backend::tracing;
 
 use std::{
     cmp::{self, Ordering},

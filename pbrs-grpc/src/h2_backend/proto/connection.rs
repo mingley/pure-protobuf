@@ -4,6 +4,7 @@ use crate::h2_backend::{client, server};
 
 use crate::h2_backend::frame::DEFAULT_INITIAL_WINDOW_SIZE;
 use crate::h2_backend::proto::*;
+use crate::h2_backend::tracing;
 
 use bytes::Bytes;
 use futures_core::Stream;

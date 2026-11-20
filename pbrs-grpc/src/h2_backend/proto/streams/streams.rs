@@ -7,7 +7,7 @@ use crate::h2_backend::codec::{Codec, SendError, UserError};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame::{self, Frame, Reason};
 use crate::h2_backend::proto::{Error, Initiator, Open, Peer, WindowSize, peer};
-use crate::h2_backend::{client, proto, server};
+use crate::h2_backend::{client, proto, server, tracing};
 
 use bytes::{Buf, Bytes};
 use http::{HeaderMap, Request, Response};

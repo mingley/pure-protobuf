@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::h2_backend::frame::StreamId;
+use crate::h2_backend::tracing;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 

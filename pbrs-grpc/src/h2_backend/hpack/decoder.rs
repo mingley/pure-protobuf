@@ -1,6 +1,7 @@
 use super::{header::BytesStr, huffman, Header};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame;
+use crate::h2_backend::tracing;
 
 use bytes::{Buf, Bytes, BytesMut};
 use http::header;

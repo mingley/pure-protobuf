@@ -16,18 +16,19 @@ categories = ["network-programming", "asynchronous"]
 pbrs = { version = "0.2.2", path = ".." }
 
 [dependencies]
-# Private embedded h2 backend: these are the already-locked upstream support
-# dependencies. Registry h2 remains an independent peer / Tower oracle.
-atomic-waker = "=1.1.2"
+# Private embedded h2 backend: these are the upstream support
+# dependencies, kept as standard semver ranges so downstream workspaces can
+# unify versions freely. Registry h2 remains an independent peer / Tower oracle.
+atomic-waker = "1.1.2"
 base64 = "0.22"
 bytes = "1"
-fnv = "=1.0.7"
+fnv = "1.0.7"
 # Already in the graph via h2. Direct so `Streaming` can be a `Stream` without
 # a per-message allocation.
 futures-core = { version = "0.3", default-features = false }
-futures-sink = { version = "=0.3.34", default-features = false }
+futures-sink = { version = "0.3.34", default-features = false }
 # `Either` keeps a deadline race out of the no-deadline future.
-futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 # gzip uses miniz_oxide with runtime CPU feature detection.
 flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = { version = "0.4.18", optional = true }
@@ -39,32 +40,36 @@ indexmap = { version = "2.14.0", default-features = false, features = ["std"] }
 # Default off: zero cost when disabled (module compiles out).
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
 pbrs = { version = "0.2.2", path = ".." }
-pin-project-lite = "=0.2.17"
+pin-project-lite = "0.2.17"
 prost = { version = "0.14", optional = true }
 # TLS uses rustls with Graviola as its crypto provider.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
 rustls-pemfile = "2"
 rustls-native-certs = { version = "0.8", optional = true }
 serde_json = "1"
-slab = "=0.4.12"
+slab = "0.4.12"
 # Socket options, including SO_KEEPALIVE. Tokio also depends on socket2.
 # `all` is an empty feature that unlocks `TCP_KEEPCNT` (`with_retries`).
 socket2 = { version = "0.6", features = ["all"] }
 # Stable runtime IDs (1.49+) keep cancellation dispatch on its owning runtime.
 tokio = { version = "1.49", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
-tokio-util = { version = "=0.7.19", default-features = false, features = ["codec", "io"] }
+tokio-util = { version = "0.7.19", default-features = false, features = ["codec", "io"] }
 tower = { version = "0.5", default-features = false, features = ["balance", "buffer", "limit", "load-shed", "retry", "timeout", "util"], optional = true }
 tonic = { version = "0.14.6", default-features = false, features = ["codegen", "transport", "router", "_tls-any"], optional = true }
-# Release builds keep debug and above. `trace!` is on every poll and header
-# receive; the disabled callsite check is real instructions. This is a
-# tracing compile-time filter, so it applies to the whole build that
-# depends on this crate.
-tracing = { version = "=0.1.44", default-features = false, features = ["std", "release_max_level_debug"] }
+# `h2_backend` trace events/spans sit on every poll and HPACK pass; keep them
+# gated internally behind the `h2-trace` feature instead of enabling
+# `release_max_level_debug`, which disables `tracing::trace!` process-wide for
+# every downstream crate.
+tracing = { version = "0.1.40", default-features = false, features = ["std"] }
 webpki-roots = "1"
 ruzstd = { version = "0.9", optional = true }
 
 [features]
+# Emit verbose HTTP/2 backend `trace!` events and `trace_span!` spans. Off by
+# default so hot poll/HPACK callsites compile out without imposing a
+# process-wide `tracing` compile-time level filter.
+h2-trace = []
 # OpenTelemetry metrics bridge (GF-01). Off by default; enabling the
 # feature without installing an observer costs nothing (Option checks).
 otel = ["dep:opentelemetry"]

@@ -149,7 +149,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tracing::Instrument;
+use crate::h2_backend::tracing::{self, Instrument};
 
 /// Initializes new HTTP/2 streams on a connection by sending a request.
 ///
