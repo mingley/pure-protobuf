@@ -388,7 +388,7 @@ impl Metadata {
         if is_reserved(key) || has_binary_suffix(key) {
             return false;
         }
-        let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
+        let Ok(name) = HeaderName::from_bytes(key.as_bytes()) else {
             return false;
         };
         self.headers_mut().remove(name).is_some()
@@ -399,7 +399,7 @@ impl Metadata {
         if is_reserved(key) || !has_binary_suffix(key) {
             return false;
         }
-        let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
+        let Ok(name) = HeaderName::from_bytes(key.as_bytes()) else {
             return false;
         };
         self.headers_mut().remove(name).is_some()
@@ -1066,6 +1066,55 @@ mod tests {
         assert_eq!(md.get_bin("x-blob-bin"), None);
         assert!(md.insert("grpc-status", "5").is_err());
         assert!(!md.remove("grpc-status"));
+    }
+
+    #[test]
+    fn remove_preserves_case_validation_mutation_and_clone_semantics() {
+        let mut md = Metadata::new();
+        for key in ["", "bad NAME", "x-é", "GRPC-STATUS", "x-wrong-BIN"] {
+            assert!(!md.remove(key), "{key:?}");
+        }
+        for key in [
+            "",
+            "bad NAME-BIN",
+            "x-é-BIN",
+            "GRPC-STATUS-DETAILS-BIN",
+            "x-wrong",
+        ] {
+            assert!(!md.remove_bin(key), "{key:?}");
+        }
+        assert!(!md.is_mutated());
+
+        let mut ascii_absent = md.clone();
+        let mut binary_absent = md.clone();
+        assert!(!ascii_absent.remove("X-Missing"));
+        assert!(!binary_absent.remove_bin("X-Missing-BIN"));
+        assert!(ascii_absent.is_mutated() && binary_absent.is_mutated());
+        assert!(!md.is_mutated());
+
+        md.insert("x-trace", "first").expect("first ASCII value");
+        md.insert("x-trace", "second").expect("second ASCII value");
+        md.insert_bin("x-blob-bin", [1])
+            .expect("first binary value");
+        md.insert_bin("x-blob-bin", [2])
+            .expect("second binary value");
+        let original = md.clone();
+        assert!(!md.remove("X-Blob-BIN"));
+        assert!(!md.remove_bin("X-Trace"));
+        assert!(md.remove("X-TrAcE"));
+        assert!(md.remove_bin("X-BlOb-BiN"));
+        assert!(!md.remove("x-trace"));
+        assert!(!md.remove_bin("x-blob-bin"));
+        assert!(md.is_empty());
+        assert_eq!(original.get_all("x-trace").count(), 2);
+        assert_eq!(original.get_all_bin("x-blob-bin").count(), 2);
+
+        let long_ascii = format!("x-{}", "A".repeat(1024));
+        let long_bin = format!("{long_ascii}-BIN");
+        md.insert(&long_ascii, "v").expect("long ASCII name");
+        md.insert_bin(&long_bin, [3]).expect("long binary name");
+        assert!(md.remove(&long_ascii));
+        assert!(md.remove_bin(&long_bin));
     }
 
     #[test]

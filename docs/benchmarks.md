@@ -15,6 +15,12 @@ Each result applies to its dated source, workload and host. Follow the raw captu
 for individual cases and the [benchmark contract](benchmark-contract.md) for
 qualification requirements.
 
+On `main` after `v0.2.2`, removing gRPC metadata saves one allocation
+per call that parses a header name. Two paired measurements of the isolated
+methods took 8.4–10.9% less time for populated custom ASCII and binary keys.
+The reserved-key control kept zero allocations in both builds.
+[Metadata removal samples](https://github.com/mingley/pure-protobuf/actions/runs/44681649868/artifacts/14604891685)
+
 The November 18 codec survey compares throughput with Prost and upb using
 Rust 1.100.0 and the standard allocator. The dev-loop report tracks remaining
 allocation costs in codec and RPC cases.

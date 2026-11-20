@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove one allocation when deleting ASCII or binary gRPC metadata. Header
+  names keep their case-insensitive matching and input validation.
 - Add `Config::skip_debug_for` and the matching plugin option for custom
   `Debug` implementations on selected generated messages and enums.
 - Support per-endpoint request origins in static and watched gRPC channels.

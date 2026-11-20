@@ -63,8 +63,14 @@ fixture. Retain the raw samples, including ties and losses.
    throughput, with unary and single-stream controls. Profile per-call
    allocations before changing the connection scheduler again. Include the
    [large-unary latency case](docs/benchmarks/release-v0.2.2.md#grpc-over-tcp) when testing buffer changes.
-   [Host one](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14602583169) ·
-   [Host two](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14603406558)
+   [Scheduler host one](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14602583169) ·
+   [Scheduler host two](https://github.com/mingley/pure-protobuf/actions/runs/44677356908/artifacts/14603406558)
+
+   A static empty metadata map sped up construction but improved multiplexed
+   throughput in only two of twelve pairs. Keep a populated clone-then-write
+   case in future metadata work.
+   [Metadata operations](https://github.com/mingley/pure-protobuf/actions/runs/44680572611/artifacts/14605045756) ·
+   [Endpoint comparison](https://github.com/mingley/pure-protobuf/actions/runs/44680946805)
 4. **Generate large schemas.** Time both the public descriptor-set API and
    the protoc plugin. Skipping a temporary request saved 1.9–3.3% CPU on
    two 1,000-message descriptor sets with two workers, but raised plugin CPU
