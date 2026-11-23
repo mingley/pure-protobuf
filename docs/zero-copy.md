@@ -156,6 +156,7 @@ Each step had to prove itself on measurements before it could merge.
 
 | Idea | Result | Why it was dropped |
 |---|---|---|
+| Pair 2 MiB fields on peers configured for larger DATA frames | Removed 4,194,329 reassembly bytes per round trip. Throughput fell in three paired runs. | The 1 MiB cap preserves large-message throughput in these tests. [Larger-frame experiment](benchmarks/native-data-20261123.md#two-mib-field-experiment) |
 | Reserve the whole message buffer up front when a message arrives in pieces | 5× less copying in isolation, but **18% slower** end to end at 8 MiB | Slower in practice; the reader waited longer on the socket. [PK-09 evidence](evidence/pk09-zero-copy.md#what-was-reverted-1a-and-why) |
 | Ask peers for very large HTTP/2 frames (16 MiB) | No faster, slightly slower | The sender in that test emitted the envelope separately. Raising the limit alone left the message in pieces. [PK-10 gate](evidence/pk10-gate.md) |
 | Parse messages that arrive in pieces without joining them first | Not built | The copy it would remove costs only 1.9–2.8% of server CPU. The bar was 5%. [PK-10 gate](evidence/pk10-gate.md) |

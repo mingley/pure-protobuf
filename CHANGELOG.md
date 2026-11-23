@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reduce the cost of encoding streaming replies and uploads by keeping the
+  batch buffer in place between messages. Failed encodes still roll back.
 - Send an eligible native protobuf prefix and large shared field in one HTTP/2
   DATA frame when the peer permits. A vectored write copies only the prefix.
 - Share the native receive buffer when only the gRPC envelope crosses a DATA
