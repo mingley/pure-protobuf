@@ -28,6 +28,15 @@ went from 314,159 copied bytes to five. The intact and fragmented controls
 kept their original copy counts.
 [Receive measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262277747/artifacts/14860742209)
 
+In a stock native-to-native large-unary comparison of `05e96639` and
+`7a9fc6d7`, the first DATA also contains the protobuf prefix. Across 512
+measured calls per build,
+the sender shared the 271,828-byte request field and 314,159-byte response
+field. The receiving deframers still copied 271,840 and 314,167 bytes per
+call, respectively. Empty and small unary calls copied zero bytes into
+reassembly storage.
+[Normal endpoint copy counts](https://github.com/mingley/pure-protobuf/actions/runs/45264452704/artifacts/14862755784)
+
 ### Forwarding a nested message
 
 On current `main`, a generated encoder can forward the cached wire bytes of
