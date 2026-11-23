@@ -635,6 +635,59 @@ mod tests {
         assert!(bytes.is_empty());
     }
 
+    #[test]
+    fn panic_releasing_a_failed_segment_leaves_the_batch_reusable() {
+        struct PanickingOwner;
+
+        impl AsRef<[u8]> for PanickingOwner {
+            fn as_ref(&self) -> &[u8] {
+                b"x"
+            }
+        }
+
+        impl Drop for PanickingOwner {
+            fn drop(&mut self) {
+                panic!("intentional segment release panic");
+            }
+        }
+
+        struct FailingMessage;
+
+        impl CodecMessage for FailingMessage {
+            fn encoded_len(&self) -> usize {
+                1
+            }
+
+            fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+                out.put_shared(&Bytes::from_owner(PanickingOwner));
+                Err(Status::internal("partial encode"))
+            }
+
+            fn decode_payload(_: Bytes) -> Result<Self, Status> {
+                Ok(Self)
+            }
+
+            fn empty() -> Self {
+                Self
+            }
+        }
+
+        let mut batch = OutBatch::new(ChannelConfig::new().wire());
+        batch
+            .encode_ready(Framed::new(PartialEncode(false)), 1)
+            .expect("complete prefix");
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            batch.encode_ready(Framed::new(FailingMessage), 1)
+        }));
+        assert!(result.is_err());
+        assert!(batch.take_frame().is_none());
+        batch
+            .encode_ready(Framed::new(PartialEncode(false)), 1)
+            .expect("encode after cleanup");
+        let frame = batch.take_frame().expect("complete frame");
+        assert_eq!(frame.concat(), [0, 0, 0, 0, 1, 0xAB]);
+    }
+
     struct IdentitySuffix<const APPEND: bool> {
         fail: bool,
     }
