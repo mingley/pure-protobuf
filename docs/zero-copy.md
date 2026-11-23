@@ -5,11 +5,13 @@ field without copying its contents in user space. Use a generated message,
 a `Bytes` backing buffer and identity compression. On receive, the layout
 of the incoming HTTP/2 DATA also matters.
 
-## Where the payload is copied
+## Where copies happen today
 
 The table describes a large `bytes` field over native gRPC. It counts
 user-space stages that copy payload data. The kernel still moves socket
 data. Fragment reassembly can copy again if its buffer grows.
+
+### Native transport (`pbrs-grpc`)
 
 | Layer | Send | Receive |
 |---|---|---|
@@ -26,7 +28,23 @@ went from 314,159 copied bytes to five. The intact and fragmented controls
 kept their original copy counts.
 [Receive measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262277747/artifacts/14860742209)
 
-### Tonic adapter
+### Forwarding a nested message
+
+On current `main`, a generated encoder can forward the cached wire bytes of
+a singular nested message to a segmented sink. The child must occupy at
+least 32 KiB and at least a quarter of the logical input buffer passed to
+`parse_bytes`. Mutating the child makes the encoder serialize its fields.
+A caller-supplied slice can itself refer to a larger allocation.
+
+For a 1 MiB child, a pinned-CPU test retained the original 1,048,583-byte
+wire window and reserved four bytes for the parent header. Forwarding to
+the segmented sink took 54.6 ns in the candidate and 22.0 µs in the base.
+Writing the same message into a contiguous buffer took essentially the
+same time in both versions. A child below the retention fraction took 2.0%
+longer at the median. The test ends when the sink owns its segments.
+[Paired forwarding results](https://github.com/mingley/pure-protobuf/actions/runs/45263902546/artifacts/14861234081)
+
+### Tonic adapter (`protobuf-tonic`)
 
 Tonic 0.14 assembles the incoming message and decompresses it when needed.
 The adapter splits and freezes Tonic's decode buffer. Large generated string,
@@ -106,10 +124,11 @@ Accessors still return `&[u8]`, so existing code keeps working.
   received buffer alive until the message is dropped. If you cache a small
   piece of a large message for a long time, copy it out first. See
   [resource budgets](resource-budgets.md#22-the-backing-buffer-retention-hazard).
-- **The send optimization targets `bytes` fields.** Strings and nested
-  message materialization have separate storage rules; do not assume they
-  get the same copy counts. See the [runtime design](design.md).
-- **Compression turns it off.** The gzip path works on one contiguous buffer.
+- **Field type and sink matter.** Large `bytes` fields and eligible cached
+  singular messages can be emitted as separate segments. String fields and
+  materialized children follow their own encoding rules. [Runtime design](design.md)
+- **Compression.** Gzip consumes a contiguous plaintext payload and produces
+  new output bytes.
 - **Code generated before this change** still compiles and runs, but it sends
   large fields by copying. Regenerate to get the send-side win.
 

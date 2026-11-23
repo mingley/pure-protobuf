@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | Message encode, decode and full read | [28-shape comparison with Prost and upb](benchmarks/release-v0.2.2.md#owned-message-codecs) | [Codec survey and slower fixtures](benchmarks/running.md#message-codecs) |
 | Protoc code generation | [Generator CPU and output checks](benchmarks/scaling-20261119.md#generate-source-by-file) | [Codegen benchmarks](benchmarks/running.md#code-generation-and-consumer-builds) |
+| Payload sharing and gRPC-Web text | [Copy counts, buffer ownership and encoder timings](zero-copy.md) | [Per-operation copy and sharing counters](../bench/devloop/README.md) |
 | Native gRPC client | [Queued and live uploads](benchmarks/scaling-20261119.md#fully-queued-client-uploads) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
 | Native gRPC server | [Request memory and streaming throughput](benchmarks/scaling-20261119.md#native-rpc-storage) | [RPC benchmarks](benchmarks/running.md#grpc-client-and-server) |
 

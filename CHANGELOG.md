@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Share the native receive buffer when only the gRPC envelope crosses a DATA
+  boundary and the identity body meets the size and retention thresholds.
+- Encode segmented gRPC-Web text responses into their final base64 buffer,
+  keeping at most two pending input bytes between segments.
+- Forward eligible cached singular child messages into segmented protobuf
+  output. The generated encoder can retain the original child wire bytes.
 - Remove one allocation when deleting ASCII or binary gRPC metadata. Header
   names keep their case-insensitive matching and input validation.
 - Add `Config::skip_debug_for` and the matching plugin option for custom
