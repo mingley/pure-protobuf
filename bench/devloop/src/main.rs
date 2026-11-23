@@ -234,9 +234,13 @@ struct CopyCountsMed {
     encode_bytes: f64,
     serialize_calls: f64,
     serialize_bytes: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shared_segments: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shared_bytes: Option<f64>,
 }
 
-fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
+fn copy_medians(counts: &[CopyCountsJson], iters: u64, repeats: usize) -> CopyCountsMed {
     macro_rules! med {
         ($field:ident) => {
             median(
@@ -247,6 +251,16 @@ fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
             )
         };
     }
+    let optional_median = |read: fn(&CopyCountsJson) -> Option<u64>| {
+        if counts.len() != repeats {
+            return None;
+        }
+        let values = counts
+            .iter()
+            .map(|count| read(count).map(|value| value as f64 / iters as f64))
+            .collect::<Option<Vec<_>>>()?;
+        Some(median(values))
+    };
     CopyCountsMed {
         wire_calls: med!(wire_calls),
         wire_bytes: med!(wire_bytes),
@@ -260,6 +274,8 @@ fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
         encode_bytes: med!(encode_bytes),
         serialize_calls: med!(serialize_calls),
         serialize_bytes: med!(serialize_bytes),
+        shared_segments: optional_median(|count| count.shared_segments),
+        shared_bytes: optional_median(|count| count.shared_bytes),
     }
 }
 
@@ -329,10 +345,10 @@ struct CopyCountsJson {
     encode_bytes: u64,
     serialize_calls: u64,
     serialize_bytes: u64,
-    #[serde(default)]
-    shared_segments: u64,
-    #[serde(default)]
-    shared_bytes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shared_segments: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shared_bytes: Option<u64>,
 }
 
 fn read_copy_counts() -> CopyCountsJson {
@@ -351,8 +367,8 @@ fn read_copy_counts() -> CopyCountsJson {
         encode_bytes: grpc.encode_bytes,
         serialize_calls: grpc.serialize_calls,
         serialize_bytes: grpc.serialize_bytes,
-        shared_segments: grpc.shared_segments,
-        shared_bytes: grpc.shared_bytes,
+        shared_segments: Some(grpc.shared_segments),
+        shared_bytes: Some(grpc.shared_bytes),
     }
 }
 
@@ -2338,7 +2354,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             copy_counts: if copies.is_empty() {
                 None
             } else {
-                Some(copy_medians(&copies, cell_iters))
+                Some(copy_medians(&copies, cell_iters, repeats as usize))
             },
         });
     }
@@ -2856,9 +2872,57 @@ fn main() {
 #[cfg(test)]
 mod input_tests {
     use super::{
-        ChildOutput, Duration, Metric, Report, assert_adoption_input, assert_rpc_input_bytes,
-        child_json, child_json_with_input_bytes, compare_reports,
+        ChildOutput, CopyCountsJson, CopyCountsMed, Duration, Metric, Report,
+        assert_adoption_input, assert_rpc_input_bytes, child_json, child_json_with_input_bytes,
+        compare_reports, copy_medians,
     };
+
+    #[test]
+    fn copy_medians_keep_native_shared_segments_and_bytes_per_operation() {
+        let shared = [9, 1, 4, 3].map(|segments| CopyCountsJson {
+            shared_segments: Some(segments),
+            shared_bytes: Some(segments * 65_536),
+            ..CopyCountsJson::default()
+        });
+        let aggregate = copy_medians(&shared, 2, shared.len());
+        assert_eq!(aggregate.shared_segments, Some(1.75));
+        assert_eq!(aggregate.shared_bytes, Some(114_688.0));
+
+        let owned = CopyCountsJson {
+            encode_bytes: 2 * 65_536,
+            shared_segments: Some(0),
+            shared_bytes: Some(0),
+            ..CopyCountsJson::default()
+        };
+        let aggregate = copy_medians(&[owned], 2, 1);
+        assert_eq!(aggregate.encode_bytes, 65_536.0);
+        let json = serde_json::to_value(aggregate).unwrap();
+        assert_eq!(json["shared_segments"], 0.0);
+        assert_eq!(json["shared_bytes"], 0.0);
+    }
+
+    #[test]
+    fn historical_copy_reports_leave_unmeasured_shared_counters_absent() {
+        let legacy_child = serde_json::to_value(CopyCountsJson::default()).unwrap();
+        assert!(legacy_child.get("shared_segments").is_none());
+        let legacy_child: CopyCountsJson = serde_json::from_value(legacy_child).unwrap();
+        let measured = CopyCountsJson {
+            shared_segments: Some(1),
+            shared_bytes: Some(65_536),
+            ..CopyCountsJson::default()
+        };
+        for aggregate in [
+            copy_medians(&[legacy_child, measured.clone()], 1, 2),
+            copy_medians(&[measured], 1, 2),
+        ] {
+            let json = serde_json::to_value(aggregate).unwrap();
+            assert!(json.get("shared_segments").is_none());
+            assert!(json.get("shared_bytes").is_none());
+            let legacy_aggregate: CopyCountsMed = serde_json::from_value(json).unwrap();
+            assert_eq!(legacy_aggregate.shared_segments, None);
+            assert_eq!(legacy_aggregate.shared_bytes, None);
+        }
+    }
 
     #[test]
     fn codec_preparation_builds_only_the_selected_fresh_pool() {

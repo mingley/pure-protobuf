@@ -41,6 +41,18 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
+In each cell's `copy_counts` object, `shared_segments` and `shared_bytes`
+are the median segment and byte counts per operation for payloads that
+the native gRPC encoder emitted as shared buffers. A measured zero
+means the encoder emitted no shared segments. Older reports and
+captures with a missing repeat omit the corresponding field. These
+process-wide counters are diagnostic.
+
+```sh
+scripts/devloop.sh --cells rpc.pbrs.unary --repeats 3 --out /tmp/copies.json
+jq '.cells[] | {id, copy_counts}' /tmp/copies.json
+```
+
 Before comparing any cells, `compare` rejects duplicate IDs, blank cell IDs,
 kinds or codecs, zero iteration or repeat counts, and non-finite or negative
 measured values in either report. It
