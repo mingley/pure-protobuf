@@ -98,7 +98,7 @@ impl OutBatch {
         if !item.compressed {
             self.compressed_only = false;
         }
-        let mut guard = SinkEncodeGuard::new(&mut self.sink, &mut self.scratch);
+        let guard = SinkEncodeGuard::new(&mut self.sink, &mut self.scratch);
         guard.sink.prepare_encode();
         let codec = item.compressed.then_some(self.wire.send_codec);
         let hint = FrameBatchHint {
@@ -107,7 +107,7 @@ impl OutBatch {
         };
         if self.closed_upload {
             append_frame_closed_upload(
-                &mut guard.sink,
+                guard.sink,
                 guard.scratch,
                 &item.message,
                 codec,
@@ -117,7 +117,7 @@ impl OutBatch {
             )?;
         } else {
             append_frame_with_ready(
-                &mut guard.sink,
+                guard.sink,
                 guard.scratch,
                 &item.message,
                 codec,
@@ -182,24 +182,19 @@ impl OutBatch {
     }
 }
 
-// Move both mutable ownership and panic cleanup ahead of encoded_len,
-// configured limit checks, codecs and compression. Only committed output
-// returns normally; errors/unwind preserve prior complete frames, while an
-// empty uncharged tail cannot survive in the reusable OutBatch.
+// Successful encodes leave the batch in place. On error or unwind, first
+// move it out so a panic during cleanup still leaves the owner empty.
 struct SinkEncodeGuard<'a> {
-    target: &'a mut SegSink,
-    sink: SegSink,
+    sink: &'a mut SegSink,
     scratch: &'a mut EncodeScratch,
     checkpoint: SinkCheckpoint,
     committed: bool,
 }
 
 impl<'a> SinkEncodeGuard<'a> {
-    fn new(target: &'a mut SegSink, scratch: &'a mut EncodeScratch) -> Self {
-        let sink = std::mem::replace(target, SegSink::new());
+    fn new(sink: &'a mut SegSink, scratch: &'a mut EncodeScratch) -> Self {
         let checkpoint = sink.checkpoint();
         Self {
-            target,
             sink,
             scratch,
             checkpoint,
@@ -208,7 +203,6 @@ impl<'a> SinkEncodeGuard<'a> {
     }
 
     fn commit(mut self) {
-        *self.target = std::mem::replace(&mut self.sink, SegSink::new());
         self.committed = true;
     }
 }
@@ -216,10 +210,11 @@ impl<'a> SinkEncodeGuard<'a> {
 impl Drop for SinkEncodeGuard<'_> {
     fn drop(&mut self) {
         if !self.committed {
+            let mut sink = std::mem::replace(self.sink, SegSink::new());
             self.scratch.discard();
-            self.sink.rollback(&self.checkpoint);
-            if !self.sink.is_empty() {
-                *self.target = std::mem::replace(&mut self.sink, SegSink::new());
+            sink.rollback(&self.checkpoint);
+            if !sink.is_empty() {
+                *self.sink = sink;
             }
         }
     }
