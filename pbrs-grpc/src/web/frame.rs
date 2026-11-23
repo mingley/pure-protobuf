@@ -450,7 +450,8 @@ pub(crate) fn deadline_response(
 /// Stateful gRPC-Web body encoder for `grpc-web-text`.
 #[derive(Default)]
 pub(crate) struct TextEncoder {
-    carry: BytesMut,
+    carry: [u8; 2],
+    carry_len: usize,
 }
 
 impl TextEncoder {
@@ -460,39 +461,62 @@ impl TextEncoder {
 
     /// Copy the bounded raw suffix for a surviving terminal response owner.
     pub(crate) fn carry(&self) -> ([u8; 2], usize) {
-        let len = self.carry.len();
-        assert!(len <= 2, "base64 carry is at most two bytes");
-        let mut bytes = [0; 2];
-        for (output, input) in bytes.iter_mut().zip(self.carry.iter()) {
-            *output = *input;
-        }
-        (bytes, len)
+        (self.carry, self.carry_len)
     }
 
-    fn encode(&mut self, bytes: Bytes, end: bool) -> Option<Bytes> {
-        if self.carry.is_empty() {
-            return encode_text_chunk(bytes, end, &mut self.carry);
-        }
-        self.carry.extend_from_slice(&bytes);
-        let combined = std::mem::take(&mut self.carry).freeze();
-        encode_text_chunk(combined, end, &mut self.carry)
+    fn remember(&mut self, tail: &[u8]) {
+        self.carry = [0; 2];
+        self.carry.split_at_mut(tail.len()).0.copy_from_slice(tail);
+        self.carry_len = tail.len();
     }
-}
 
-fn encode_text_chunk(bytes: Bytes, end: bool, carry: &mut BytesMut) -> Option<Bytes> {
-    let full = if end {
-        bytes.len()
-    } else {
-        bytes.len() / 3 * 3
-    };
-    let (encode, rest) = bytes.split_at(full);
-    if !rest.is_empty() {
-        carry.extend_from_slice(rest);
+    fn encode(&mut self, bytes: Bytes, end: bool) -> Result<Bytes, Status> {
+        let mut input = bytes.as_ref();
+        let mut quantum = [0; 3];
+        let mut prefix_len = 0;
+        if self.carry_len != 0 {
+            // Only the leading quantum spans segments. Encode the rest directly
+            // from its original allocation, even for a multi-megabyte segment.
+            let (saved, mut room) = quantum.split_at_mut(self.carry_len);
+            saved.copy_from_slice(self.carry.split_at(self.carry_len).0);
+            let (join, rest) = input.split_at(room.len().min(input.len()));
+            room.put_slice(join);
+            prefix_len = 3 - room.len();
+            if prefix_len < 3 && !end {
+                self.remember(quantum.split_at(prefix_len).0);
+                return Ok(Bytes::new());
+            }
+            input = rest;
+        }
+
+        let full = if end {
+            input.len()
+        } else {
+            input.len() / 3 * 3
+        };
+        let (body, tail) = input.split_at(full);
+        self.remember(tail);
+        if prefix_len == 0 && body.is_empty() {
+            return Ok(Bytes::new());
+        }
+
+        let prefix_out = if prefix_len == 0 { 0 } else { 4 };
+        let size = base64::encoded_len(body.len(), true)
+            .and_then(|len| len.checked_add(prefix_out))
+            .ok_or_else(|| Status::internal("gRPC-Web base64 output too large"))?;
+        let mut out = vec![0; size];
+        let (first, rest) = out.split_at_mut(prefix_out);
+        let write = |raw: &[u8], dst: &mut [u8]| {
+            TEXT_BASE64
+                .encode_slice(raw, dst)
+                .map_err(|_| Status::internal("gRPC-Web base64 output too small"))
+        };
+        if prefix_len != 0 {
+            write(quantum.split_at(prefix_len).0, first)?;
+        }
+        write(body, rest)?;
+        Ok(out.into())
     }
-    if encode.is_empty() {
-        return None;
-    }
-    Some(TEXT_BASE64.encode(encode).into())
 }
 
 /// Send one gRPC message frame, base64-encoding when this is grpc-web-text.
@@ -507,7 +531,8 @@ pub(crate) async fn send_frame(
         return crate::wire::send_frame(send, frame, false, send_buffer).await;
     }
     for segment in frame.into_segments() {
-        if let Some(encoded) = text.encode(segment, false) {
+        let encoded = text.encode(segment, false)?;
+        if !encoded.is_empty() {
             send_bytes(send, encoded, false, send_buffer).await?;
         }
     }
@@ -526,11 +551,7 @@ pub(crate) async fn send_trailers(
     if !mode.is_text() {
         return send_bytes(send, frame, true, send_buffer).await;
     }
-    if let Some(encoded) = text.encode(frame, true) {
-        send_bytes(send, encoded, true, send_buffer).await
-    } else {
-        send_bytes(send, Bytes::new(), true, send_buffer).await
-    }
+    send_bytes(send, text.encode(frame, true)?, true, send_buffer).await
 }
 
 /// Decode a unary grpc-web-text request body and parse its single message.
@@ -900,6 +921,33 @@ mod tests {
     }
 
     #[test]
+    fn text_encoding_matches_contiguous_base64_at_every_split() {
+        let input = bytes::Bytes::from_static(b"\x00\xfbsmall\xffstream");
+        for len in 0..=input.len() {
+            let raw = input.slice(..len);
+            let expected = STANDARD.encode(&raw);
+            for first in 0..=len {
+                for second in first..=len {
+                    let mut text = TextEncoder::new();
+                    let mut encoded = Vec::new();
+                    for chunk in [raw.slice(..first), raw.slice(first..second)] {
+                        encoded.extend_from_slice(&text.encode(chunk, false).expect("segment"));
+                    }
+                    let (carry, n) = text.carry();
+                    assert_eq!(&carry[..n], &raw[second - second % 3..second]);
+                    encoded.extend_from_slice(
+                        &text
+                            .encode(raw.slice(second..), true)
+                            .expect("last segment"),
+                    );
+                    assert_eq!(encoded, expected.as_bytes(), "{len}/{first}/{second}");
+                    assert_eq!(text.carry(), ([0; 2], 0));
+                }
+            }
+        }
+    }
+
+    #[test]
     fn deadline_text_ending_preserves_each_possible_raw_carry() {
         let status = Status::deadline_exceeded();
         for mode in [Mode::Text, Mode::TextProto] {
@@ -909,11 +957,12 @@ mod tests {
                 frame.put_u32(u32::from(length));
                 frame.extend_from_slice(&[0x61; 3][..usize::from(length)]);
                 let raw = frame.freeze();
-                let mut text = TextEncoder::new();
-                let prefix = text.encode(raw.clone(), false).unwrap_or_default();
-                let (carry, count) = text.carry();
+                let (prefix, (carry, count)) = {
+                    let mut text = TextEncoder::new();
+                    let prefix = text.encode(raw.clone(), false).expect("encode segment");
+                    (prefix, text.carry())
+                };
                 assert_eq!(count, raw.len() % 3);
-                drop(text);
                 let (_, _, ending) = deadline_response(mode, &status, &carry[..count])
                     .expect("deadline resumes the destroyed writer's raw suffix");
                 let mut body = prefix.to_vec();
