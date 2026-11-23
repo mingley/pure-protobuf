@@ -7,7 +7,7 @@
     reason = "bounded independent protocol regression assertions"
 )]
 
-use super::{DeadlineEnding, DeadlineResponse, SendResponse};
+use super::{DataBuf, DeadlineEnding, DeadlineResponse, SendResponse};
 use crate::transport::{SendResponse as _, SendStream as _};
 use bytes::Bytes;
 use http::{HeaderMap, Response};
@@ -48,7 +48,7 @@ fn trailers(status: &str) -> HeaderMap {
 
 struct Peer {
     requests: h2::client::SendRequest<Bytes>,
-    accepted: mpsc::UnboundedReceiver<crate::h2_backend::server::SendResponse<Bytes>>,
+    accepted: mpsc::UnboundedReceiver<crate::h2_backend::server::SendResponse<DataBuf>>,
     server: tokio::task::JoinHandle<()>,
     client: tokio::task::JoinHandle<()>,
     flush: Arc<FlushGate>,
@@ -114,6 +114,10 @@ impl AsyncWrite for GatedIo {
 
 impl Peer {
     async fn new(window: u32) -> Self {
+        Self::with_send_buffer(window, crate::DEFAULT_MAX_SEND_BUFFER_SIZE).await
+    }
+
+    async fn with_send_buffer(window: u32, send_buffer: usize) -> Self {
         let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
         let (accepted_tx, accepted) = mpsc::unbounded_channel();
         let flush = Arc::new(FlushGate {
@@ -126,7 +130,9 @@ impl Peer {
             flush: Arc::clone(&flush),
         };
         let server = tokio::spawn(async move {
-            let mut connection = crate::h2_backend::server::handshake(server_io)
+            let mut connection = crate::h2_backend::server::Builder::new()
+                .max_send_buffer_size(send_buffer)
+                .handshake::<_, DataBuf>(server_io)
                 .await
                 .unwrap();
             let mut requests = Vec::new();
@@ -302,6 +308,11 @@ impl Drop for OwnedBody {
 
 #[tokio::test(flavor = "current_thread")]
 async fn deadline_response_zero_window_keeps_queued_initial_headers_and_drops_owners_unlocked() {
+    zero_window_terminal_discards_queued_body(false).await;
+    zero_window_terminal_discards_queued_body(true).await;
+}
+
+async fn zero_window_terminal_discards_queued_body(pair: bool) {
     let mut peer = Peer::new(0).await;
     let (response, mut respond) = peer.open().await;
     let mut owner = respond.deadline_response().unwrap();
@@ -314,7 +325,13 @@ async fn deadline_response_zero_window_keeps_queued_initial_headers_and_drops_ow
         },
     });
     let mut send = respond.send_response(headers(None), false).unwrap();
-    send.send_data(body, false).unwrap();
+    if pair {
+        send.try_send_pair(Bytes::from_static(b"grpc-prefix"), body, false)
+            .unwrap()
+            .unwrap();
+    } else {
+        send.send_data(body, false).unwrap();
+    }
     drop(send);
     drop(respond);
     // Same-thread synchronous calls have not allowed the driver to flush the
@@ -335,12 +352,24 @@ async fn deadline_response_zero_window_keeps_queued_initial_headers_and_drops_ow
 
 #[tokio::test(flavor = "current_thread")]
 async fn deadline_response_partial_message_discards_inflight_tail_before_error_trailers() {
+    partial_message_terminal_discards_tail(false, DeadlineEnding::Trailers).await;
+    partial_message_terminal_discards_tail(true, DeadlineEnding::Trailers).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn deadline_response_reset_discards_paired_inflight_tail() {
+    partial_message_terminal_discards_tail(true, DeadlineEnding::Reset).await;
+}
+
+async fn partial_message_terminal_discards_tail(pair: bool, ending: DeadlineEnding) {
+    let reset = matches!(ending, DeadlineEnding::Reset);
     let mut peer = Peer::new(4096).await;
     let (response, mut respond) = peer.open().await;
     let mut owner = respond.deadline_response().unwrap();
     let observed = Arc::new(AtomicU8::new(0));
     let mut bytes = vec![b'x'; 16_389];
-    bytes[..5].copy_from_slice(&[0, 0, 0, 64, 0]);
+    const HEADER: [u8; 5] = [0, 0, 0, 64, 0];
+    bytes[..5].copy_from_slice(&HEADER);
     let body = Bytes::from_owner(OwnedBody {
         bytes,
         reenter: Reenter {
@@ -354,18 +383,30 @@ async fn deadline_response_partial_message_discards_inflight_tail_before_error_t
     // This forces the unencoded application tail to remain in flight instead
     // of allowing it to be reclaimed into the ordinary pending queue first.
     peer.flush.pause();
-    send.send_data(body, false).unwrap();
+    if pair {
+        send.try_send_pair(Bytes::from_static(&HEADER), body.slice(5..), false)
+            .unwrap()
+            .unwrap();
+        drop(body);
+    } else {
+        send.send_data(body, false).unwrap();
+    }
     let mut body = response.into_body();
     let first = bounded(body.data()).await.unwrap().unwrap();
     assert_eq!(first.len(), 4096);
-    assert_eq!(&first[..5], &[0, 0, 0, 64, 0]);
+    assert_eq!(&first[..5], &HEADER);
+    assert!(first[5..].iter().all(|byte| *byte == b'x'));
     assert!(peer.flush.blocked.load(Ordering::Acquire));
     assert_eq!(observed.load(Ordering::Acquire), 0);
     // Deliberately retain the receive credit. Only HEADERS can now
     // pass; the rest of the application message must not precede the error.
     drop(send);
     drop(respond);
-    assert!(finish_native(&mut owner).unwrap());
+    assert!(
+        owner
+            .finish(headers(Some("4")), trailers("4"), None, ending)
+            .unwrap()
+    );
     assert_eq!(observed.load(Ordering::Acquire), 0);
     // A codec parked on socket poll_flush owns that DATA frame until the IO
     // waker makes progress. Release only this artificial IO gate; the peer's
@@ -382,13 +423,63 @@ async fn deadline_response_partial_message_discards_inflight_tail_before_error_t
         }
     })
     .await;
-    assert!(bounded(body.data()).await.is_none());
-    let actual_trailers = bounded(body.trailers()).await.unwrap().unwrap();
-    assert_eq!(actual_trailers["grpc-status"], "4");
-    #[cfg(feature = "tonic")]
-    assert_tonic_partial_error_replay(first.clone(), actual_trailers).await;
+    if reset {
+        let error = bounded(body.data()).await.unwrap().unwrap_err();
+        assert_eq!(error.reason(), Some(h2::Reason::CANCEL));
+    } else {
+        assert!(bounded(body.data()).await.is_none());
+        let actual_trailers = bounded(body.trailers()).await.unwrap().unwrap();
+        assert_eq!(actual_trailers["grpc-status"], "4");
+        #[cfg(feature = "tonic")]
+        assert_tonic_partial_error_replay(first.clone(), actual_trailers).await;
+        body.flow_control().release_capacity(first.len()).unwrap();
+    }
     assert_eq!(observed.load(Ordering::Acquire), 1);
+    peer.recover().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn refused_pair_returns_both_owners_and_leaves_stream_open() {
+    let mut peer = Peer::with_send_buffer(32, 8).await;
+    let (response, mut respond) = peer.open().await;
+    let mut send = respond.send_response(headers(None), false).unwrap();
+    send.reserve_capacity(8);
+    send.try_send_data(Bytes::from_static(b"abcde"), false)
+        .unwrap()
+        .unwrap();
+
+    // Neither the peer nor the driver has run since the sentinel was queued.
+    // It occupies five of the eight send-buffer bytes. The four-byte pair
+    // must refuse before changing the reservation or ending the stream.
+    let capacity = send.capacity();
+    assert_eq!(capacity, 3);
+    let prefix = Bytes::from(vec![b'f', b'g']);
+    let payload = Bytes::from(vec![b'h', b'i']);
+    let prefix_ptr = prefix.as_ptr();
+    let payload_ptr = payload.as_ptr();
+    let (prefix, payload) = send.try_send_pair(prefix, payload, true).unwrap_err();
+    assert_eq!(prefix.as_ptr(), prefix_ptr);
+    assert_eq!(payload.as_ptr(), payload_ptr);
+    assert_eq!(send.capacity(), capacity);
+
+    // The first half still fits and demonstrates that the refused END_STREAM
+    // did not close the sender. Once the peer releases credit, send the rest.
+    send.try_send_data(prefix, false).unwrap().unwrap();
+    let mut body = bounded(response).await.unwrap().into_body();
+    let first = bounded(body.data()).await.unwrap().unwrap();
+    assert_eq!(first.as_ref(), b"abcde");
+    assert!(!body.is_end_stream());
     body.flow_control().release_capacity(first.len()).unwrap();
+    send.try_send_data(payload, true).unwrap().unwrap();
+
+    let mut rest = Vec::new();
+    while let Some(chunk) = bounded(body.data()).await {
+        let chunk = chunk.unwrap();
+        rest.extend_from_slice(&chunk);
+        body.flow_control().release_capacity(chunk.len()).unwrap();
+    }
+    assert_eq!(rest, b"fghi");
+    assert!(body.is_end_stream());
     peer.recover().await;
 }
 

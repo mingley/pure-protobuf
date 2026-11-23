@@ -1105,3 +1105,39 @@ async fn replacing_tls_policy_requires_fresh_client_identity() {
     .await;
     echo_every_shape(&fresh_client, "after").await;
 }
+
+#[tokio::test]
+async fn native_tls_unary_round_trips_large_shared_payloads() {
+    use pbrs_grpc::{
+        InteropTestService, Payload, Router, SimpleRequest, TestServiceClient, TestServiceServer,
+    };
+
+    let (addr, listener) = bind().await;
+    let server_tls = ServerTls::new(server_identity()).unwrap();
+    let _guard = ServerGuard(tokio::spawn(async move {
+        Router::new()
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_tls_with_shutdown(listener, std::future::pending(), server_tls)
+            .await
+            .unwrap();
+    }));
+    let tls = ClientTls::ca("localhost", CA.as_bytes()).unwrap();
+    let channel = Channel::connect_tls(addr, tls).await.unwrap();
+    let client = TestServiceClient::new(channel);
+    let mut request = SimpleRequest::new();
+    let mut payload = Payload::new();
+    payload.set_body(bytes::Bytes::from(vec![0x4a; 271_828]));
+    request.set_payload(payload);
+    request.set_response_size(314_159);
+
+    let response = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.unary_call(Request::new(request)),
+    )
+    .await
+    .unwrap()
+    .unwrap()
+    .into_inner();
+    assert_eq!(response.payload().body().len(), 314_159);
+    assert!(response.payload().body().iter().all(|&byte| byte == 0));
+}

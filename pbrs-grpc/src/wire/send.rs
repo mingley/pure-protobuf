@@ -121,11 +121,15 @@ pub(crate) fn send_frame_if_ready(
     }
 }
 
-/// Send one framed message segment by segment (PK-11).
+/// Send one framed message, retaining shared payload segments.
 ///
-/// The concatenated bytes are exactly one gRPC frame; `end` applies to
-/// the last segment only, so trailers (or stream end) still follow the
-/// whole message.
+/// Admit a prefix and one large field together when the send buffer can
+/// hold both. HTTP/2 still splits DATA by the peer's frame and flow limits.
+/// On buffer refusal, send the original pieces using the per-segment path.
+#[expect(
+    clippy::expect_used,
+    reason = "SegFrame's segment count matches its iterator"
+)]
 pub(crate) async fn send_frame(
     send: &mut backend::SendStream,
     frame: SegFrame,
@@ -133,11 +137,62 @@ pub(crate) async fn send_frame(
     send_buffer: usize,
 ) -> Result<(), Status> {
     let total = frame.seg_count();
-    for (i, seg) in frame.into_segments().enumerate() {
+    let len = frame.total_len();
+    let mut segments = frame.into_segments();
+    if total == 2 && len <= send_buffer {
+        let first = segments.next().expect("frame prefix");
+        let second = segments.next().expect("frame payload");
+        let (first, second) = if is_large_message_pair(&first, second.len(), len) {
+            match send.try_send_pair(first, second, end) {
+                Ok(result) => return result.map_err(Status::from_h2_send),
+                Err(pair) => pair,
+            }
+        } else {
+            (first, second)
+        };
+        send_bytes(send, first, false, send_buffer).await?;
+        return send_bytes(send, second, end, send_buffer).await;
+    }
+    for (i, seg) in segments.enumerate() {
         let last = i + 1 == total;
         send_bytes(send, seg, end && last, send_buffer).await?;
     }
     Ok(())
+}
+
+// A short prefix and one large field of a single uncompressed message.
+fn is_large_message_pair(prefix: &[u8], payload_len: usize, len: usize) -> bool {
+    const MAX_PREFIX_LEN: usize = 256;
+    if len > crate::config::DEFAULT_MAX_FRAME_SIZE as usize
+        || prefix.len() > MAX_PREFIX_LEN
+        || payload_len < pbrs::rt::SHARED_SEND_THRESHOLD
+    {
+        return false;
+    }
+    let Some([0, a, b, c, d]) = prefix
+        .first_chunk::<{ crate::codec::HEADER_LEN }>()
+        .copied()
+    else {
+        return false;
+    };
+    let message_len = usize::try_from(u32::from_be_bytes([a, b, c, d]));
+    message_len
+        .is_ok_and(|message_len| message_len.checked_add(crate::codec::HEADER_LEN) == Some(len))
+}
+
+#[test]
+fn two_piece_data_only_groups_one_complete_message_under_the_frame_limit() {
+    let max = crate::config::DEFAULT_MAX_FRAME_SIZE as usize;
+    let prefix = [0, 0, 15, 255, 251];
+    assert!(is_large_message_pair(&prefix, max - 5, max));
+    assert!(!is_large_message_pair(
+        &[0, 0, 15, 255, 252],
+        max - 4,
+        max + 1,
+    ));
+    assert!(!is_large_message_pair(&prefix, max - 6, max - 1));
+    assert!(!is_large_message_pair(&prefix, max - 5, usize::MAX));
+    assert!(!is_large_message_pair(&[0, 0, 0, 4, 0], 1_024, 1_029));
 }
 
 /// `grpc-status: 0` and nothing else, from the trailer pool.

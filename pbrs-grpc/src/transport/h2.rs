@@ -1,13 +1,11 @@
 //! h2-backed implementation of the [`super`] transport seam (H2-02).
 //!
-//! This is the only module that may name `h2::` types. Each newtype fixes
-//! h2's buffer generic to [`Bytes`] and implements the [`super`] trait 1:1,
-//! so the reroute is behavior-preserving by construction. Call sites import
-//! the [`super`] traits for methods and name these types in signatures; a
-//! future native engine (H2-04) re-implements the same traits.
+//! The transport wrappers use a native DATA body that can hold one buffer
+//! or a pair of shared buffers. The HTTP/2 backend applies the peer's DATA
+//! size and flow-control limits before writing each frame.
 
 use crate::bdp;
-use bytes::Bytes;
+use bytes::{Buf, Bytes, buf::Chain};
 use http::{HeaderMap, Request, Response};
 use std::fmt;
 use std::future::Future;
@@ -25,6 +23,7 @@ mod deadline_response_tests;
     reason = "transport buffer regression tests"
 )]
 mod bounded_send_tests {
+    use super::{DataBuf, SendStream};
     use bytes::Bytes;
 
     #[tokio::test]
@@ -67,6 +66,99 @@ mod bounded_send_tests {
         // distinct from a full buffer on the next write.
         assert!(send.try_send_data(Bytes::new(), true).unwrap().is_ok());
         assert!(send.try_send_data(Bytes::new(), false).unwrap().is_err());
+    }
+
+    #[tokio::test]
+    async fn paired_data_respects_peer_limits_and_partial_writes() {
+        use std::time::Duration;
+
+        eprintln!(
+            "native DATA buffer: {} bytes, prior Bytes: {} bytes",
+            std::mem::size_of::<DataBuf>(),
+            std::mem::size_of::<Bytes>(),
+        );
+        const LARGE: usize = 64 * 1024;
+        const PREFIX: &[u8] = b"protobuf prefix";
+        const DEFAULT_LIMIT: u32 = 128 * 1024;
+        const REDUCED_FRAME: u32 = 16 * 1024;
+        const REDUCED_WINDOW: u32 = 8 * 1024;
+        for (window, max_frame) in [
+            (DEFAULT_LIMIT, DEFAULT_LIMIT),
+            (REDUCED_WINDOW, DEFAULT_LIMIT),
+            (DEFAULT_LIMIT, REDUCED_FRAME),
+        ] {
+            let (client_io, server_io) = tokio::io::duplex(113);
+            let server = tokio::spawn(async move {
+                let mut builder = h2::server::Builder::new();
+                builder
+                    .initial_connection_window_size(256 * 1024)
+                    .initial_window_size(window)
+                    .max_frame_size(max_frame);
+                let mut connection = builder.handshake::<_, Bytes>(server_io).await.unwrap();
+                let (_, mut warmup) = connection.accept().await.unwrap().unwrap();
+                warmup.send_response(http::Response::new(()), true).unwrap();
+                let (request, mut respond) = connection.accept().await.unwrap().unwrap();
+                let reader = tokio::spawn(async move {
+                    let mut body = request.into_body();
+                    let mut wire = Vec::new();
+                    let mut sizes = Vec::new();
+                    while let Some(chunk) = body.data().await {
+                        let chunk = chunk.unwrap();
+                        body.flow_control().release_capacity(chunk.len()).unwrap();
+                        wire.extend_from_slice(&chunk);
+                        sizes.push(chunk.len());
+                    }
+                    respond
+                        .send_response(http::Response::new(()), true)
+                        .unwrap();
+                    (wire, sizes)
+                });
+                while connection.accept().await.is_some() {}
+                reader.await.unwrap()
+            });
+            let (requests, connection) = crate::h2_backend::client::Builder::new()
+                .handshake::<_, DataBuf>(client_io)
+                .await
+                .unwrap();
+            let client = tokio::spawn(connection);
+            let mut requests = requests.ready().await.unwrap();
+            let request = || {
+                http::Request::builder()
+                    .uri("http://localhost/paired-data")
+                    .body(())
+                    .unwrap()
+            };
+            let (warmup, _) = requests.send_request(request(), true).unwrap();
+            warmup.await.unwrap();
+            let (response, send) = requests.send_request(request(), false).unwrap();
+            SendStream(send)
+                .try_send_pair(
+                    Bytes::from_static(PREFIX),
+                    Bytes::from(vec![0xb3; LARGE]),
+                    true,
+                )
+                .unwrap()
+                .unwrap();
+            tokio::time::timeout(Duration::from_secs(3), response)
+                .await
+                .unwrap()
+                .unwrap();
+            drop(requests);
+            client.abort();
+            let (wire, sizes) = tokio::time::timeout(Duration::from_secs(3), server)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(wire.len(), PREFIX.len() + LARGE);
+            assert!(wire.starts_with(PREFIX));
+            assert!(wire.iter().skip(PREFIX.len()).all(|byte| *byte == 0xb3));
+            if window == DEFAULT_LIMIT && max_frame == DEFAULT_LIMIT {
+                assert_eq!(sizes, [wire.len()]);
+            } else {
+                assert!(sizes.len() > 1);
+                assert!(sizes.iter().all(|&n| n <= window.min(max_frame) as usize));
+            }
+        }
     }
 }
 
@@ -198,7 +290,70 @@ impl From<Reason> for u32 {
 // ---------------------------------------------------------------------------
 
 /// Outbound half of one stream.
-pub(crate) struct SendStream(crate::h2_backend::SendStream<Bytes>);
+pub(crate) struct SendStream(crate::h2_backend::SendStream<DataBuf>);
+
+enum DataBuf {
+    Single(Bytes),
+    Pair(Box<Chain<Bytes, Bytes>>),
+}
+
+impl fmt::Debug for DataBuf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DataBuf")
+            .field("remaining", &self.remaining())
+            .finish()
+    }
+}
+
+impl Buf for DataBuf {
+    fn remaining(&self) -> usize {
+        match self {
+            Self::Single(bytes) => bytes.remaining(),
+            Self::Pair(pair) => pair.remaining(),
+        }
+    }
+
+    fn chunk(&self) -> &[u8] {
+        match self {
+            Self::Single(bytes) => bytes.chunk(),
+            Self::Pair(pair) => pair.chunk(),
+        }
+    }
+
+    fn advance(&mut self, count: usize) {
+        match self {
+            Self::Single(bytes) => bytes.advance(count),
+            Self::Pair(pair) => pair.advance(count),
+        }
+    }
+
+    fn chunks_vectored<'a>(&'a self, dst: &mut [std::io::IoSlice<'a>]) -> usize {
+        match self {
+            Self::Single(bytes) => bytes.chunks_vectored(dst),
+            Self::Pair(pair) => pair.chunks_vectored(dst),
+        }
+    }
+}
+
+impl SendStream {
+    #[expect(
+        clippy::unreachable,
+        reason = "the backend returns the same DATA variant on refusal"
+    )]
+    pub(crate) fn try_send_pair(
+        &mut self,
+        prefix: Bytes,
+        payload: Bytes,
+        end_of_stream: bool,
+    ) -> Result<Result<(), Error>, (Bytes, Bytes)> {
+        let pair = DataBuf::Pair(Box::new(prefix.chain(payload)));
+        match self.0.try_send_data(pair, end_of_stream) {
+            Ok(result) => Ok(result.map_err(Error)),
+            Err(DataBuf::Pair(pair)) => Err(pair.into_inner()),
+            Err(DataBuf::Single(_)) => unreachable!("rejected DATA returned its original buffer"),
+        }
+    }
+}
 
 impl fmt::Debug for SendStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -222,17 +377,27 @@ impl super::SendStream for SendStream {
     }
 
     fn send_data(&mut self, data: Bytes, end_of_stream: bool) -> Result<(), Error> {
-        self.0.send_data(data, end_of_stream).map_err(Error)
+        self.0
+            .send_data(DataBuf::Single(data), end_of_stream)
+            .map_err(Error)
     }
 
+    #[expect(
+        clippy::unreachable,
+        reason = "the backend returns the same DATA variant on refusal"
+    )]
     fn try_send_data(
         &mut self,
         data: Bytes,
         end_of_stream: bool,
     ) -> Result<Result<(), Error>, Bytes> {
         self.0
-            .try_send_data(data, end_of_stream)
+            .try_send_data(DataBuf::Single(data), end_of_stream)
             .map(|result| result.map_err(Error))
+            .map_err(|data| match data {
+                DataBuf::Single(bytes) => bytes,
+                DataBuf::Pair(_) => unreachable!("rejected DATA returned its original buffer"),
+            })
     }
 
     fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), Error> {
@@ -390,12 +555,12 @@ impl super::FlowControl for FlowControl {
 /// Client handle that opens outbound streams. Cheap to clone.
 #[derive(Clone)]
 pub(crate) struct SendRequest {
-    inner: crate::h2_backend::client::SendRequest<Bytes>,
+    inner: crate::h2_backend::client::SendRequest<DataBuf>,
     recorder: bdp::Recorder,
 }
 
 impl SendRequest {
-    fn new(inner: crate::h2_backend::client::SendRequest<Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::client::SendRequest<DataBuf>) -> Self {
         Self {
             inner,
             recorder: bdp::Recorder::disabled(),
@@ -471,7 +636,7 @@ impl super::SendRequest for SendRequest {
 
 /// Owned request headers awaiting authoritative connection-wide admission.
 pub(crate) struct Admission<'a> {
-    inner: crate::h2_backend::client::SendRequestWhenReady<'a, Bytes>,
+    inner: crate::h2_backend::client::SendRequestWhenReady<'a, DataBuf>,
     recorder: bdp::Recorder,
 }
 
@@ -507,7 +672,7 @@ impl Future for Admission<'_> {
 }
 
 /// Future that resolves to a ready [`SendRequest`].
-pub(crate) struct ReadySendRequest(crate::h2_backend::client::ReadySendRequest<Bytes>);
+pub(crate) struct ReadySendRequest(crate::h2_backend::client::ReadySendRequest<DataBuf>);
 
 impl fmt::Debug for ReadySendRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -559,12 +724,12 @@ impl Future for ResponseFuture {
 
 /// Client connection driver: polled until the connection closes.
 pub(crate) struct ClientConnection<IO> {
-    inner: crate::h2_backend::client::Connection<IO, Bytes>,
+    inner: crate::h2_backend::client::Connection<IO, DataBuf>,
     ping: Option<bdp::Driver>,
 }
 
 impl<IO> ClientConnection<IO> {
-    fn new(inner: crate::h2_backend::client::Connection<IO, Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::client::Connection<IO, DataBuf>) -> Self {
         Self { inner, ping: None }
     }
 
@@ -742,7 +907,7 @@ impl super::ClientBuilder for ClientBuilder {
         let io = Box::new(io);
         async move {
             let (inner_send, inner_conn) =
-                builder.handshake::<IO, Bytes>(*io).await.map_err(Error)?;
+                builder.handshake::<IO, DataBuf>(*io).await.map_err(Error)?;
             let mut send = SendRequest::new(inner_send);
             let mut conn = ClientConnection::new(inner_conn);
             if let Some(config) = adaptive {
@@ -762,11 +927,11 @@ impl super::ClientBuilder for ClientBuilder {
 // ---------------------------------------------------------------------------
 
 /// Server handle that answers one accepted stream.
-pub(crate) struct SendResponse(crate::h2_backend::server::SendResponse<Bytes>);
+pub(crate) struct SendResponse(crate::h2_backend::server::SendResponse<DataBuf>);
 
 /// Service-owned response capability for peer reset and finite deadlines.
 #[derive(Debug)]
-pub(crate) struct DeadlineResponse(crate::h2_backend::server::DeadlineResponse<Bytes>);
+pub(crate) struct DeadlineResponse(crate::h2_backend::server::DeadlineResponse<DataBuf>);
 
 pub(crate) use crate::h2_backend::server::DeadlineEnding;
 
@@ -783,7 +948,12 @@ impl DeadlineResponse {
         post_header: DeadlineEnding,
     ) -> Result<bool, Error> {
         self.0
-            .finish(response, trailers, ending_data, post_header)
+            .finish(
+                response,
+                trailers,
+                ending_data.map(DataBuf::Single),
+                post_header,
+            )
             .map_err(Error)
     }
 }
@@ -830,14 +1000,14 @@ impl super::SendResponse for SendResponse {
 
 /// Server connection driver: accepts streams until the connection closes.
 pub(crate) struct ServerConnection<IO> {
-    inner: crate::h2_backend::server::Connection<IO, Bytes>,
+    inner: crate::h2_backend::server::Connection<IO, DataBuf>,
     recorder: bdp::Recorder,
     ping: Option<bdp::Driver>,
     ping_timed_out: bool,
 }
 
 impl<IO> ServerConnection<IO> {
-    fn new(inner: crate::h2_backend::server::Connection<IO, Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::server::Connection<IO, DataBuf>) -> Self {
         Self {
             inner,
             recorder: bdp::Recorder::disabled(),
@@ -1029,7 +1199,7 @@ impl super::ServerBuilder for ServerBuilder {
         let adaptive = self.adaptive;
         let io = Box::new(io);
         async move {
-            let inner = builder.handshake::<IO, Bytes>(*io).await.map_err(Error)?;
+            let inner = builder.handshake::<IO, DataBuf>(*io).await.map_err(Error)?;
             let mut conn = ServerConnection::new(inner);
             if let Some(config) = adaptive {
                 if let Some(ping_pong) = conn.inner.ping_pong().map(PingPong) {

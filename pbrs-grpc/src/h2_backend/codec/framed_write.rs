@@ -54,6 +54,8 @@ struct Encoder<B> {
     /// Chain payloads bigger than this.
     chain_threshold: usize,
 
+    vectored: bool,
+
     /// Min buffer required to attempt to write a frame
     min_buffer_capacity: usize,
 }
@@ -82,6 +84,9 @@ const CHAIN_THRESHOLD: usize = 4096;
 /// fragmented data being sent, and hereby improve the throughput.
 const CHAIN_THRESHOLD_WITHOUT_VECTORED_IO: usize = 4096;
 
+/// A short protobuf prefix can join the DATA header before the large tail.
+const MAX_VECTORED_PREFIX: usize = 256;
+
 // TODO: Make generic
 impl<T, B> FramedWrite<T, B>
 where
@@ -89,7 +94,8 @@ where
     B: Buf,
 {
     pub fn new(inner: T) -> FramedWrite<T, B> {
-        let chain_threshold = if inner.is_write_vectored() {
+        let vectored = inner.is_write_vectored();
+        let chain_threshold = if vectored {
             CHAIN_THRESHOLD
         } else {
             CHAIN_THRESHOLD_WITHOUT_VECTORED_IO
@@ -105,6 +111,7 @@ where
                 last_data_frame: None,
                 max_frame_size: frame::DEFAULT_MAX_FRAME_SIZE,
                 chain_threshold,
+                vectored,
                 min_buffer_capacity: chain_threshold + frame::HEADER_LEN,
             },
         }
@@ -171,12 +178,7 @@ where
         debug_assert!(self.wants_chain(len));
         let head = v.head();
         head.encode_spare(len, self.encoder.buf.get_mut());
-        if self.encoder.buf.get_ref().remaining() < self.encoder.chain_threshold
-            && v.payload().chunk().len() < v.payload().remaining()
-        {
-            let extra_bytes = self.encoder.chain_threshold - self.encoder.buf.remaining();
-            self.encoder.buf.get_mut().put(v.payload_mut().take(extra_bytes));
-        }
+        self.encoder.copy_data_prefix(v.payload_mut());
         self.encoder.next = Some(Next::Data(v));
     }
 
@@ -375,17 +377,7 @@ where
             // Room for this head was proved by `has_capacity`.
             head.encode_spare(len, self.buf.get_mut());
 
-            // A short header is padded up to `chain_threshold` only when
-            // the payload is several pieces. One contiguous payload is
-            // already a single writev vector beside the header, so
-            // copying its prefix into the header buffer does not
-            // change the number of vectors.
-            if self.buf.get_ref().remaining() < self.chain_threshold
-                && v.payload().chunk().len() < v.payload().remaining()
-            {
-                let extra_bytes = self.chain_threshold - self.buf.remaining();
-                self.buf.get_mut().put(v.payload_mut().take(extra_bytes));
-            }
+            self.copy_data_prefix(v.payload_mut());
 
             // Save the data frame
             self.next = Some(Next::Data(v));
@@ -400,6 +392,27 @@ where
             self.last_data_frame = Some(v);
         }
         Ok(())
+    }
+
+    #[inline]
+    fn copy_data_prefix(&mut self, payload: &mut B) {
+        if self.buf.get_ref().remaining() >= self.chain_threshold {
+            return;
+        }
+        let first = payload.chunk().len();
+        if first == payload.remaining() {
+            return;
+        }
+        let headroom = self.chain_threshold - self.buf.remaining();
+        // For vectored writes, absorbing just the leading protobuf prefix
+        // lets a contiguous large tail use the existing two-slice write.
+        // Preserve the bounded prefill for nonvectored or larger chunks.
+        let copy_len = if self.vectored && first <= MAX_VECTORED_PREFIX {
+            headroom.min(first)
+        } else {
+            headroom
+        };
+        self.buf.get_mut().put(payload.take(copy_len));
     }
 
     fn buffer_headers(&mut self, v: Box<frame::Headers>) -> Result<(), UserError> {
@@ -482,6 +495,96 @@ mod unstable {
     impl<T, B> FramedWrite<T, B> {
         pub fn get_ref(&self) -> &T {
             &self.inner
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "check encoded HTTP/2 bytes and leading-copy lengths"
+)]
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use std::future::poll_fn;
+
+    struct ShortWriter {
+        bytes: Vec<u8>,
+        vectored: bool,
+    }
+
+    impl AsyncWrite for ShortWriter {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            let len = bytes.len().min(11);
+            self.bytes.extend(bytes.iter().take(len));
+            Poll::Ready(Ok(len))
+        }
+
+        fn poll_write_vectored(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            slices: &[IoSlice<'_>],
+        ) -> Poll<io::Result<usize>> {
+            let start = self.bytes.len();
+            self.bytes
+                .extend(slices.iter().flat_map(|slice| slice.iter()).take(11));
+            Poll::Ready(Ok(self.bytes.len() - start))
+        }
+
+        fn is_write_vectored(&self) -> bool {
+            self.vectored
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    #[tokio::test]
+    async fn data_prefill_retains_large_tail_with_a_short_vectored_prefix() {
+        const PREFIX: &[u8] = b"gRPC and protobuf prefix";
+        let tail = Bytes::from(vec![0xab; 12 * 1024]);
+        for optimized in [false, true] {
+            for vectored in [false, true] {
+                for prefix in [b"".as_slice(), PREFIX] {
+                    let io = ShortWriter {
+                        bytes: Vec::new(),
+                        vectored,
+                    };
+                    let mut writer = FramedWrite::new(io);
+                    let body = Bytes::from_static(prefix).chain(tail.clone());
+                    let mut data = frame::Data::new(1_u32.into(), body);
+                    data.set_end_stream(true);
+                    if optimized {
+                        writer.buffer_chained_data(data);
+                    } else {
+                        writer.buffer(Frame::Data(data)).unwrap();
+                    }
+                    let expected_head = if vectored || prefix.is_empty() {
+                        frame::HEADER_LEN + prefix.len()
+                    } else {
+                        CHAIN_THRESHOLD_WITHOUT_VECTORED_IO
+                    };
+                    assert_eq!(writer.encoder.buf.get_ref().len(), expected_head);
+                    poll_fn(|cx| writer.flush(cx)).await.unwrap();
+                    let encoded = &writer.inner.bytes;
+                    let payload = encoded.get(frame::HEADER_LEN..).expect("DATA header");
+                    assert_eq!(encoded.get(4).copied(), Some(1), "END_STREAM");
+                    assert_eq!(payload.len(), prefix.len() + tail.len());
+                    assert!(payload.starts_with(prefix));
+                    assert_eq!(payload.get(prefix.len()..).unwrap(), tail.as_ref());
+                }
+            }
         }
     }
 }
