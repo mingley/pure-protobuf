@@ -9,8 +9,8 @@
 //!
 //! - `carry_*`: `wire::FrameReader::push` extending a straddling frame
 //!   into `carry` (plus regrowth copies, which land here too).
-//! - `chunk_slice_*`: `codec::pop_from_chunk` slicing a whole frame out
-//!   of one DATA chunk. A zero-copy witness, not a copy.
+//! - `chunk_slice_*`: slicing an entire payload out of one DATA chunk.
+//!   A zero-copy witness, not a copy.
 //! - `encode_*`: uncompressed `wire::encode_msg` serializing the message
 //!   straight into the framed buffer. Counts only bytes actually copied;
 //!   shared segments are witnessed under `shared_*` instead.
@@ -142,7 +142,7 @@ pub struct CopyCounts {
     pub carry_calls: u64,
     /// Bytes moved into `carry` (includes `BytesMut` regrowth).
     pub carry_bytes: u64,
-    /// Whole frames sliced out of one chunk (zero-copy path taken).
+    /// Payloads entirely sliced out of one chunk (zero-copy path taken).
     pub chunk_slices: u64,
     /// Payload bytes sliced out of one chunk (never copied).
     pub chunk_slice_bytes: u64,

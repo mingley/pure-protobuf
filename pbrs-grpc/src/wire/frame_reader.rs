@@ -200,6 +200,12 @@ const STAGE_MIN_CHUNK_BYTES: usize = 4 * 1024;
 const MAX_STAGED_CHUNKS: usize = 1024;
 const MAX_RETAINED_SMALL_CARRY_BYTES: usize = 1024 * 1024;
 
+fn shareable_split_payload(payload_len: usize, chunk_len: usize) -> bool {
+    // A small body must not retain a much larger trailing chunk.
+    const MIN_PAYLOAD_BYTES: usize = 4 * 1024;
+    (MIN_PAYLOAD_BYTES..=chunk_len).contains(&payload_len) && chunk_len - payload_len <= payload_len
+}
+
 pub(crate) struct FrameReader {
     pub(crate) chunk: Bytes,
     pub(crate) carry: BytesMut,
@@ -293,6 +299,9 @@ impl FrameReader {
         self.limits.check_decode(payload_len).ok()?;
         let frame_len = codec::HEADER_LEN.checked_add(payload_len)?;
         if frame_len < STAGE_MIN_FRAME_BYTES || self.chunk.len() >= frame_len {
+            return None;
+        }
+        if self.chunk.len() == codec::HEADER_LEN && shareable_split_payload(payload_len, next_len) {
             return None;
         }
         let completes = self.chunk.len().saturating_add(next_len) >= frame_len;
@@ -457,6 +466,19 @@ impl FrameReader {
             .checked_add(payload_len)
             .ok_or_else(|| Status::internal("message too large"))?;
         let needed = frame_len.saturating_sub(self.carry.len());
+        if self.carry.len() == codec::HEADER_LEN
+            && self.carry.first() == Some(&0)
+            && shareable_split_payload(needed, self.chunk.len())
+        {
+            // Only the envelope crossed a DATA boundary. Transfer the body
+            // directly from the remaining chunk.
+            self.carry.clear();
+            crate::copy_counts::note_chunk_slice(needed);
+            return Ok(Some(Frame {
+                compressed: false,
+                payload: self.chunk.split_to(needed),
+            }));
+        }
         let arriving = needed.min(self.chunk.len());
         let observed = self.carry.len() + arriving;
         if self.carry.first() == Some(&1)
@@ -1474,6 +1496,55 @@ mod tests {
         assert_eq!(got.payload.as_ref(), vec![0xCD; 64 * 1024]);
         assert!(reader.next_frame().expect("clean end").is_none());
         reader.finish().expect("no remainder");
+    }
+
+    #[test]
+    fn identity_body_remains_shared_when_only_its_header_spans_data() {
+        let body = vec![0xAB; 256 * 1024 + 9];
+        let wire = framed(&body);
+        for split in 1..=codec::HEADER_LEN {
+            let (header, rest) = wire.split_at(split);
+            let mut last = rest.to_vec();
+            last.extend_from_slice(&framed(b"tail"));
+            let last = Bytes::from(last);
+            let pointer = last.as_ptr().wrapping_add(codec::HEADER_LEN - split);
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            reader.push(Bytes::copy_from_slice(header));
+            assert!(reader.next_frame().expect("initial DATA").is_none());
+            reader.push(last);
+            let first = reader.next_frame().expect("frame").expect("identity");
+            assert!(!first.compressed);
+            assert_eq!(first.payload.as_ptr(), pointer);
+            assert_eq!(first.payload.as_ref(), body);
+            let tail = reader.next_frame().expect("frame").expect("tail");
+            assert_eq!(tail.payload.as_ref(), b"tail");
+            assert_eq!(first.payload.as_ref(), body);
+            reader.finish().expect("complete input");
+        }
+    }
+
+    #[test]
+    fn small_identity_body_is_detached_from_a_large_trailing_chunk() {
+        for len in [16, 4096] {
+            let body = vec![0xAB; len];
+            let wire = framed(&body);
+            let (header, rest) = wire.split_at(codec::HEADER_LEN);
+            let mut last = rest.to_vec();
+            last.extend_from_slice(&framed(&vec![0xBC; 128 * 1024]));
+            let last = Bytes::from(last);
+            let pointer = last.as_ptr();
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            reader.push(Bytes::copy_from_slice(header));
+            assert!(reader.next_frame().expect("initial DATA").is_none());
+            reader.push(last);
+            let first = reader.next_frame().expect("frame").expect("identity");
+            assert_ne!(first.payload.as_ptr(), pointer);
+            assert_eq!(first.payload.as_ref(), body);
+            let tail = reader.next_frame().expect("frame").expect("tail");
+            assert_eq!(tail.payload.len(), 128 * 1024);
+            assert_eq!(first.payload.as_ref(), body);
+            reader.finish().expect("complete input");
+        }
     }
 
     #[test]
