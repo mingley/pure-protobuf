@@ -124,8 +124,8 @@ impl<T: Parse + Default + ClearAndParse> Decoder for ProtobufDecoder<T> {
     type Error = Status;
 
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
-        // One copy into an owned buffer (tonic's), then shared parse with no
-        // pbrs-side copy (PK-09): 2 copies before, 1 after, either branch.
+        // Tonic's DecodeBuf splits and freezes its backing BytesMut. Generated
+        // messages can retain views of large fields in that allocation.
         let n = src.remaining();
         let bytes = src.copy_to_bytes(n);
         Parse::parse_bytes(bytes)
