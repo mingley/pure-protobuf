@@ -67,11 +67,12 @@ receive, and identity send.
 
 Text mode converts the binary body to base64. On current `main` the encoder
 keeps up to two raw bytes between segments and writes directly into the
-encoded output. In ten paired measurements on one pinned logical CPU,
-encoding a segmented 1 MiB body took 13.4% less time. Requested heap
-bytes fell from 2,446,714 to 1,398,104 per body. This measures encoding
-before the HTTP write.
-[Encoder measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262282895/artifacts/14859459977)
+encoded output. On two hosted runners, encoding a segmented 1 MiB body
+took 13.4% and 11.1% less time across ten pairs per runner. Requested
+heap bytes fell from 2,446,714 to 1,398,104 per body on both. The
+six-byte contiguous control kept one allocation and changed by −5.0%
+and +0.3% in elapsed time. These timings end before the HTTP write.
+[Samples and reproduction source](https://github.com/mingley/pure-protobuf/actions/runs/45267765475/artifacts/14864030810)
 
 ## What shipped
 
