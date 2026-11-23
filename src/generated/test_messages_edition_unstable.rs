@@ -2424,15 +2424,17 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
-                if c.optional_foreign_message.wire_bytes().is_none() {
-                    if let ::core::option::Option::Some(m) = c.optional_foreign_message.as_deref() {
-                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                    }
+                if let ::core::option::Option::Some(w) = c.optional_foreign_message.cached_wire() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+                } else if let ::core::option::Option::Some(m) =
+                    c.optional_foreign_message.as_deref()
+                {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
                 }
-                if c.recursive_message.wire_bytes().is_none() {
-                    if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
-                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                    }
+                if let ::core::option::Option::Some(w) = c.recursive_message.cached_wire() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+                } else if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
                 }
                 for t in c.repeated_foreign_message.iter() {
                     n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(t));
@@ -2459,7 +2461,12 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 }
                 if let ::core::option::Option::Some(p) = c.optional_foreign_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 2, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !c.optional_foreign_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) =
                     c.optional_foreign_message.as_deref()
                 {
@@ -2472,7 +2479,12 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 }
                 if let ::core::option::Option::Some(p) = c.recursive_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 4, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !c.recursive_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 4, m.compute_size());
                     m.write_to(out);

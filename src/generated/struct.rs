@@ -1748,15 +1748,15 @@ mod __gen_google_protobuf_struct_proto {
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
-                if c.struct_value.wire_bytes().is_none() {
-                    if let ::core::option::Option::Some(m) = c.struct_value.as_deref() {
-                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                    }
+                if let ::core::option::Option::Some(w) = c.struct_value.cached_wire() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+                } else if let ::core::option::Option::Some(m) = c.struct_value.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
                 }
-                if c.list_value.wire_bytes().is_none() {
-                    if let ::core::option::Option::Some(m) = c.list_value.as_deref() {
-                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                    }
+                if let ::core::option::Option::Some(w) = c.list_value.cached_wire() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+                } else if let ::core::option::Option::Some(m) = c.list_value.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
                 }
             }
             n
@@ -1780,14 +1780,24 @@ mod __gen_google_protobuf_struct_proto {
                 }
                 if let ::core::option::Option::Some(p) = c.struct_value.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 5, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !c.struct_value.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = c.struct_value.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 5, m.compute_size());
                     m.write_to(out);
                 }
                 if let ::core::option::Option::Some(p) = c.list_value.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 6, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !c.list_value.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = c.list_value.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 6, m.compute_size());
                     m.write_to(out);

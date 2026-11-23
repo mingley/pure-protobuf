@@ -155,6 +155,23 @@ impl Wire {
         }
     }
 
+    /// Return a buffer suitable for retaining in a segmented sink. Require the
+    /// window to cover at least a quarter of the logical root input view.
+    /// The caller's Bytes can itself borrow a larger backing allocation.
+    #[inline]
+    pub(crate) fn shared_for_encode(&self) -> Option<&Bytes> {
+        match &self.inner {
+            WireInner::Shared { bytes, root_len }
+                if bytes.len() >= crate::wire::SHARED_SEND_THRESHOLD
+                    && *root_len != u32::MAX
+                    && bytes.len().saturating_mul(4) >= *root_len as usize =>
+            {
+                Some(bytes)
+            }
+            _ => None,
+        }
+    }
+
     /// Build a `Wire` the first time a lazy string/bytes/nested/packed-varint
     /// field needs a stable backing buffer. Scalar-only parses skip this copy.
     #[inline]
@@ -912,6 +929,26 @@ impl<T> LazyMsg<T> {
             .as_ref()
             .and_then(|i| i.wire.as_ref())
             .map(|w| w.as_slice())
+    }
+
+    /// Wire preserved from the parsed field, if it has not been mutated.
+    #[doc(hidden)]
+    #[inline]
+    pub fn cached_wire(&self) -> Option<&Wire> {
+        self.inner.as_ref().and_then(|i| i.wire.as_ref())
+    }
+
+    /// Offer cached, eligible child wire to a shared-capable sink.
+    ///
+    /// The length-delimited header has already been written by the caller.
+    #[doc(hidden)]
+    pub fn put_shared_cached_payload(&self, out: &mut impl crate::WireOut) -> bool {
+        if let Some(bytes) = self.cached_wire().and_then(Wire::shared_for_encode) {
+            out.put_shared(bytes);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_or_insert(&mut self) -> &mut T

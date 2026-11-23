@@ -5156,26 +5156,29 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             if let ::core::option::Option::Some(s) = &self.required_bytes {
                 n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
             }
-            if self.required_nested_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.required_nested_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.required_nested_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.required_nested_message.as_deref()
+            {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.required_foreign_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.required_foreign_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.required_foreign_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.required_foreign_message.as_deref()
+            {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.recursive_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.recursive_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.optional_recursive_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.optional_recursive_message.as_deref()
-                {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.optional_recursive_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) =
+                self.optional_recursive_message.as_deref()
+            {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             if let ::core::option::Option::Some(m) = self.data.as_deref() {
                 n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
@@ -5246,7 +5249,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.required_nested_message.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 18, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.required_nested_message.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.required_nested_message.as_deref()
             {
                 ::pbrs::rt::encode_len_header(out, 18, m.compute_size());
@@ -5254,7 +5262,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.required_foreign_message.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 19, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.required_foreign_message.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.required_foreign_message.as_deref()
             {
                 ::pbrs::rt::encode_len_header(out, 19, m.compute_size());
@@ -5276,14 +5289,26 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.recursive_message.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 27, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.recursive_message.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 27, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.optional_recursive_message.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 28, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self
+                        .optional_recursive_message
+                        .put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) =
                 self.optional_recursive_message.as_deref()
             {
@@ -7629,15 +7654,15 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         #[inline]
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
-            if self.corecursive.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.corecursive.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.optional_corecursive.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.optional_corecursive.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.optional_corecursive.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.optional_corecursive.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             n
         }
@@ -7648,14 +7673,24 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.corecursive.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 2, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.corecursive.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.optional_corecursive.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 3, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.optional_corecursive.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.optional_corecursive.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 3, m.compute_size());
                 m.write_to(out);
@@ -17843,20 +17878,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             if let ::core::option::Option::Some(s) = &self.optional_bytes {
                 n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
             }
-            if self.optional_nested_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.optional_nested_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.optional_nested_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.optional_nested_message.as_deref()
+            {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.optional_foreign_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.optional_foreign_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.optional_foreign_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.optional_foreign_message.as_deref()
+            {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.recursive_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.recursive_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             for t in self.repeated_bytes.iter() {
                 n = n.saturating_add(::pbrs::rt::shared_len_lazy(t));
@@ -17879,10 +17916,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(v));
                 }
             }
-            if self.oneof_nested_message.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.oneof_nested_message.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             if let ::core::option::Option::Some(s) = &self.oneof_bytes {
                 n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
@@ -17902,10 +17939,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             if let ::core::option::Option::Some(s) = &self.default_bytes {
                 n = n.saturating_add(::pbrs::rt::shared_len_lazy(s));
             }
-            if self.message_set_correct.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.message_set_correct.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.message_set_correct.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.message_set_correct.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
                 for t in c.repeated_foreign_message.iter() {
@@ -17976,7 +18013,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.optional_nested_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 18, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.optional_nested_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) =
                     self.optional_nested_message.as_deref()
                 {
@@ -17986,7 +18028,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 if let ::core::option::Option::Some(p) = self.optional_foreign_message.wire_bytes()
                 {
                     ::pbrs::rt::encode_len_header(out, 19, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.optional_foreign_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) =
                     self.optional_foreign_message.as_deref()
                 {
@@ -18009,7 +18056,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.recursive_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 27, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.recursive_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 27, m.compute_size());
                     m.write_to(out);
@@ -18613,7 +18665,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.oneof_nested_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 112, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.oneof_nested_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref()
                 {
                     ::pbrs::rt::encode_len_header(out, 112, m.compute_size());
@@ -18802,7 +18859,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.message_set_correct.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 500, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.message_set_correct.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.message_set_correct.as_deref()
                 {
                     ::pbrs::rt::encode_len_header(out, 500, m.compute_size());
@@ -18869,7 +18931,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.optional_nested_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 18, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.optional_nested_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) =
                     self.optional_nested_message.as_deref()
                 {
@@ -18879,7 +18946,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 if let ::core::option::Option::Some(p) = self.optional_foreign_message.wire_bytes()
                 {
                     ::pbrs::rt::encode_len_header(out, 19, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.optional_foreign_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) =
                     self.optional_foreign_message.as_deref()
                 {
@@ -18902,7 +18974,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.recursive_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 27, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.recursive_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.recursive_message.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 27, m.compute_size());
                     m.write_to(out);
@@ -19243,7 +19320,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.oneof_nested_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 112, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.oneof_nested_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.oneof_nested_message.as_deref()
                 {
                     ::pbrs::rt::encode_len_header(out, 112, m.compute_size());
@@ -19432,7 +19514,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = self.message_set_correct.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 500, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !self.message_set_correct.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = self.message_set_correct.as_deref()
                 {
                     ::pbrs::rt::encode_len_header(out, 500, m.compute_size());
@@ -22706,10 +22793,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         #[inline]
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
-            if self.sub_msg.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.sub_msg.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.sub_msg.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.sub_msg.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             n
         }
@@ -22720,7 +22807,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.sub_msg.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 10, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.sub_msg.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.sub_msg.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 10, m.compute_size());
                 m.write_to(out);
@@ -23638,10 +23730,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         #[inline]
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
-            if self.corecursive.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.corecursive.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             n
         }
@@ -23652,7 +23744,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             }
             if let ::core::option::Option::Some(p) = self.corecursive.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 2, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.corecursive.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.corecursive.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
@@ -24457,65 +24554,90 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         #[inline]
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
-            if self.a1.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.a1.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.a1.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.a1.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.a2.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.a2.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.a2.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.a2.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.a3.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.a3.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.a3.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.a3.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.a4.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.a4.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.a4.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.a4.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
-            if self.a5.wire_bytes().is_none() {
-                if let ::core::option::Option::Some(m) = self.a5.as_deref() {
-                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                }
+            if let ::core::option::Option::Some(w) = self.a5.cached_wire() {
+                n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+            } else if let ::core::option::Option::Some(m) = self.a5.as_deref() {
+                n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
             }
             n
         }
         pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if let ::core::option::Option::Some(p) = self.a1.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 1, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.a1.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.a1.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 1, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.a2.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 2, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.a2.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.a2.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.a3.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 3, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.a3.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.a3.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 3, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.a4.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 4, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.a4.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.a4.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 4, m.compute_size());
                 m.write_to(out);
             }
             if let ::core::option::Option::Some(p) = self.a5.wire_bytes() {
                 ::pbrs::rt::encode_len_header(out, 5, p.len() as u64);
-                out.extend_from_slice(p);
+                if !out.supports_shared()
+                    || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                    || !self.a5.put_shared_cached_payload(out)
+                {
+                    out.extend_from_slice(p);
+                }
             } else if let ::core::option::Option::Some(m) = self.a5.as_deref() {
                 ::pbrs::rt::encode_len_header(out, 5, m.compute_size());
                 m.write_to(out);
@@ -26998,10 +27120,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn __pbrs_shared_bytes_len(&self) -> usize {
             let mut n = 0usize;
             if let ::core::option::Option::Some(c) = self.cold.as_deref() {
-                if c.nested_message.wire_bytes().is_none() {
-                    if let ::core::option::Option::Some(m) = c.nested_message.as_deref() {
-                        n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
-                    }
+                if let ::core::option::Option::Some(w) = c.nested_message.cached_wire() {
+                    n = n.saturating_add(::pbrs::rt::shared_len_wire(w));
+                } else if let ::core::option::Option::Some(m) = c.nested_message.as_deref() {
+                    n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
                 }
                 if let ::core::option::Option::Some(m) = c.optionalgroup.as_deref() {
                     n = n.saturating_add(::pbrs::Serialize::shared_bytes_len(m));
@@ -27020,7 +27142,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 }
                 if let ::core::option::Option::Some(p) = c.nested_message.wire_bytes() {
                     ::pbrs::rt::encode_len_header(out, 1003, p.len() as u64);
-                    out.extend_from_slice(p);
+                    if !out.supports_shared()
+                        || p.len() < ::pbrs::rt::SHARED_SEND_THRESHOLD
+                        || !c.nested_message.put_shared_cached_payload(out)
+                    {
+                        out.extend_from_slice(p);
+                    }
                 } else if let ::core::option::Option::Some(m) = c.nested_message.as_deref() {
                     ::pbrs::rt::encode_len_header(out, 1003, m.compute_size());
                     m.write_to(out);

@@ -356,7 +356,7 @@ pub(crate) fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
-                "        if let ::core::option::Option::Some(p) = {fld}.wire_bytes() {{ {runtime}::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ {runtime}::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}"
+                "        if let ::core::option::Option::Some(p) = {fld}.wire_bytes() {{ {runtime}::rt::encode_len_header(out, {num}, p.len() as u64); if !out.supports_shared() || p.len() < {runtime}::rt::SHARED_SEND_THRESHOLD || !{fld}.put_shared_cached_payload(out) {{ out.extend_from_slice(p); }} }} else if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ {runtime}::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}"
             );
         } else {
             let _ = writeln!(
@@ -585,7 +585,7 @@ pub(crate) fn emit_shared_size(src: &mut String, f: &FieldDescriptor, p: &str) {
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
-                "        if {fld}.wire_bytes().is_none() {{ if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(m)); }} }}"
+                "        if let ::core::option::Option::Some(w) = {fld}.cached_wire() {{ n = n.saturating_add({runtime}::rt::shared_len_wire(w)); }} else if let ::core::option::Option::Some(m) = {fld}.as_deref() {{ n = n.saturating_add({runtime}::Serialize::shared_bytes_len(m)); }}"
             );
         } else {
             let _ = writeln!(

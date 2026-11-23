@@ -602,6 +602,13 @@ pub fn encode_len_field_shared(
     out.extend_from_slice(field.as_bytes());
 }
 
+/// Cached child payload bytes retained by a shared sink.
+#[doc(hidden)]
+#[inline]
+pub fn shared_len_wire(wire: &crate::lazy::Wire) -> usize {
+    wire.shared_for_encode().map_or(0, Bytes::len)
+}
+
 /// Encode an eager Bytes-backed field, retaining large buffers on shared sinks.
 #[doc(hidden)]
 #[inline(always)]
@@ -1094,6 +1101,43 @@ mod tests {
         };
         encode_len_field_shared(&mut rec, 2, &shared);
         assert_eq!(rec.shared_calls, 1);
+    }
+
+    #[test]
+    fn cached_child_wire_only_shares_large_nonsparse_windows() {
+        use crate::lazy::Wire;
+
+        let n = SHARED_SEND_THRESHOLD;
+        let input = Bytes::from(vec![42; 4 * n + 1]);
+        let root = Wire::from_bytes(input.slice(..4 * n));
+        let oversized_root = Wire::from_bytes(input.clone());
+        let shared = root.window(1, n + 1);
+        let small = root.window(1, n);
+        let sparse = oversized_root.window(1, n + 1);
+        let private = Wire::from_slice(shared.as_slice());
+
+        assert_eq!(
+            shared.shared_for_encode().map(|bytes| bytes.as_ptr()),
+            Some(shared.as_slice().as_ptr()),
+        );
+        for (wire, retained) in [(&shared, n), (&small, 0), (&sparse, 0), (&private, 0)] {
+            let mut sink = Recorder {
+                bytes: Vec::new(),
+                shared_calls: 0,
+                shared_bytes: 0,
+            };
+            let child = crate::lazy::LazyMsg::<()>::from_wire(wire.clone());
+            let shared = child.put_shared_cached_payload(&mut sink);
+            assert_eq!(shared, retained != 0);
+            assert_eq!(shared_len_wire(wire), retained);
+            assert_eq!(sink.shared_bytes, retained);
+
+            if shared {
+                assert_eq!(sink.bytes, wire.as_slice());
+            } else {
+                assert!(sink.bytes.is_empty());
+            }
+        }
     }
 
     // --- PK-04 SIMD varint differential tests ---

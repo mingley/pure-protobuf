@@ -32,7 +32,9 @@ pub use crate::wire::{
     encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, read_len_span,
     skip_field, skip_field_with_depth, skip_field_with_number_and_depth, tag_len, varint_len,
 };
-pub use crate::wire::{encode_proto_bytes_field_shared, shared_len_lazy, shared_len_proto};
+pub use crate::wire::{
+    encode_proto_bytes_field_shared, shared_len_lazy, shared_len_proto, shared_len_wire,
+};
 pub use bytes::Bytes;
 
 /// Encoded-size cache (C++ `cached_size_`). Ignored by `PartialEq`.
