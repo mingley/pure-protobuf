@@ -16,8 +16,8 @@ data. Fragment reassembly can copy again if its buffer grows.
 | Layer | Send | Receive |
 |---|---|---|
 | Generated protobuf message | The encoder can share a `Bytes` field of 32 KiB or more with a segmented sink. | Large `bytes` fields of 4 KiB or more can borrow the parsed wire buffer. |
-| gRPC framing | The prefix and a shared field can be separate segments. | A complete frame can be sliced from one DATA chunk. On current `main`, a separate five-byte envelope can also precede a shared body. |
-| HTTP/2 | Vectored writes can send a shared payload directly. | DATA frames are sliced from the read buffer. |
+| gRPC framing | The encoder keeps the envelope and protobuf prefix separate from a large shared field. | The reader slices a complete frame from one DATA chunk. It can also share a body following a separate five-byte envelope. |
+| HTTP/2 | On vectored transports, the writer can send the prefix and shared field together without copying the field. | The receiver slices DATA frames from the read buffer. |
 | TLS | The provider copies plaintext into its record buffer for encryption. | The transport copies decrypted plaintext out of rustls. |
 
 When the envelope arrives separately, the native reader shares an uncompressed
@@ -28,18 +28,26 @@ went from 314,159 copied bytes to five. The intact and fragmented controls
 kept their original copy counts.
 [Receive measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262277747/artifacts/14860742209)
 
-In a stock native-to-native large-unary comparison of `05e96639` and
-`7a9fc6d7`, the first DATA also contains the protobuf prefix. Across 512
-measured calls per build,
-the sender shared the 271,828-byte request field and 314,159-byte response
-field. The receiving deframers still copied 271,840 and 314,167 bytes per
-call, respectively. Empty and small unary calls copied zero bytes into
-reassembly storage.
-[Normal endpoint copy counts](https://github.com/mingley/pure-protobuf/actions/runs/45264452704/artifacts/14862755784)
+The native sender can put the prefix and one large field in the same HTTP/2
+DATA frame. This applies to an uncompressed message in two buffers. The prefix
+can be up to 256 bytes, the field must be at least 32 KiB, and the framed
+message must fit the configured send buffer and be at most 1 MiB. Pairing
+allocates a small descriptor that holds both buffer owners. The peer's
+maximum frame size and available flow-control credit determine how much can
+travel in one DATA frame.
+
+On ordinary loopback TCP with default native settings, the generated client
+sent a 271,828-byte field and received a 314,159-byte field. Across 512 calls
+per build, request reassembly fell from 271,840 bytes to zero per call and
+response reassembly fell from 314,167 bytes to zero. The vectored writer
+copied just the 17-byte request prefix and the 13-byte response prefix.
+A smaller peer window or frame limit still split the message across DATA
+frames. An 8 KiB send buffer used the per-segment path.
+[Paired copy counts and peer-limit controls](https://github.com/mingley/pure-protobuf/actions/runs/45267810626/artifacts/14863238453)
 
 ### Forwarding a nested message
 
-On current `main`, a generated encoder can forward the cached wire bytes of
+A generated encoder can forward the cached wire bytes of
 a singular nested message to a segmented sink. The child must occupy at
 least 32 KiB and at least a quarter of the logical input buffer passed to
 `parse_bytes`. Mutating the child makes the encoder serialize its fields.
@@ -65,7 +73,7 @@ receive, and identity send.
 
 ### gRPC-Web text
 
-Text mode converts the binary body to base64. On current `main` the encoder
+Text mode converts the binary body to base64. The encoder
 keeps up to two raw bytes between segments and writes directly into the
 encoded output. On two hosted runners, encoding a segmented 1 MiB body
 took 13.4% and 11.1% less time across ten pairs per runner. Requested
@@ -149,36 +157,23 @@ Each step had to prove itself on measurements before it could merge.
 | Idea | Result | Why it was dropped |
 |---|---|---|
 | Reserve the whole message buffer up front when a message arrives in pieces | 5× less copying in isolation, but **18% slower** end to end at 8 MiB | Slower in practice; the reader waited longer on the socket. [PK-09 evidence](evidence/pk09-zero-copy.md#what-was-reverted-1a-and-why) |
-| Ask peers for very large HTTP/2 frames (16 MiB) | No faster, slightly slower | The 5-byte gRPC header usually arrives separately from the body, so the message still arrives in pieces. [PK-10 gate](evidence/pk10-gate.md) |
+| Ask peers for very large HTTP/2 frames (16 MiB) | No faster, slightly slower | The sender in that test emitted the envelope separately. Raising the limit alone left the message in pieces. [PK-10 gate](evidence/pk10-gate.md) |
 | Parse messages that arrive in pieces without joining them first | Not built | The copy it would remove costs only 1.9–2.8% of server CPU. The bar was 5%. [PK-10 gate](evidence/pk10-gate.md) |
 
 ## What is still open
 
-- **TLS copies.** One copy each way happens inside TLS. Removing it needs
-  either kernel TLS (task card RX-05) or a TLS provider that encrypts from the
-  caller's buffer straight into the output. The TLS provider benchmark is task
-  card RX-04. Upstream work in this area includes
-  [rustls/rustls#3292](https://github.com/rustls/rustls/pull/3292) and
-  [aws/aws-lc-rs#1241](https://github.com/aws/aws-lc-rs/issues/1241). Neither
-  helps `pbrs-grpc` today: it uses the Graviola provider, not aws-lc-rs, and
-  Graviola always copies before it encrypts.
-- **Messages that arrive in pieces.** Revisit only if new measurements (for
-  example over a real network, not loopback) show the joining copy above 5% of
-  CPU.
-- **Qualified measurements.** The numbers above come from one shared laptop.
-  Published claims need the separate-host protocol in the
-  [benchmark contract](benchmark-contract.md).
-
-## Why not wait for tonic?
-
-tonic's proposed buffer-chain change,
-[grpc/grpc-rust#1559](https://github.com/grpc/grpc-rust/pull/1559), was closed
-without merging on 2025-06-20. Even if it lands, prost `bytes` fields must be
-one contiguous `Vec<u8>` or `Bytes`, so a large field that arrives in pieces
-would still be copied. pbrs can do better because it owns both the message
-runtime and the transport.
+- **TLS copies.** The built-in Graviola provider copies plaintext into a
+  record before encryption. Rustls returns decrypted plaintext through a read
+  buffer. RX-04 tracks provider benchmarks and RX-05 tracks kernel TLS.
+  [rustls buffer discussion](https://github.com/rustls/rustls/pull/3292)
+- **Fragmented messages.** When the peer's DATA limit or flow-control window
+  splits the payload, the parser still needs contiguous bytes for each field.
+- **Qualified measurements.** The table under “What shipped” uses one laptop.
+  The newer copy counts and timings use hosted Linux runners. The
+  [benchmark contract](benchmark-contract.md) describes separate-host qualification.
 
 ## More detail
 
-- Original design and gates: [zero-copy plan](plan/pbrs-zero-copy-large-payloads-plan.md)
-- Baseline before any change: [large-payload baseline](evidence/large-payload-baseline.md)
+- [Historical Tonic buffer-chain proposal](https://github.com/grpc/grpc-rust/pull/1559)
+- [Original zero-copy design and measurement plan](plan/pbrs-zero-copy-large-payloads-plan.md)
+- [Original large-payload baseline](evidence/large-payload-baseline.md)

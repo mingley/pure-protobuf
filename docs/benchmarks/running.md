@@ -17,7 +17,8 @@ cargo run --locked --release --manifest-path rpc-bench/Cargo.toml -- \
   smoke --quick --output "$bench_output/quick.json"
 ```
 
-This runs both stacks in one process and prints its tables and gate results.
+Omit `--quick` to run the standard smoke benchmark. Both modes run the
+native and Tonic stacks in one process and print the tables and gate results.
 It saves the report even when a fairness or performance gate returns a failure.
 Short smoke timings are diagnostics; inspect the failing rows before drawing a
 performance conclusion.

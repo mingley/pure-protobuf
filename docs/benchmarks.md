@@ -1,5 +1,6 @@
 # Benchmarks
 
+[Native gRPC throughput and latency, November 23](benchmarks/native-data-20261123.md) ·
 [v0.2.2 codec and RPC results](benchmarks/release-v0.2.2.md) ·
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)

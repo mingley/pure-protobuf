@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Send an eligible native protobuf prefix and large shared field in one HTTP/2
+  DATA frame when the peer permits. A vectored write copies only the prefix.
 - Share the native receive buffer when only the gRPC envelope crosses a DATA
   boundary and the identity body meets the size and retention thresholds.
 - Encode segmented gRPC-Web text responses into their final base64 buffer,
