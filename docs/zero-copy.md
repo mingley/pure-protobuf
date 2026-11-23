@@ -1,48 +1,50 @@
 # Zero-copy for large payloads
 
-The native `pbrs-grpc` transport can share large `bytes` fields on receive
-and send. Use current generated code and uncompressed messages to take
-advantage of both paths. The measurements below come from one development
-machine and are diagnostic evidence, not published performance claims.
+The native `pbrs-grpc` transport can send and receive a large `bytes`
+field without copying its contents in user space. Use a generated message,
+a `Bytes` backing buffer and identity compression. On receive, the layout
+of the incoming HTTP/2 DATA also matters.
 
-This page explains, layer by layer, where a large payload is copied today, what
-changed, what was tried and rejected, and what is still open.
+## Where the payload is copied
 
-## Who this is for
-
-Services that move large binary blobs over gRPC, for example one message with a
-few small fields and one 1–8 MiB `bytes` field, sent unary or streamed. For
-small messages, start with allocation and CPU profiles before changing copy
-behavior.
-
-## Where copies happen today
-
-The table counts stages that copy payload bytes, excluding the kernel's
-socket copy. It describes one large `bytes` field with compression disabled.
-Reassembly buffer growth can copy bytes again, so these stage counts are
-not exact `memcpy` call or byte totals. Use the `copy-counts` instrumentation
-and [copy evidence](evidence/pk09-zero-copy.md) when measuring an operation.
-
-### Native transport (`pbrs-grpc`)
+The table describes a large `bytes` field over native gRPC. It counts
+user-space stages that copy payload data. The kernel still moves socket
+data. Fragment reassembly can copy again if its buffer grows.
 
 | Layer | Send | Receive |
 |---|---|---|
-| Protobuf encode / parse | **0** for `bytes` fields of 32 KiB or more that you set from `bytes::Bytes` | **0** for `bytes` fields of 4 KiB or more |
-| gRPC message framing | 0 | **1**, when the message arrives in more than one piece (usual for large messages) |
-| HTTP/2 (`h2`) | 0: payloads are sliced and sent with vectored writes, not copied | 0: frames are sliced out of the read buffer |
-| TLS (rustls + Graviola) | 1 (the TLS provider copies plaintext into its record buffer, then encrypts) | 1 (decrypted data is copied out of rustls) |
-| **Total, plaintext (h2c)** | **0** | **1** |
-| **Total, TLS** | **1** | **2** |
+| Generated protobuf message | The encoder can share a `Bytes` field of 32 KiB or more with a segmented sink. | Large `bytes` fields of 4 KiB or more can borrow the parsed wire buffer. |
+| gRPC framing | The prefix and a shared field can be separate segments. | A complete frame can be sliced from one DATA chunk. On current `main`, a separate five-byte envelope can also precede a shared body. |
+| HTTP/2 | Vectored writes can send a shared payload directly. | DATA frames are sliced from the read buffer. |
+| TLS | The provider copies plaintext into its record buffer for encryption. | The transport copies decrypted plaintext out of rustls. |
 
-### tonic adapter (`protobuf-tonic`)
+When the envelope arrives separately, the native reader shares an uncompressed
+body of at least 4 KiB that occupies at least half the remaining DATA chunk.
+If payload bytes span DATA chunks, the reader assembles a contiguous body.
+In a native TCP test with a 314,159-byte response, the split-envelope case
+went from 314,159 copied bytes to five. The intact and fragmented controls
+kept their original copy counts.
+[Receive measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262277747/artifacts/14860742209)
 
-| Layer | Send | Receive |
-|---|---|---|
-| tonic buffers | 1 (tonic's encode buffer) | 1 (tonic joins each message into one buffer) |
-| pbrs parse | n/a | 0 (was 1 before this work) |
+### Tonic adapter
 
-tonic's codec API requires one contiguous buffer per message. That is why the
-adapter cannot remove tonic's own copy. For the fewest copies, use `pbrs-grpc`.
+Tonic 0.14 assembles the incoming message and decompresses it when needed.
+The adapter splits and freezes Tonic's decode buffer. Large generated string,
+bytes and nested bytes fields can keep that same allocation alive after
+the stream is dropped. On send, generated encoders write directly into
+Tonic's contiguous output buffer. Verification covers identity and gzip
+receive, and identity send.
+[Codec ownership tests](../protobuf-tonic/tests/codec_buffers.rs)
+
+### gRPC-Web text
+
+Text mode converts the binary body to base64. On current `main` the encoder
+keeps up to two raw bytes between segments and writes directly into the
+encoded output. In ten paired measurements on one pinned logical CPU,
+encoding a segmented 1 MiB body took 13.4% less time. Requested heap
+bytes fell from 2,446,714 to 1,398,104 per body. This measures encoding
+before the HTTP write.
+[Encoder measurements](https://github.com/mingley/pure-protobuf/actions/runs/45262282895/artifacts/14859459977)
 
 ## What shipped
 
@@ -85,9 +87,9 @@ slice to copy just the payload instead. Empty moved vectors release their
 allocation.
 
 ```rust
-let blob = pbrs::rt::Bytes::from(load_blob()); // your data, no copy after this
+let blob = pbrs::rt::Bytes::from(load_blob());
 let mut msg = BlobChunk::new();
-msg.set_data(blob.clone()); // stores a reference, not a copy
+msg.set_data(blob); // transfers ownership of the buffer
 ```
 
 To parse a buffer you already hold as `Bytes`:
